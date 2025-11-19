@@ -206,6 +206,43 @@ class LoadAwareServerSelectionTest {
         assertTrue(config.isLoadAwareSelectionEnabled(), 
             "Load-aware selection should be enabled by default");
     }
+    
+    @Test
+    void testLoadAwareFallsBackToRoundRobinWhenAllCountsEqual() throws SQLException {
+        // Create manager with load-aware selection enabled
+        MultinodeConnectionManager manager = new MultinodeConnectionManager(
+            endpoints, 3, 1000, loadAwareConfig, connectionTracker
+        );
+        
+        // Don't simulate any connections - ConnectionTracker is empty
+        // All servers have count = 0
+        
+        // Make multiple selections - should use round-robin since all are equal
+        Map<String, Integer> selectionCounts = new HashMap<>();
+        for (int i = 0; i < 30; i++) {
+            ServerEndpoint selected = manager.affinityServer(null);
+            assertNotNull(selected);
+            selectionCounts.merge(selected.getAddress(), 1, Integer::sum);
+        }
+        
+        // With round-robin fallback, all servers should be selected approximately equally
+        int server1Selections = selectionCounts.getOrDefault("server1:1059", 0);
+        int server2Selections = selectionCounts.getOrDefault("server2:1059", 0);
+        int server3Selections = selectionCounts.getOrDefault("server3:1059", 0);
+        
+        // Each should be selected approximately 10 times (30 / 3 servers)
+        assertTrue(Math.abs(server1Selections - 10) <= 3,
+            "Server1 selections should be ~10 when using round-robin fallback, got " + server1Selections);
+        assertTrue(Math.abs(server2Selections - 10) <= 3,
+            "Server2 selections should be ~10 when using round-robin fallback, got " + server2Selections);
+        assertTrue(Math.abs(server3Selections - 10) <= 3,
+            "Server3 selections should be ~10 when using round-robin fallback, got " + server3Selections);
+        
+        // Verify all servers were actually selected (not just one)
+        assertTrue(server1Selections > 0, "Server1 should be selected at least once");
+        assertTrue(server2Selections > 0, "Server2 should be selected at least once");
+        assertTrue(server3Selections > 0, "Server3 should be selected at least once");
+    }
 
     /**
      * Helper method to simulate multiple connections on a server.

@@ -600,6 +600,10 @@ public class MultinodeConnectionManager {
      * This provides automatic load balancing by directing new connections
      * to the least-loaded server.
      * 
+     * When all servers have equal connection counts (e.g., in non-XA mode where 
+     * ConnectionTracker is empty), falls back to true round-robin selection to 
+     * ensure proper load distribution.
+     * 
      * @param healthyServers List of healthy servers to choose from
      * @return The server with the lowest connection count
      */
@@ -611,18 +615,30 @@ public class MultinodeConnectionManager {
         // Get current connection counts per server
         Map<ServerEndpoint, Integer> connectionCounts = connectionTracker.getCounts();
         
-        // Find server with minimum connections (defaults to 0 if not in map)
+        // Check if all servers have the same count (including when tracker is empty)
+        boolean allEqual = true;
+        Integer firstCount = null;
+        for (ServerEndpoint server : healthyServers) {
+            int count = connectionCounts.getOrDefault(server, 0);
+            if (firstCount == null) {
+                firstCount = count;
+            } else if (firstCount != count) {
+                allEqual = false;
+                break;
+            }
+        }
+        
+        // If all counts are equal, use true round-robin instead of load-aware
+        if (allEqual) {
+            log.debug("All servers have equal load ({}), using round-robin selection", firstCount);
+            return selectByRoundRobin(healthyServers);
+        }
+        
+        // Find server with minimum connections
         ServerEndpoint selected = healthyServers.stream()
                 .min((s1, s2) -> {
                     int count1 = connectionCounts.getOrDefault(s1, 0);
                     int count2 = connectionCounts.getOrDefault(s2, 0);
-                    // If counts are equal, use round-robin as tie-breaker for fairness
-                    if (count1 == count2) {
-                        return Integer.compare(
-                            healthyServers.indexOf(s1),
-                            healthyServers.indexOf(s2)
-                        );
-                    }
                     return Integer.compare(count1, count2);
                 })
                 .orElse(healthyServers.get(0));
