@@ -186,12 +186,38 @@ public class MultinodeConnectionManager {
     }
     
     /**
-     * Performs health check on unhealthy servers.
-     * If any servers have recovered, notifies listeners and triggers redistribution.
+     * Performs health check on all servers.
+     * - For XA mode: Proactively checks healthy servers and invalidates sessions when they fail
+     * - For all modes: Checks unhealthy servers to see if they've recovered
      */
     private void performHealthCheck() {
-        log.debug("Performing health check on unhealthy servers");
+        log.debug("Performing health check on servers");
         
+        // XA Mode: Proactively check healthy servers to detect failures early
+        // This ensures sessions are invalidated even if no active operations are hitting the server
+        if (xaConnectionRedistributor != null) {
+            List<ServerEndpoint> healthyServers = serverEndpoints.stream()
+                    .filter(ServerEndpoint::isHealthy)
+                    .collect(Collectors.toList());
+            
+            for (ServerEndpoint endpoint : healthyServers) {
+                if (!validateServer(endpoint)) {
+                    log.info("XA Health check: Server {} has become unhealthy", endpoint.getAddress());
+                    
+                    // Mark server unhealthy
+                    endpoint.setHealthy(false);
+                    endpoint.setLastFailureTime(System.currentTimeMillis());
+                    
+                    // XA Mode: Immediately invalidate sessions and connections for the failed server
+                    invalidateSessionsAndConnectionsForFailedServer(endpoint);
+                    
+                    // Notify listeners
+                    notifyServerUnhealthy(endpoint, new Exception("Health check failed"));
+                }
+            }
+        }
+        
+        // Check unhealthy servers to see if they've recovered
         List<ServerEndpoint> unhealthyServers = serverEndpoints.stream()
                 .filter(endpoint -> !endpoint.isHealthy())
                 .collect(Collectors.toList());
