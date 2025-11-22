@@ -40,7 +40,7 @@ public class MultinodeConnectionManager {
     
     private static final Logger log = LoggerFactory.getLogger(MultinodeConnectionManager.class);
     private static final String DNS_PREFIX = "dns:///";
-    
+
     private final List<ServerEndpoint> serverEndpoints;
     private final Map<ServerEndpoint, ChannelAndStub> channelMap;
     private final Map<String, ServerEndpoint> sessionToServerMap; // sessionUUID -> server
@@ -107,10 +107,11 @@ public class MultinodeConnectionManager {
         for (ServerEndpoint endpoint : serverEndpoints) {
             try {
                 createChannelAndStub(endpoint);
+                endpoint.markHealthy();
                 log.debug("Successfully initialized connection to {}", endpoint.getAddress());
             } catch (Exception e) {
                 log.warn("Failed to initialize connection to {}: {}", endpoint.getAddress(), e.getMessage());
-                endpoint.setHealthy(false);
+                endpoint.markUnhealthy();
                 endpoint.setLastFailureTime(System.currentTimeMillis());
             }
         }
@@ -199,7 +200,6 @@ public class MultinodeConnectionManager {
         if (xaConnectionRedistributor != null) {
             List<ServerEndpoint> healthyServers = serverEndpoints.stream()
                     .filter(ServerEndpoint::isHealthy)
-                    .filter(endpoint -> endpoint.getLastFailureTime() > 0)  // Skip never-connected servers
                     .collect(Collectors.toList());
             
             for (ServerEndpoint endpoint : healthyServers) {
@@ -529,8 +529,7 @@ public class MultinodeConnectionManager {
             
             log.info("Connecting to server {} (XA) with datasource '{}'", 
                     selectedServer.getAddress(), selectedServerDataSource);
-            SessionInfo sessionInfo = channelAndStub.blockingStub.connect(connectionDetails);
-            
+            SessionInfo sessionInfo = withSelectedServer(channelAndStub.blockingStub.connect(connectionDetails), selectedServer);
             // Mark server as healthy
             selectedServer.setHealthy(true);
             selectedServer.setLastFailureTime(0);
@@ -598,7 +597,20 @@ public class MultinodeConnectionManager {
             throw sqlEx;
         }
     }
-    
+
+    private SessionInfo withSelectedServer(SessionInfo sessionInfo, ServerEndpoint selectedServer) {
+        return SessionInfo.newBuilder()
+                .setConnHash(sessionInfo.getConnHash())
+                .setClientUUID(sessionInfo.getClientUUID())
+                .setSessionUUID(sessionInfo.getSessionUUID())
+                .setTargetServer(selectedServer.getAddress())
+                .setTransactionInfo(sessionInfo.getTransactionInfo())
+                .setIsXA(sessionInfo.getIsXA())
+                .setSessionStatus(sessionInfo.getSessionStatus())
+                .setClusterHealth(sessionInfo.getClusterHealth())
+                .build();
+    }
+
     /**
      * Connects to all servers to ensure datasource information is available on all nodes.
      * Used for non-XA connections.
@@ -1217,33 +1229,6 @@ public class MultinodeConnectionManager {
     public void setXaConnectionRedistributor(XAConnectionRedistributor redistributor) {
         this.xaConnectionRedistributor = redistributor;
         log.info("XA connection redistributor registered");
-    }
-    
-    /**
-     * Validates or creates a channel for the given endpoint.
-     * Used by the redistributor and health check systems.
-     * 
-     * @param endpoint The server endpoint to validate/create channel for
-     */
-    public void validateOrCreateChannelForEndpoint(ServerEndpoint endpoint) {
-        if (endpoint == null) {
-            return;
-        }
-        
-        String addr = endpoint.getAddress();
-        ChannelAndStub cas = channelMap.get(endpoint);
-        if (cas != null && !cas.channel.isShutdown() && !cas.channel.isTerminated()) {
-            log.debug("Channel for {} is valid", addr);
-            return;
-        }
-        
-        // Channel doesn't exist or is invalid, create a new one
-        try {
-            createChannelAndStub(endpoint);
-            log.info("Created/validated channel for endpoint: {}", addr);
-        } catch (Exception e) {
-            log.error("Failed to create channel for endpoint {}: {}", addr, e.getMessage());
-        }
     }
     
     /**

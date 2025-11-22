@@ -15,13 +15,13 @@ public class HealthCheckConfig {
     private static final Logger log = LoggerFactory.getLogger(HealthCheckConfig.class);
     
     // Default values
-    private static final long DEFAULT_HEALTH_CHECK_INTERVAL_MS = 30000L; // 30 seconds
-    private static final long DEFAULT_HEALTH_CHECK_THRESHOLD_MS = 30000L; // 30 seconds
+    private static final long DEFAULT_HEALTH_CHECK_INTERVAL_MS = 5000L; // 30 seconds
+    private static final long DEFAULT_HEALTH_CHECK_THRESHOLD_MS = 5000L; // 30 seconds
     private static final int DEFAULT_HEALTH_CHECK_TIMEOUT_MS = 5000; // 5 seconds
     private static final String DEFAULT_HEALTH_CHECK_QUERY = "SELECT 1";
     private static final boolean DEFAULT_REDISTRIBUTION_ENABLED = true;
-    private static final double DEFAULT_IDLE_REBALANCE_FRACTION = 0.2;
-    private static final int DEFAULT_MAX_CLOSE_PER_RECOVERY = 10;
+    private static final double DEFAULT_IDLE_REBALANCE_FRACTION = 1.0;
+    private static final int DEFAULT_MAX_CLOSE_PER_RECOVERY = 100;
     private static final boolean DEFAULT_LOAD_AWARE_SELECTION_ENABLED = true;
     
     // Property keys
@@ -183,7 +183,7 @@ public class HealthCheckConfig {
     public boolean isRedistributionEnabled() {
         return redistributionEnabled;
     }
-    
+
     public double getIdleRebalanceFraction() {
         return idleRebalanceFraction;
     }
