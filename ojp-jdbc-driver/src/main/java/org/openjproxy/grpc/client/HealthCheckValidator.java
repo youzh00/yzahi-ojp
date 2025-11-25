@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.SQLException;
 
 /**
- * Validates server health by attempting a direct connection and executing a health check query.
+ * Validates server health by attempting a direct connection.
  * Used to detect when a failed server has recovered.
  */
 public class HealthCheckValidator {
@@ -25,7 +25,7 @@ public class HealthCheckValidator {
     }
     
     /**
-     * Validates if a server is healthy by attempting a connection and executing the health check query.
+     * Validates if a server is healthy by attempting a connection.
      * 
      * @param endpoint The server endpoint to validate
      * @param connectionDetails Connection details to use for validation
@@ -60,8 +60,7 @@ public class HealthCheckValidator {
             if (sessionInfo != null && sessionInfo.getSessionUUID() != null && 
                 !sessionInfo.getSessionUUID().isEmpty()) {
                 
-                // Connection successful - now try the health check query
-                // We consider a successful connection as a health check pass
+                // Connection successful
                 log.info("Server {} health check PASSED", endpoint.getAddress());
                 
                 // Close the test session
