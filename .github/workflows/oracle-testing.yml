@@ -45,6 +45,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Grant XA permissions to Oracle test user
+        run: |
+          # Wait a bit for Oracle to be fully ready
+          sleep 5
+          
+          # Grant XA permissions to testuser
+          docker exec ojp-oracle sqlplus -s system/testpassword@localhost/XEPDB1 <<EOF
+          -- XA transaction permissions
+          GRANT SELECT ON sys.dba_pending_transactions TO testuser;
+          GRANT SELECT ON sys.pending_trans\$ TO testuser;
+          GRANT SELECT ON sys.dba_2pc_pending TO testuser;
+          GRANT EXECUTE ON sys.dbms_system TO testuser;
+          GRANT FORCE ANY TRANSACTION TO testuser;
+          
+          -- Verify grants
+          SELECT 'XA permissions granted successfully' FROM dual;
+          EXIT;
+          EOF
+          
+          echo "=== XA permissions granted to testuser ==="
+
       - name: Add Oracle JDBC Driver to ojp-server
         run: |
           # Create temporary file with Oracle JDBC dependency
