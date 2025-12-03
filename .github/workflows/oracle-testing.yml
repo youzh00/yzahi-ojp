@@ -24,7 +24,7 @@ jobs:
 
     services:
       oracle:
-        image: gvenzl/oracle-xe:21-slim
+        image: gvenzl/oracle-xe:21-full
         env:
           ORACLE_PASSWORD: testpassword
           APP_USER: testuser
