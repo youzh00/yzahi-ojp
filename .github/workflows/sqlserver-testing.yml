@@ -72,12 +72,13 @@ jobs:
           </dependency>
           EOF
           
-          # Insert before the closing </dependencies> tag (sed 'i' inserts before the matched line)
-          sed -i '/<\/dependencies>/e cat /tmp/sqlserver-test-deps.txt' ojp-jdbc-driver/pom.xml
+          # Insert after the postgresql dependency (last dependency before </dependencies>)
+          sed -i '/<artifactId>postgresql<\/artifactId>/,/<\/dependency>/ { /<\/dependency>/r /tmp/sqlserver-test-deps.txt
+          }' ojp-jdbc-driver/pom.xml
           
           # Verify the insertion
           echo "=== Modified ojp-jdbc-driver/pom.xml dependencies section ==="
-          sed -n '/postgresql/,/<\/dependencies>/p' ojp-jdbc-driver/pom.xml | tail -20
+          sed -n '/postgresql/,/<\/dependencies>/p' ojp-jdbc-driver/pom.xml | tail -25
 
       - name: Set up JDK 22 for build
         uses: actions/setup-java@v4
