@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 public class BlobIntegrationTest {
 
-    private static boolean isMySQLTestDisabled;
+    private static boolean isMySQLTestEnabled;
     private static boolean isMariaDBTestDisabled;
     private static boolean isOracleTestEnabled;
     private String tableName;
@@ -29,7 +29,7 @@ public class BlobIntegrationTest {
 
     @BeforeAll
     public static void checkTestConfiguration() {
-        isMySQLTestDisabled = Boolean.parseBoolean(System.getProperty("disableMySQLTests", "false"));
+        isMySQLTestEnabled = Boolean.parseBoolean(System.getProperty("enableMySQLTests", "false"));
         isMariaDBTestDisabled = Boolean.parseBoolean(System.getProperty("disableMariaDBTests", "false"));
         isOracleTestEnabled = Boolean.parseBoolean(System.getProperty("enableOracleTests", "false"));
     }

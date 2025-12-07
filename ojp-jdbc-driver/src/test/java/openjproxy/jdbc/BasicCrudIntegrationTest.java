@@ -18,8 +18,8 @@ import static openjproxy.helpers.SqlHelper.executeUpdate;
 @Slf4j
 public class BasicCrudIntegrationTest {
 
-    private static boolean isPostgresTestDisabled;
-    private static boolean isMySQLTestDisabled;
+    private static boolean isPostgresTestEnabled;
+    private static boolean isMySQLTestEnabled;
     private static boolean isMariaDBTestDisabled;
     private static boolean isCockroachDBTestDisabled;
     private static boolean isOracleTestEnabled;
@@ -29,8 +29,8 @@ public class BasicCrudIntegrationTest {
 
     @BeforeAll
     public static void setup() {
-        isPostgresTestDisabled = Boolean.parseBoolean(System.getProperty("disablePostgresTests", "false"));
-        isMySQLTestDisabled = Boolean.parseBoolean(System.getProperty("disableMySQLTests", "false"));
+        isPostgresTestEnabled = Boolean.parseBoolean(System.getProperty("enablePostgresTests", "false"));
+        isMySQLTestEnabled = Boolean.parseBoolean(System.getProperty("enableMySQLTests", "false"));
         isMariaDBTestDisabled = Boolean.parseBoolean(System.getProperty("disableMariaDBTests", "false"));
         isCockroachDBTestDisabled = Boolean.parseBoolean(System.getProperty("disableCockroachDBTests", "false"));
         isOracleTestEnabled = Boolean.parseBoolean(System.getProperty("enableOracleTests", "false"));
@@ -41,14 +41,14 @@ public class BasicCrudIntegrationTest {
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_postgres_mysql_mariadb_oracle_sqlserver_connections.csv")
     public void crudTestSuccessful(String driverClass, String url, String user, String pwd, boolean isXA) throws SQLException, ClassNotFoundException {
-        // Skip PostgreSQL tests if disabled
-        if (url.toLowerCase().contains("postgresql") && isPostgresTestDisabled) {
+        // Skip PostgreSQL tests if not enabled
+        if (url.toLowerCase().contains("postgresql") && !isPostgresTestEnabled) {
             Assumptions.assumeFalse(true, "Skipping Postgres tests");
             tablePrefix = "postgres_";
         }
         
-        // Skip MySQL tests if disabled
-        if (url.toLowerCase().contains("mysql") && isMySQLTestDisabled) {
+        // Skip MySQL tests if not enabled
+        if (url.toLowerCase().contains("mysql") && !isMySQLTestEnabled) {
             Assumptions.assumeFalse(true, "Skipping MySQL tests");
             tablePrefix = "mysql_";
         }

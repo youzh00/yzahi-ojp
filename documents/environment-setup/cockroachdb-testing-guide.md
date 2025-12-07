@@ -55,7 +55,7 @@ The CockroachDB integration tests will run automatically along with H2, PostgreS
 To run **only** CockroachDB integration tests, disable the other databases that are enabled by default:
 
 ```bash
-mvn test -pl ojp-jdbc-driver -DdisablePostgresTests -DdisableMySQLTests -DdisableMariaDBTests -Dgpg.skip=true
+mvn test -pl ojp-jdbc-driver -DenablePostgresTests=false -DenableMySQLTests=false -DdisableMariaDBTests -Dgpg.skip=true
 ```
 
 ## Test Configuration Files

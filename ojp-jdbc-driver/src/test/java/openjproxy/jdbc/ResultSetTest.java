@@ -26,11 +26,11 @@ public class ResultSetTest {
     private Statement statement;
     private ResultSet resultSet;
 
-    private static boolean isPostgresTestDisabled;
+    private static boolean isPostgresTestEnabled;
 
     @BeforeAll
     public static void checkTestConfiguration() {
-        isPostgresTestDisabled = Boolean.parseBoolean(System.getProperty("disablePostgresTests", "false"));
+        isPostgresTestEnabled = Boolean.parseBoolean(System.getProperty("enablePostgresTests", "false"));
     }
 
     @SneakyThrows
