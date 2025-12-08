@@ -1,10 +1,13 @@
 # This workflow tests multinode functionality with two OJP server instances
 # It starts a Postgres database and two OJP servers on different ports,
 # then runs integration tests for multinode scenarios including failover and recovery.
-# This workflow only runs after the Main CI workflow completes successfully.
+# On main branch: runs only after Main CI workflow completes successfully.
+# On PRs: runs in parallel with Main CI.
 name: Multinode Integration Tests
 
 on:
+  pull_request:
+    branches: [ main ]
   workflow_run:
     workflows: ["Main CI"]
     types:
@@ -15,7 +18,9 @@ jobs:
   multinode-test:
     name: Multinode Integration Test
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # For workflow_run events, only run if Main CI succeeded
+    # For pull_request events, always run
+    if: ${{ github.event_name == 'pull_request' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       - name: Git checkout
