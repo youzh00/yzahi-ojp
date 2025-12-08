@@ -490,11 +490,12 @@ jobs:
           docker run --name ojp-db2 \
             -e LICENSE=accept \
             -e DB2INSTANCE=db2inst1 \
-            -e DB2INST1_PASSWORD=testpassword \
-            -e DBNAME=defaultdb \
+            -e DB2INST1_PASSWORD=testpass \
+            -e DBNAME=testdb \
             -e AUTOCONFIG=false \
             -e ARCHIVE_LOGS=false \
             -p 50000:50000 \
+            --privileged=true \
             -d ibmcom/db2:11.5.8.0
           
           # Wait for DB2 to be ready with proper health check (can take 5-10 minutes)
@@ -505,7 +506,7 @@ jobs:
           ELAPSED=0
           while [ $ELAPSED -lt $MAX_WAIT ]; do
             if docker logs ojp-db2 2>&1 | grep -q "Setup has completed"; then
-              echo "DB2 is ready after $ELAPSED seconds"
+              echo "DB2 setup completed after $ELAPSED seconds"
               break
             fi
             echo "Still waiting for DB2... ($ELAPSED seconds elapsed)"
@@ -520,16 +521,36 @@ jobs:
             exit 1
           fi
           
-          # Give it a few more seconds to stabilize
-          echo "DB2 setup complete, waiting 30 more seconds for stabilization..."
-          sleep 30
+          # Give DB2 time to fully initialize after setup message
+          echo "DB2 setup complete, waiting for database activation..."
+          sleep 60
           
-          # Verify DB2 is accessible
+          # Activate the database and verify connectivity
+          echo "Activating DB2 database testdb..."
+          docker exec ojp-db2 su - db2inst1 -c "db2 activate database testdb" || echo "Activation command issued"
+          sleep 10
+          
+          # Test connectivity to ensure DB2 is ready
           echo "Testing DB2 connectivity..."
-          docker exec ojp-db2 su - db2inst1 -c "db2 connect to defaultdb user db2inst1 using testpassword" || true
+          MAX_CONN_WAIT=120
+          CONN_ELAPSED=0
+          while [ $CONN_ELAPSED -lt $MAX_CONN_WAIT ]; do
+            if docker exec ojp-db2 su - db2inst1 -c "db2 connect to testdb user db2inst1 using testpass" 2>&1 | grep -q "Database Connection Information"; then
+              echo "DB2 is accepting connections after $CONN_ELAPSED seconds"
+              docker exec ojp-db2 su - db2inst1 -c "db2 disconnect testdb" || true
+              break
+            fi
+            echo "DB2 not ready yet, waiting... ($CONN_ELAPSED seconds)"
+            sleep 10
+            CONN_ELAPSED=$((CONN_ELAPSED + 10))
+          done
           
-          echo "Final DB2 log check:"
-          docker logs ojp-db2 2>&1 | tail -20
+          if [ $CONN_ELAPSED -ge $MAX_CONN_WAIT ]; then
+            echo "WARNING: DB2 connectivity test timed out, but continuing..."
+            docker logs ojp-db2 2>&1 | tail -50
+          fi
+          
+          echo "DB2 initialization complete"
 
       - name: Add DB2 JDBC Driver to ojp-server
         run: |
