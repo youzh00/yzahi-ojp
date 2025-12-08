@@ -85,7 +85,12 @@ The CI workflows are organized in a hierarchical order to save CI cycles:
    - Only enables H2 tests with `-DenableH2Tests=true`
 
 2. **Specialized Test Jobs** - Run only after Main CI succeeds (using `needs: [build-test]`)
-   - Multinode Integration Tests
+   - PostgreSQL Integration Tests (JDK 11, 17, 21, 22)
+   - MySQL Integration Tests (JDK 11, 17, 21, 22)
+   - MariaDB Integration Tests (JDK 11, 17, 21, 22)
+   - CockroachDB Integration Tests (JDK 11, 17, 21, 22)
+   - DB2 Integration Tests (JDK 11, 17, 21, 22)
+   - Multinode Integration Tests (PostgreSQL-based failover testing)
    - Oracle Database Testing (JDK 11, 17, 21, 22)
    - SQL Server Integration Tests (JDK 11, 17, 21, 22)
 

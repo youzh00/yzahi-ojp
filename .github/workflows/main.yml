@@ -7,10 +7,15 @@
 #
 # WORKFLOW STRUCTURE:
 # 1. build-test: Fast H2-only tests (embedded database, no external services)
-# 2. multinode-test: Multinode failover/recovery tests (needs: build-test)
-# 3. oracle-test: Oracle database tests (needs: build-test)
-# 4. sqlserver-tests: SQL Server tests (needs: build-test)
-# 5. notify-integration: Triggers integration repo workflow
+# 2. postgres-test: PostgreSQL database tests (needs: build-test)
+# 3. mysql-test: MySQL database tests (needs: build-test)
+# 4. mariadb-test: MariaDB database tests (needs: build-test)
+# 5. cockroachdb-test: CockroachDB database tests (needs: build-test)
+# 6. db2-test: IBM DB2 database tests (needs: build-test)
+# 7. multinode-test: Multinode failover/recovery tests (needs: build-test)
+# 8. oracle-test: Oracle database tests (needs: build-test)
+# 9. sqlserver-tests: SQL Server tests (needs: build-test)
+# 10. notify-integration: Triggers integration repo workflow
 #
 # SEQUENTIAL EXECUTION:
 # All specialized test jobs depend on build-test completing successfully.
@@ -106,7 +111,460 @@ jobs:
         run: cat /tmp/ojp-server.log || echo "/tmp/ojp-server.log not found"
 
   # ===========================================================================
-  # JOB 2: Multinode Integration Tests
+  # JOB 2: PostgreSQL Integration Tests
+  # ===========================================================================
+  #
+  # This job tests PostgreSQL database integration.
+  # PostgreSQL is a popular open-source database with excellent JDBC support
+  # and XA transaction capabilities.
+  #
+  # Database: PostgreSQL 17
+  # Matrix strategy: Tests against Java 11, 17, 21, 22
+  # Execution: Only runs AFTER build-test job succeeds (needs: [build-test])
+  #
+  # ===========================================================================
+  postgres-test:
+    name: PostgreSQL Tests (JDK ${{ matrix.java-version }})
+    runs-on: ubuntu-latest
+    # DEPENDENCY: This job only runs if build-test succeeds
+    needs: [build-test]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [ 11, 17, 21, 22 ]
+
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Start PostgreSQL container with XA transaction support
+      - name: Start Postgres
+        run: |
+          docker run --name ojp-postgres \
+            -e POSTGRES_USER=testuser \
+            -e POSTGRES_PASSWORD=testpassword \
+            -e POSTGRES_DB=defaultdb \
+            -p 5432:5432 \
+            -d postgres:17 \
+            -c max_prepared_transactions=100
+      
+          # Wait for Postgres to become ready (up to 60s)
+          timeout 60 bash -c 'until docker exec ojp-postgres pg_isready -U testuser -d defaultdb -h 127.0.0.1; do sleep 2; done'
+
+          # Verify setting
+          PGPASSWORD=testpassword psql -h 127.0.0.1 -U testuser -d defaultdb -c "SHOW max_prepared_transactions;"
+
+      - name: Set up JDK 22 for build
+        uses: actions/setup-java@v4
+        with:
+          java-version: 22
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build and Install (ojp-grpc-commons) with JDK 22
+        run: mvn clean install -pl ojp-grpc-commons -am -DskipTests -Dgpg.skip=true
+
+      - name: Test (ojp-grpc-commons) with JDK 22
+        run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
+
+      - name: Build (ojp-server) with JDK 22
+        run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
+
+      - name: Test and Run (ojp-server)
+        run: |
+          nohup java -jar ojp-server/target/ojp-server-0.2.1-snapshot-shaded.jar > /tmp/ojp-server.log 2>&1 &
+          echo $! > /tmp/ojp-server.pid
+
+      - name: Wait for ojp-server to start
+        run: sleep 10
+
+      - name: Set up JDK ${{ matrix.java-version }} for ojp-jdbc-driver
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build (ojp-jdbc-driver) with JDK ${{ matrix.java-version }}
+        run: mvn clean install -pl ojp-jdbc-driver -am -DskipTests -Dgpg.skip=true
+
+      # Run PostgreSQL-specific tests with -DenablePostgresTests flag
+      - name: Test (ojp-jdbc-driver) with PostgreSQL enabled
+        run: mvn test -pl ojp-jdbc-driver -Dgpg.skip=true -DenablePostgresTests=true
+
+      - name: Show ojp-server.log
+        if: always()
+        run: cat /tmp/ojp-server.log || echo "/tmp/ojp-server.log not found"
+
+  # ===========================================================================
+  # JOB 3: MySQL Integration Tests
+  # ===========================================================================
+  #
+  # This job tests MySQL database integration.
+  # MySQL is one of the most widely used open-source databases.
+  #
+  # Database: MySQL 8.0
+  # Matrix strategy: Tests against Java 11, 17, 21, 22
+  # Execution: Only runs AFTER build-test job succeeds (needs: [build-test])
+  #
+  # ===========================================================================
+  mysql-test:
+    name: MySQL Tests (JDK ${{ matrix.java-version }})
+    runs-on: ubuntu-latest
+    # DEPENDENCY: This job only runs if build-test succeeds
+    needs: [build-test]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [ 11, 17, 21, 22 ]
+
+    services:
+      # MySQL database service container
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: defaultdb
+          MYSQL_USER: testuser
+          MYSQL_PASSWORD: testpassword
+          MYSQL_ROOT_PASSWORD: rootpassword
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 3306:3306
+
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 22 for build
+        uses: actions/setup-java@v4
+        with:
+          java-version: 22
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build and Install (ojp-grpc-commons) with JDK 22
+        run: mvn clean install -pl ojp-grpc-commons -am -DskipTests -Dgpg.skip=true
+
+      - name: Test (ojp-grpc-commons) with JDK 22
+        run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
+
+      - name: Build (ojp-server) with JDK 22
+        run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
+
+      - name: Test and Run (ojp-server)
+        run: |
+          nohup java -jar ojp-server/target/ojp-server-0.2.1-snapshot-shaded.jar > /tmp/ojp-server.log 2>&1 &
+          echo $! > /tmp/ojp-server.pid
+
+      - name: Wait for ojp-server to start
+        run: sleep 10
+
+      - name: Set up JDK ${{ matrix.java-version }} for ojp-jdbc-driver
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build (ojp-jdbc-driver) with JDK ${{ matrix.java-version }}
+        run: mvn clean install -pl ojp-jdbc-driver -am -DskipTests -Dgpg.skip=true
+
+      # Run MySQL-specific tests with -DenableMySQLTests flag
+      - name: Test (ojp-jdbc-driver) with MySQL enabled
+        run: mvn test -pl ojp-jdbc-driver -Dgpg.skip=true -DenableMySQLTests=true
+
+      - name: Show ojp-server.log
+        if: always()
+        run: cat /tmp/ojp-server.log || echo "/tmp/ojp-server.log not found"
+
+  # ===========================================================================
+  # JOB 4: MariaDB Integration Tests
+  # ===========================================================================
+  #
+  # This job tests MariaDB database integration.
+  # MariaDB is a MySQL-compatible database with enhanced features.
+  #
+  # Database: MariaDB 10.11
+  # Matrix strategy: Tests against Java 11, 17, 21, 22
+  # Execution: Only runs AFTER build-test job succeeds (needs: [build-test])
+  #
+  # ===========================================================================
+  mariadb-test:
+    name: MariaDB Tests (JDK ${{ matrix.java-version }})
+    runs-on: ubuntu-latest
+    # DEPENDENCY: This job only runs if build-test succeeds
+    needs: [build-test]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [ 11, 17, 21, 22 ]
+
+    services:
+      # MariaDB database service container
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_DATABASE: defaultdb
+          MARIADB_USER: testuser
+          MARIADB_PASSWORD: testpassword
+          MARIADB_ROOT_PASSWORD: rootpassword
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost -u root -prootpassword"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 3306:3306
+
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 22 for build
+        uses: actions/setup-java@v4
+        with:
+          java-version: 22
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build and Install (ojp-grpc-commons) with JDK 22
+        run: mvn clean install -pl ojp-grpc-commons -am -DskipTests -Dgpg.skip=true
+
+      - name: Test (ojp-grpc-commons) with JDK 22
+        run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
+
+      - name: Build (ojp-server) with JDK 22
+        run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
+
+      - name: Test and Run (ojp-server)
+        run: |
+          nohup java -jar ojp-server/target/ojp-server-0.2.1-snapshot-shaded.jar > /tmp/ojp-server.log 2>&1 &
+          echo $! > /tmp/ojp-server.pid
+
+      - name: Wait for ojp-server to start
+        run: sleep 10
+
+      - name: Set up JDK ${{ matrix.java-version }} for ojp-jdbc-driver
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build (ojp-jdbc-driver) with JDK ${{ matrix.java-version }}
+        run: mvn clean install -pl ojp-jdbc-driver -am -DskipTests -Dgpg.skip=true
+
+      # Run MariaDB-specific tests with -DenableMariaDBTests flag
+      - name: Test (ojp-jdbc-driver) with MariaDB enabled
+        run: mvn test -pl ojp-jdbc-driver -Dgpg.skip=true -DenableMariaDBTests=true
+
+      - name: Show ojp-server.log
+        if: always()
+        run: cat /tmp/ojp-server.log || echo "/tmp/ojp-server.log not found"
+
+  # ===========================================================================
+  # JOB 5: CockroachDB Integration Tests
+  # ===========================================================================
+  #
+  # This job tests CockroachDB database integration.
+  # CockroachDB is a distributed SQL database compatible with PostgreSQL.
+  #
+  # Database: CockroachDB v24.3.4
+  # Matrix strategy: Tests against Java 11, 17, 21, 22
+  # Execution: Only runs AFTER build-test job succeeds (needs: [build-test])
+  #
+  # ===========================================================================
+  cockroachdb-test:
+    name: CockroachDB Tests (JDK ${{ matrix.java-version }})
+    runs-on: ubuntu-latest
+    # DEPENDENCY: This job only runs if build-test succeeds
+    needs: [build-test]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [ 11, 17, 21, 22 ]
+
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Start CockroachDB in insecure mode for testing
+      - name: Start CockroachDB
+        run: |
+          docker run --name ojp-cockroachdb -p 26257:26257 -p 8080:8080 -d cockroachdb/cockroach:v24.3.4 start-single-node --insecure
+          # Wait for CockroachDB to be ready
+          timeout 60 bash -c 'until curl -f http://localhost:8080/health?ready=1 2>/dev/null; do sleep 2; done'
+
+      - name: Set up JDK 22 for build
+        uses: actions/setup-java@v4
+        with:
+          java-version: 22
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build and Install (ojp-grpc-commons) with JDK 22
+        run: mvn clean install -pl ojp-grpc-commons -am -DskipTests -Dgpg.skip=true
+
+      - name: Test (ojp-grpc-commons) with JDK 22
+        run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
+
+      - name: Build (ojp-server) with JDK 22
+        run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
+
+      - name: Test and Run (ojp-server)
+        run: |
+          nohup java -jar ojp-server/target/ojp-server-0.2.1-snapshot-shaded.jar > /tmp/ojp-server.log 2>&1 &
+          echo $! > /tmp/ojp-server.pid
+
+      - name: Wait for ojp-server to start
+        run: sleep 10
+
+      - name: Set up JDK ${{ matrix.java-version }} for ojp-jdbc-driver
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build (ojp-jdbc-driver) with JDK ${{ matrix.java-version }}
+        run: mvn clean install -pl ojp-jdbc-driver -am -DskipTests -Dgpg.skip=true
+
+      # Run CockroachDB-specific tests with -DenableCockroachDBTests flag
+      - name: Test (ojp-jdbc-driver) with CockroachDB enabled
+        run: mvn test -pl ojp-jdbc-driver -Dgpg.skip=true -DenableCockroachDBTests=true
+
+      - name: Show ojp-server.log
+        if: always()
+        run: cat /tmp/ojp-server.log || echo "/tmp/ojp-server.log not found"
+
+  # ===========================================================================
+  # JOB 6: DB2 Integration Tests  
+  # ===========================================================================
+  #
+  # This job tests IBM DB2 database integration.
+  # DB2 is an enterprise-grade database system from IBM.
+  #
+  # Database: IBM DB2 11.5.8.0
+  # Matrix strategy: Tests against Java 11, 17, 21, 22
+  # Execution: Only runs AFTER build-test job succeeds (needs: [build-test])
+  #
+  # Note: DB2 container is large and takes longer to start up.
+  #
+  # ===========================================================================
+  db2-test:
+    name: DB2 Tests (JDK ${{ matrix.java-version }})
+    runs-on: ubuntu-latest
+    # DEPENDENCY: This job only runs if build-test succeeds
+    needs: [build-test]
+
+    strategy:
+      fail-fast: false
+      matrix:
+        java-version: [ 11, 17, 21, 22 ]
+
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Start DB2 container (note: this is a large container and takes time to start)
+      - name: Start DB2
+        run: |
+          docker run --name ojp-db2 \
+            -e LICENSE=accept \
+            -e DB2INSTANCE=db2inst1 \
+            -e DB2INST1_PASSWORD=testpassword \
+            -e DBNAME=defaultdb \
+            -p 50000:50000 \
+            -d ibmcom/db2:11.5.8.0
+          
+          # Wait for DB2 to be ready (this can take several minutes)
+          echo "Waiting for DB2 to start (this may take 5-10 minutes)..."
+          sleep 300
+          
+          # Verify DB2 is running
+          docker logs ojp-db2 | tail -20
+
+      - name: Add DB2 JDBC Driver to ojp-server
+        run: |
+          # Create temporary file with DB2 JDBC dependency
+          cat > /tmp/db2-dep.txt << 'EOF'
+          <!-- DB2 JDBC Driver (added by CI) -->
+          <dependency>
+              <groupId>com.ibm.db2</groupId>
+              <artifactId>jcc</artifactId>
+              <version>11.5.9.0</version>
+          </dependency>
+          EOF
+          
+          # Insert after the placeholder comment
+          sed -i '/<!-- PROPRIETARY DATABASE DRIVERS PLACEHOLDER -->/r /tmp/db2-dep.txt' ojp-server/pom.xml
+          
+          # Verify the insertion
+          echo "=== Modified ojp-server/pom.xml dependencies section ==="
+          sed -n '/PROPRIETARY DATABASE DRIVERS PLACEHOLDER/,/HikariCP/p' ojp-server/pom.xml
+
+      - name: Set up JDK 22 for build
+        uses: actions/setup-java@v4
+        with:
+          java-version: 22
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build and Install (ojp-grpc-commons) with JDK 22
+        run: mvn clean install -pl ojp-grpc-commons -am -DskipTests -Dgpg.skip=true
+
+      - name: Test (ojp-grpc-commons) with JDK 22
+        run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
+
+      - name: Build (ojp-server) with JDK 22
+        run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
+
+      - name: Test and Run (ojp-server)
+        run: |
+          nohup java -jar ojp-server/target/ojp-server-0.2.1-snapshot-shaded.jar > /tmp/ojp-server.log 2>&1 &
+          echo $! > /tmp/ojp-server.pid
+
+      - name: Wait for ojp-server to start
+        run: sleep 10
+
+      - name: Set up JDK ${{ matrix.java-version }} for ojp-jdbc-driver
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java-version }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build (ojp-jdbc-driver) with JDK ${{ matrix.java-version }}
+        run: mvn clean install -pl ojp-jdbc-driver -am -DskipTests -Dgpg.skip=true
+
+      # Run DB2-specific tests with -DenableDb2Tests flag
+      - name: Test (ojp-jdbc-driver) with DB2 enabled
+        run: mvn test -pl ojp-jdbc-driver -Dgpg.skip=true -DenableDb2Tests=true
+
+      - name: Show ojp-server.log
+        if: always()
+        run: cat /tmp/ojp-server.log || echo "/tmp/ojp-server.log not found"
+
+  # ===========================================================================
+  # JOB 7: Multinode Integration Tests
   # ===========================================================================
   #
   # This job tests multinode functionality with TWO OJP server instances.
@@ -478,7 +936,7 @@ jobs:
           docker rm ojp-postgres-multinode || true
 
   # ===========================================================================
-  # JOB 3: Oracle Database Testing
+  # JOB 8: Oracle Database Testing
   # ===========================================================================
   #
   # This job tests Oracle Database integration.
@@ -641,7 +1099,7 @@ jobs:
         run: cat /tmp/ojp-server.log || echo "/tmp/ojp-server.log not found"
 
   # ===========================================================================
-  # JOB 4: SQL Server Integration Tests
+  # JOB 9: SQL Server Integration Tests
   # ===========================================================================
   #
   # This job tests SQL Server integration using TestContainers.
@@ -743,7 +1201,7 @@ jobs:
         run: cat /tmp/ojp-server.log || echo "/tmp/ojp-server.log not found"
 
   # ===========================================================================
-  # JOB 5: Notify Integration Repository
+  # JOB 10: Notify Integration Repository
   # ===========================================================================
   #
   # This job triggers a workflow in the ojp-framework-integration repository
