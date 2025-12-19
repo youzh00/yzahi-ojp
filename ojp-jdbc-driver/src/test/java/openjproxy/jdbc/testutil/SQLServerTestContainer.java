@@ -2,6 +2,8 @@ package openjproxy.jdbc.testutil;
 
 import org.testcontainers.containers.MSSQLServerContainer;
 
+import java.util.concurrent.locks.ReentrantLock;
+
 /**
  * Singleton SQL Server test container for all SQL Server integration tests.
  * This ensures that all tests share the same SQL Server instance to improve test performance
@@ -15,22 +17,30 @@ public class SQLServerTestContainer {
     private static MSSQLServerContainer<?> container;
     private static boolean isStarted = false;
     private static boolean shutdownHookRegistered = false;
-    
+
+    private static ReentrantLock initLock = new ReentrantLock();
     /**
      * Gets or creates the shared SQL Server test container instance.
      * The container is automatically started on first access.
      * 
      * @return the shared MSSQLServerContainer instance
      */
-    public static synchronized MSSQLServerContainer<?> getInstance() {
-        if (container == null) {
-            container = new MSSQLServerContainer<>(MSSQL_IMAGE)
-                    .acceptLicense();
+    public static  MSSQLServerContainer<?> getInstance() {
+        // Fast-path: if container already created and running, return it without locking
+        MSSQLServerContainer<?> local = container;
+        if (local != null && local.isRunning()) {
+            return local;
         }
-        
-        if (!isStarted) {
-            container.start();
-            isStarted = true;
+
+        initLock.lock();
+        try {
+            if (container == null) {
+                container = new MSSQLServerContainer<>(MSSQL_IMAGE).acceptLicense();
+            }
+
+            if (!isStarted) {
+                container.start();
+                isStarted = true;
 
             // Post-start initialization for features needed by tests
             try {
@@ -42,19 +52,22 @@ public class SQLServerTestContainer {
                 // Do not fail tests on init best-effort; XA tests will fail with clearer message if needed
                 System.err.println("[SQLServerTestContainer] Warning: Failed to install XA stored procedures: " + e.getMessage());
             }
-            
-            // Add shutdown hook to stop container when JVM exits
-            if (!shutdownHookRegistered) {
-                Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                    if (container != null && container.isRunning()) {
-                        container.stop();
-                    }
-                }));
-                shutdownHookRegistered = true;
+
+                // Add shutdown hook to stop container when JVM exits
+                if (!shutdownHookRegistered) {
+                    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                        if (container != null && container.isRunning()) {
+                            container.stop();
+                        }
+                    }));
+                    shutdownHookRegistered = true;
+                }
             }
+
+            return container;
+        }finally {
+            initLock.unlock();
         }
-        
-        return container;
     }
 
     /**
@@ -141,7 +154,7 @@ public class SQLServerTestContainer {
         String[] grantCmd = new String[] { sqlcmd, "-S", "localhost", "-U", saUser, "-P", saPassword, "-d", "master", "-C", "-Q", grantScript };
         getInstance().execInContainer(grantCmd);
     }
-    
+
     /**
      * Gets the JDBC URL for connecting to the test container.
      * 
