@@ -16,7 +16,8 @@ This document analyzes database-specific XA connection pool libraries equivalent
 3. Microsoft SQL Server
 4. IBM DB2
 5. MySQL / MariaDB
-6. H2 Database (limited XA support)
+6. CockroachDB
+7. H2 Database (limited XA support)
 
 ### Evaluation Criteria
 
@@ -364,9 +365,141 @@ public class MySQLBackendSession implements BackendSession {
 
 ---
 
-## 6. H2 Database
+## 6. CockroachDB
 
 ### 6.1 XA Support Status
+
+CockroachDB is a distributed SQL database that is PostgreSQL-compatible. **XA support status:**
+
+**Current Status (as of CockroachDB 23.x):**
+- CockroachDB does **NOT** natively support XA/2PC transactions
+- PostgreSQL wire protocol compatibility does not include XA extensions
+- CockroachDB uses its own distributed transaction protocol internally
+- No `XADataSource` implementation available
+
+**From CockroachDB Documentation:**
+> CockroachDB does not support the XA/Open XA standard for distributed transactions. CockroachDB provides its own distributed transaction semantics which are different from traditional XA.
+
+### 6.2 CockroachDB Transaction Model
+
+CockroachDB provides:
+- **Serializable isolation** by default (strongest isolation level)
+- **Multi-version concurrency control (MVCC)**
+- **Distributed transactions** across nodes (internal protocol)
+- **Automatic retry logic** for transaction conflicts
+
+**However:**
+- These are CockroachDB-native transactions, not XA transactions
+- Cannot participate in heterogeneous distributed transactions with other databases
+- Cannot be coordinated by external transaction managers (Narayana, Atomikos)
+
+### 6.3 Why CockroachDB Doesn't Support XA
+
+**Technical Reasons:**
+1. **Different Transaction Model**: CockroachDB uses its own consensus-based transaction protocol (based on Raft)
+2. **Serializable Isolation**: CockroachDB defaults to serializable isolation; XA typically uses read-committed
+3. **Automatic Retry**: CockroachDB automatically retries transactions; XA requires explicit control
+4. **Performance**: XA 2PC would add overhead on top of CockroachDB's existing distributed commit protocol
+
+**Architectural Incompatibility:**
+- CockroachDB's distributed SQL architecture handles consistency internally
+- Adding XA would be redundant and harmful to performance
+- XA's 2PC conflicts with CockroachDB's consensus algorithm
+
+### 6.4 JDBC Driver Capabilities
+
+**CockroachDB JDBC Driver:**
+- PostgreSQL-compatible: Uses `org.postgresql.Driver`
+- Provides standard `DataSource` interface
+- Does **NOT** provide `XADataSource` interface
+- No XAConnection or XAResource implementation
+
+**Maven Coordinates:**
+```xml
+<dependency>
+    <groupId>org.postgresql</groupId>
+    <artifactId>postgresql</artifactId>
+    <version>42.7.1</version>
+</dependency>
+```
+
+Note: CockroachDB uses the standard PostgreSQL JDBC driver, not a custom driver.
+
+### 6.5 Alternative Approaches (Not XA)
+
+If you need distributed transactions involving CockroachDB:
+
+**Option 1: CockroachDB as Single Resource**
+- Use CockroachDB's native distributed transactions
+- Multiple tables/nodes within CockroachDB: Single transaction (no XA needed)
+- Leverage CockroachDB's built-in consistency guarantees
+
+**Option 2: Saga Pattern**
+- Implement compensating transactions
+- Use event-driven architecture
+- Accept eventual consistency
+
+**Option 3: Outbox Pattern**
+- Store events in CockroachDB alongside data
+- Process events asynchronously
+- Guaranteed local consistency
+
+### 6.6 Recommendation for CockroachDB
+
+**Do NOT support XA with CockroachDB** - XA is not available and not planned.
+
+**Rationale:**
+1. **No XA Support**: CockroachDB does not implement XA protocol
+2. **No XADataSource**: PostgreSQL JDBC driver used by CockroachDB doesn't expose XA for CockroachDB
+3. **Architectural Mismatch**: XA's 2PC conflicts with CockroachDB's distributed consensus
+4. **Not a Limitation**: CockroachDB's native transactions are stronger (serializable isolation)
+
+**For OJP:**
+- CockroachDB should be **excluded from XA support** in configuration validation
+- Document that CockroachDB uses its own distributed transaction model
+- If users need multi-database transactions involving CockroachDB, recommend:
+  - Saga pattern
+  - Use CockroachDB as the single transactional database
+  - Event-driven architecture
+
+### 6.7 Connection Pooling for CockroachDB (Non-XA)
+
+For standard (non-XA) connection pooling with CockroachDB:
+
+**Recommendation:** Use HikariCP or Commons DBCP2 via existing ConnectionPoolProvider SPI
+
+**Configuration:**
+```properties
+# OJP Connection Pool - CockroachDB (Non-XA)
+ojp.pool.provider=hikaricp  # Standard connection pooling
+
+# DataSource
+ojp.datasource.className=org.postgresql.ds.PGSimpleDataSource
+ojp.datasource.url=jdbc:postgresql://localhost:26257/mydb?sslmode=require
+ojp.datasource.username=myuser
+ojp.datasource.password=******
+
+# Pool Configuration
+ojp.pool.maxPoolSize=50
+ojp.pool.minIdle=5
+ojp.pool.connectionTimeout=30000
+
+# CockroachDB-specific
+ojp.datasource.applicationName=ojp-proxy
+ojp.datasource.reWriteBatchedInserts=true
+```
+
+**CockroachDB-Specific Considerations:**
+- **Connection String**: Use `jdbc:postgresql://` (PostgreSQL protocol)
+- **SSL/TLS**: CockroachDB typically requires `sslmode=require` or `sslmode=verify-full`
+- **Load Balancing**: Multiple nodes in connection string for high availability
+- **Retry Logic**: Application-level retry for serialization conflicts (CockroachDB feature)
+
+---
+
+## 7. H2 Database
+
+### 7.1 XA Support Status
 
 H2 has **limited XA support**:
 - Implements `javax.sql.XADataSource` interface
@@ -376,7 +509,7 @@ H2 has **limited XA support**:
 **From H2 Documentation:**
 > "The XA implementation is experimental and should not be used in production."
 
-### 6.2 Recommendation for H2
+### 7.2 Recommendation for H2
 
 **Do NOT support XA with H2** per earlier decision.
 
@@ -387,7 +520,7 @@ H2 should be excluded from XA support in OJP configuration validation.
 
 ---
 
-## 7. Summary: Database-Specific XA Pool Libraries
+## 8. Summary: Database-Specific XA Pool Libraries
 
 | Database | Vendor XA Pool Library | Equivalent to UCP? | Recommendation |
 |----------|----------------------|-------------------|----------------|
@@ -397,13 +530,16 @@ H2 should be excluded from XA support in OJP configuration validation.
 | **DB2** | None | ❌ No equivalent | Use Commons Pool 2 (default) |
 | **MySQL** | None | ❌ No equivalent | Use Commons Pool 2 (default), document limitations |
 | **MariaDB** | None | ❌ No equivalent | Use Commons Pool 2 (default), document limitations |
+| **CockroachDB** | No XA Support | ❌ XA not available | Exclude from XA support (uses own distributed transactions) |
 | **H2** | Limited XA | ❌ Not production-ready | Exclude from XA support |
 
 **Key Finding:** Oracle UCP is **unique**. No other database vendor provides an equivalent XA-aware connection pool library.
 
+**Note on CockroachDB:** CockroachDB does not support XA/2PC due to architectural reasons. It uses its own distributed transaction protocol which provides serializable isolation across distributed nodes. XA support is not planned as it would conflict with CockroachDB's consensus-based transaction model.
+
 ---
 
-## 8. XAConnectionPoolProvider SPI Implementation Strategy
+## 9. XAConnectionPoolProvider SPI Implementation Strategy
 
 ### 8.1 Default Implementation: Commons Pool 2
 
@@ -843,7 +979,7 @@ public class XAConnectionPoolProviderRegistry {
 
 ---
 
-## 9. Database-Specific Optimizations (Optional)
+## 10. Database-Specific Optimizations (Optional)
 
 While Commons Pool 2 is the default for all non-Oracle databases, we can provide database-specific optimizations through BackendSession implementations.
 
@@ -937,7 +1073,7 @@ public class DB2BackendSession implements BackendSession {
 
 ---
 
-## 10. Configuration Examples
+## 11. Configuration Examples
 
 ### 10.1 PostgreSQL with Commons Pool 2 (Default)
 
@@ -1008,7 +1144,7 @@ ojp.xa.datasource.responseBuffering=adaptive
 
 ---
 
-## 11. Comparative Feature Matrix
+## 12. Comparative Feature Matrix
 
 | Feature | Oracle UCP | Commons Pool 2 (Default) | Notes |
 |---------|-----------|-------------------------|-------|
@@ -1028,7 +1164,7 @@ ojp.xa.datasource.responseBuffering=adaptive
 
 ---
 
-## 12. Testing Strategy
+## 13. Testing Strategy
 
 ### 12.1 Provider Tests
 
@@ -1059,7 +1195,7 @@ Additional tests for Oracle UCP:
 
 ---
 
-## 13. Recommendations
+## 14. Recommendations
 
 ### 13.1 Implementation Priority
 
@@ -1090,17 +1226,18 @@ For each database, document:
 - Performance characteristics
 - Recovery behavior
 
-### 13.3 Configuration Validation
+### 14.3 Configuration Validation
 
 Implement validation that:
-- Rejects XA configuration for H2
+- Rejects XA configuration for H2 (experimental XA only)
+- Rejects XA configuration for CockroachDB (no XA support)
 - Warns about MySQL/MariaDB limitations
 - Recommends UCP for Oracle when available
 - Validates XADataSource class name matches database type
 
 ---
 
-## 14. Conclusion
+## 15. Conclusion
 
 ### Key Findings
 
@@ -1121,6 +1258,7 @@ Implement validation that:
    - **SQL Server + CP2**: Excellent (mature XA support)
    - **DB2 + CP2**: Good (mature XA support)
    - **MySQL/MariaDB + CP2**: Fair (XA has limitations, document caveats)
+   - **CockroachDB**: Not supported (no XA support, uses own distributed transaction protocol)
    - **H2**: Not supported (exclude from XA)
 
 ### Recommended Architecture
@@ -1135,7 +1273,8 @@ XAConnectionPoolProvider SPI
 ├─ SQL Server → CommonsPool2XAProvider (default)
 ├─ DB2 → CommonsPool2XAProvider (default)
 ├─ MySQL → CommonsPool2XAProvider (default, with warnings)
-└─ H2 → Not supported (validation error)
+├─ CockroachDB → Not supported (validation error - no XA)
+└─ H2 → Not supported (validation error - experimental XA)
 ```
 
 ### Implementation Path
