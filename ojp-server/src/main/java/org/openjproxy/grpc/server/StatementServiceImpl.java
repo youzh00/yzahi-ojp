@@ -1785,7 +1785,7 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
         registry.xaStart(xidKey, request.getFlags());
         
         // Bind the BackendSession to the session (lazy binding)
-        BackendSession backendSession = registry.getBackendSession(xidKey);
+        BackendSession backendSession = registry.getSessionForTransaction(xidKey);
         if (backendSession != null) {
             XAConnection xaConnection = backendSession.getXAConnection();
             session.bindXAConnection(xaConnection, backendSession);
