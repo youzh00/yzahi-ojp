@@ -329,6 +329,9 @@ public class XATransactionRegistry {
             log.info("XA recover returned {} prepared transactions", preparedXids.size());
             return preparedXids;
             
+        } catch (Exception e) {
+            log.error("Failed to recover prepared transactions", e);
+            throw new XAException(XAException.XAER_RMERR);
         } finally {
             if (session != null) {
                 try {

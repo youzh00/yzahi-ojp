@@ -294,6 +294,132 @@ public class TxContext {
         }
     }
     
+    /**
+     * Transitions to ACTIVE state from NONEXISTENT (new transaction).
+     * 
+     * @param newSession the backend session to bind
+     * @throws IllegalStateException if current state is not NONEXISTENT
+     */
+    public void transitionToActive(BackendSession newSession) {
+        lock.lock();
+        try {
+            if (state != TxState.NONEXISTENT) {
+                throw new IllegalStateException("Cannot transition to ACTIVE from " + state);
+            }
+            this.state = TxState.ACTIVE;
+            this.session = newSession;
+            this.associationCount = 1;
+            touch();
+            log.debug("Xid {} transitioned to ACTIVE", xid.toCompactString());
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    /**
+     * Transitions to ACTIVE state from ENDED (TMJOIN or TMRESUME).
+     * 
+     * @param isJoin true for TMJOIN, false for TMRESUME
+     * @throws IllegalStateException if current state is not ENDED
+     */
+    public void transitionToActiveFromEnded(boolean isJoin) {
+        lock.lock();
+        try {
+            if (state != TxState.ENDED) {
+                throw new IllegalStateException("Cannot transition to ACTIVE from " + state);
+            }
+            this.state = TxState.ACTIVE;
+            if (isJoin) {
+                this.associationCount++;
+            }
+            touch();
+            log.debug("Xid {} transitioned to ACTIVE ({})", xid.toCompactString(), 
+                    isJoin ? "TMJOIN" : "TMRESUME");
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    /**
+     * Transitions to ENDED state.
+     * 
+     * @param isSuspend true if TMSUSPEND, false if TMSUCCESS/TMFAIL
+     * @throws IllegalStateException if current state is not ACTIVE
+     */
+    public void transitionToEnded(boolean isSuspend) {
+        lock.lock();
+        try {
+            if (state != TxState.ACTIVE) {
+                throw new IllegalStateException("Cannot transition to ENDED from " + state);
+            }
+            this.state = TxState.ENDED;
+            touch();
+            log.debug("Xid {} transitioned to ENDED ({})", xid.toCompactString(), 
+                    isSuspend ? "TMSUSPEND" : "TMSUCCESS/TMFAIL");
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    /**
+     * Transitions to PREPARED state.
+     * 
+     * @throws IllegalStateException if current state is not ENDED
+     */
+    public void transitionToPrepared() {
+        lock.lock();
+        try {
+            if (state != TxState.ENDED) {
+                throw new IllegalStateException("Cannot transition to PREPARED from " + state);
+            }
+            this.state = TxState.PREPARED;
+            touch();
+            log.debug("Xid {} transitioned to PREPARED", xid.toCompactString());
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    /**
+     * Transitions to COMMITTED state.
+     * 
+     * @throws IllegalStateException if current state is invalid
+     */
+    public void transitionToCommitted() {
+        lock.lock();
+        try {
+            if (state != TxState.ENDED && state != TxState.PREPARED && 
+                state != TxState.ACTIVE && state != TxState.COMMITTED) {
+                throw new IllegalStateException("Cannot transition to COMMITTED from " + state);
+            }
+            this.state = TxState.COMMITTED;
+            touch();
+            log.debug("Xid {} transitioned to COMMITTED", xid.toCompactString());
+        } finally {
+            lock.unlock();
+        }
+    }
+    
+    /**
+     * Transitions to ROLLEDBACK state.
+     * 
+     * @throws IllegalStateException if current state is invalid
+     */
+    public void transitionToRolledBack() {
+        lock.lock();
+        try {
+            if (state != TxState.ACTIVE && state != TxState.ENDED && 
+                state != TxState.PREPARED && state != TxState.ROLLEDBACK) {
+                throw new IllegalStateException("Cannot transition to ROLLEDBACK from " + state);
+            }
+            this.state = TxState.ROLLEDBACK;
+            touch();
+            log.debug("Xid {} transitioned to ROLLEDBACK", xid.toCompactString());
+        } finally {
+            lock.unlock();
+        }
+    }
+    
     @Override
     public String toString() {
         lock.lock();
@@ -301,7 +427,7 @@ public class TxContext {
             return "TxContext{" +
                     "xid=" + xid.toCompactString() +
                     ", state=" + state +
-                    ", session=" + (session != null ? session.getSessionId() : "null") +
+                    ", session=" + (session != null ? "bound" : "null") +
                     ", age=" + ((System.nanoTime() - createdAtNanos) / 1_000_000) + "ms" +
                     '}';
         } finally {

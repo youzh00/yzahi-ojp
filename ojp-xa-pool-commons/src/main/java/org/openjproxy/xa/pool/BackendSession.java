@@ -99,17 +99,22 @@ public interface BackendSession extends AutoCloseable {
      * Gets the underlying XAConnection for this session.
      * 
      * @return the XAConnection
-     * @throws SQLException if the connection is not available
      */
-    XAConnection getXAConnection() throws SQLException;
+    XAConnection getXAConnection();
     
     /**
      * Gets the XAResource for performing XA operations.
      * 
      * @return the XAResource
-     * @throws SQLException if the XAResource is not available
      */
-    XAResource getXAResource() throws SQLException;
+    XAResource getXAResource();
+    
+    /**
+     * Gets the standard JDBC Connection for executing SQL statements.
+     * 
+     * @return the Connection
+     */
+    java.sql.Connection getConnection();
     
     /**
      * Gets a unique identifier for this session (for logging and diagnostics).
