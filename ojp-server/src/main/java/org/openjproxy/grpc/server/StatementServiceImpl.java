@@ -1802,15 +1802,14 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
         // Convert proto Xid to XidKey
         XidKey xidKey = XidKey.from(convertXid(request.getXid()));
         
-        // Start XA transaction via registry (this allocates a BackendSession from pool)
-        registry.xaStart(xidKey, request.getFlags());
-        
-        // Bind the BackendSession to the session (lazy binding)
-        BackendSession backendSession = registry.getSessionForTransaction(xidKey);
-        if (backendSession != null) {
-            XAConnection xaConnection = backendSession.getXAConnection();
-            session.bindXAConnection(xaConnection, backendSession);
+        // Get the existing BackendSession that was allocated during connect()
+        BackendSession backendSession = (BackendSession) session.getBackendSession();
+        if (backendSession == null) {
+            throw new SQLException("No BackendSession found in session");
         }
+        
+        // Register the existing BackendSession with the XA transaction (avoids double allocation)
+        registry.registerExistingSession(xidKey, backendSession, request.getFlags());
         
         com.openjproxy.grpc.XaResponse response = com.openjproxy.grpc.XaResponse.newBuilder()
                 .setSession(session.getSessionInfo())

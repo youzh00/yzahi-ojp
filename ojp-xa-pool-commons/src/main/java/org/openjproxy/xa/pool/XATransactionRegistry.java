@@ -69,6 +69,50 @@ public class XATransactionRegistry {
     }
     
     /**
+     * Registers an existing BackendSession with a new XA transaction.
+     * <p>
+     * Used when BackendSession is allocated eagerly (during connect) rather than 
+     * lazily (during xaStart). This avoids double allocation from the pool.
+     * </p>
+     *
+     * @param xid the transaction branch identifier
+     * @param session the existing BackendSession to register
+     * @param flags XA start flags (must be TMNOFLAGS for new transaction)
+     * @throws XAException if flags are invalid, xid already exists, or XA start fails
+     */
+    public void registerExistingSession(XidKey xid, BackendSession session, int flags) throws XAException {
+        log.debug("registerExistingSession: xid={}, flags={}", xid, flagsToString(flags));
+        
+        // Validate flags - only TMNOFLAGS allowed for new transaction
+        if (flags != XAResource.TMNOFLAGS) {
+            throw new XAException(XAException.XAER_INVAL);
+        }
+        
+        // Create context and ensure no duplicate
+        TxContext existing = contexts.putIfAbsent(xid, new TxContext(xid));
+        if (existing != null) {
+            throw new XAException(XAException.XAER_DUPID);
+        }
+        
+        TxContext ctx = contexts.get(xid);
+        try {
+            // Register the existing session
+            ctx.transitionToActive(session);
+            
+            // Call XAResource.start on backend
+            session.getXAResource().start(xid.toXid(), flags);
+            
+            log.info("XA transaction registered with existing session: xid={}", xid);
+        } catch (XAException e) {
+            contexts.remove(xid);
+            throw e;
+        } catch (Exception e) {
+            contexts.remove(xid);
+            throw new XAException(XAException.XAER_RMERR);
+        }
+    }
+    
+    /**
      * Starts an XA transaction branch.
      * <p>
      * For TMNOFLAGS: Creates new TxContext and borrows a backend session.<br>
