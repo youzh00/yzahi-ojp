@@ -539,17 +539,32 @@ public class XATransactionRegistry {
     /**
      * Closes the registry and releases all resources.
      * <p>
-     * Should be called during proxy shutdown. Logs warnings for any active transactions.
+     * Should be called during proxy shutdown or when registry needs to be recreated.
+     * Returns all active sessions to the pool and clears transaction contexts.
      * </p>
      */
     public void close() {
-        if (!contexts.isEmpty()) {
-            log.warn("Closing XATransactionRegistry with {} active transactions", contexts.size());
-            for (XidKey xid : contexts.keySet()) {
-                log.warn("Active transaction at shutdown: xid={}", xid);
+        try {
+            if (!contexts.isEmpty()) {
+                log.warn("Closing XATransactionRegistry with {} active transactions", contexts.size());
             }
+            
+            // Return all active sessions to pool
+            for (TxContext ctx : contexts.values()) {
+                try {
+                    if (ctx != null && ctx.getSession() != null) {
+                        poolProvider.returnSession(poolDataSource, ctx.getSession());
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to return session during registry close: {}", e.getMessage());
+                }
+            }
+            contexts.clear();
+            
+            log.info("XA registry closed successfully");
+        } catch (Exception e) {
+            log.error("Error during XA registry close: {}", e.getMessage(), e);
         }
-        contexts.clear();
     }
     
     // Private helper methods
@@ -582,32 +597,6 @@ public class XATransactionRegistry {
             case XAResource.TMSTARTRSCAN: return "TMSTARTRSCAN";
             case XAResource.TMENDRSCAN: return "TMENDRSCAN";
             default: return "UNKNOWN(" + flags + ")";
-        }
-    }
-    
-    /**
-     * Closes this registry and releases all resources.
-     * This should be called when the registry needs to be recreated due to configuration changes.
-     */
-    public void close() {
-        try {
-            // Close all active transaction contexts
-            for (TxContext ctx : contexts.values()) {
-                try {
-                    if (ctx != null && ctx.getSession() != null) {
-                        poolProvider.returnSession(poolDataSource, ctx.getSession());
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to return session during registry close: {}", e.getMessage());
-                }
-            }
-            contexts.clear();
-            
-            // Note: We don't close poolDataSource here because it might be reused
-            // The pool provider manages the lifecycle of the data source
-            log.info("XA registry closed successfully");
-        } catch (Exception e) {
-            log.error("Error during XA registry close: {}", e.getMessage(), e);
         }
     }
 }
