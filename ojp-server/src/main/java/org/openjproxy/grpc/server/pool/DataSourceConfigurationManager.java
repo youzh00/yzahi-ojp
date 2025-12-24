@@ -28,6 +28,7 @@ public class DataSourceConfigurationManager {
         private final long idleTimeout;
         private final long maxLifetime;
         private final long connectionTimeout;
+        private final boolean poolEnabled;
         
         public DataSourceConfiguration(String dataSourceName, Properties properties) {
             this.dataSourceName = dataSourceName;
@@ -36,6 +37,7 @@ public class DataSourceConfigurationManager {
             this.idleTimeout = getLongProperty(properties, CommonConstants.IDLE_TIMEOUT_PROPERTY, CommonConstants.DEFAULT_IDLE_TIMEOUT);
             this.maxLifetime = getLongProperty(properties, CommonConstants.MAX_LIFETIME_PROPERTY, CommonConstants.DEFAULT_MAX_LIFETIME);
             this.connectionTimeout = getLongProperty(properties, CommonConstants.CONNECTION_TIMEOUT_PROPERTY, CommonConstants.DEFAULT_CONNECTION_TIMEOUT);
+            this.poolEnabled = getBooleanProperty(properties, CommonConstants.POOL_ENABLED_PROPERTY, true);
         }
         
         // Getters
@@ -45,11 +47,56 @@ public class DataSourceConfigurationManager {
         public long getIdleTimeout() { return idleTimeout; }
         public long getMaxLifetime() { return maxLifetime; }
         public long getConnectionTimeout() { return connectionTimeout; }
+        public boolean isPoolEnabled() { return poolEnabled; }
         
         @Override
         public String toString() {
-            return String.format("DataSourceConfiguration[%s: maxPool=%d, minIdle=%d, timeout=%d]", 
-                    dataSourceName, maximumPoolSize, minimumIdle, connectionTimeout);
+            return String.format("DataSourceConfiguration[%s: maxPool=%d, minIdle=%d, timeout=%d, poolEnabled=%b]", 
+                    dataSourceName, maximumPoolSize, minimumIdle, connectionTimeout, poolEnabled);
+        }
+    }
+    
+    /**
+     * Configuration for XA-specific datasource (separate from non-XA)
+     */
+    public static class XADataSourceConfiguration {
+        private final String dataSourceName;
+        private final int maximumPoolSize;
+        private final int minimumIdle;
+        private final long idleTimeout;
+        private final long maxLifetime;
+        private final long connectionTimeout;
+        private final boolean poolEnabled;
+        
+        public XADataSourceConfiguration(String dataSourceName, Properties properties) {
+            this.dataSourceName = dataSourceName;
+            // Try XA-specific properties first, fall back to regular properties if not found
+            this.maximumPoolSize = getIntProperty(properties, CommonConstants.XA_MAXIMUM_POOL_SIZE_PROPERTY, 
+                    getIntProperty(properties, CommonConstants.MAXIMUM_POOL_SIZE_PROPERTY, CommonConstants.DEFAULT_MAXIMUM_POOL_SIZE));
+            this.minimumIdle = getIntProperty(properties, CommonConstants.XA_MINIMUM_IDLE_PROPERTY,
+                    getIntProperty(properties, CommonConstants.MINIMUM_IDLE_PROPERTY, CommonConstants.DEFAULT_MINIMUM_IDLE));
+            this.idleTimeout = getLongProperty(properties, CommonConstants.XA_IDLE_TIMEOUT_PROPERTY,
+                    getLongProperty(properties, CommonConstants.IDLE_TIMEOUT_PROPERTY, CommonConstants.DEFAULT_IDLE_TIMEOUT));
+            this.maxLifetime = getLongProperty(properties, CommonConstants.XA_MAX_LIFETIME_PROPERTY,
+                    getLongProperty(properties, CommonConstants.MAX_LIFETIME_PROPERTY, CommonConstants.DEFAULT_MAX_LIFETIME));
+            this.connectionTimeout = getLongProperty(properties, CommonConstants.XA_CONNECTION_TIMEOUT_PROPERTY,
+                    getLongProperty(properties, CommonConstants.CONNECTION_TIMEOUT_PROPERTY, CommonConstants.DEFAULT_CONNECTION_TIMEOUT));
+            this.poolEnabled = getBooleanProperty(properties, CommonConstants.XA_POOL_ENABLED_PROPERTY, true);
+        }
+        
+        // Getters
+        public String getDataSourceName() { return dataSourceName; }
+        public int getMaximumPoolSize() { return maximumPoolSize; }
+        public int getMinimumIdle() { return minimumIdle; }
+        public long getIdleTimeout() { return idleTimeout; }
+        public long getMaxLifetime() { return maxLifetime; }
+        public long getConnectionTimeout() { return connectionTimeout; }
+        public boolean isPoolEnabled() { return poolEnabled; }
+        
+        @Override
+        public String toString() {
+            return String.format("XADataSourceConfiguration[%s: maxPool=%d, minIdle=%d, timeout=%d, poolEnabled=%b]", 
+                    dataSourceName, maximumPoolSize, minimumIdle, connectionTimeout, poolEnabled);
         }
     }
     
@@ -65,7 +112,7 @@ public class DataSourceConfigurationManager {
                 clientProperties.getProperty(CommonConstants.DATASOURCE_NAME_PROPERTY, "default") : "default";
         
         // Create cache key that includes the properties hash to handle configuration changes
-        String cacheKey = createCacheKey(dataSourceName, clientProperties);
+        String cacheKey = createCacheKey(dataSourceName, clientProperties, false);
         
         // Cache lookup with lazy initialization - creates new configuration only if not already cached
         return configCache.computeIfAbsent(cacheKey, k -> {
@@ -76,26 +123,65 @@ public class DataSourceConfigurationManager {
     }
     
     /**
+     * Gets or creates an XADataSourceConfiguration from client properties.
+     * 
+     * @param clientProperties Properties sent from client, may include datasource name
+     * @return XADataSourceConfiguration with parsed settings (XA-specific or fallback to regular)
+     */
+    public static XADataSourceConfiguration getXAConfiguration(Properties clientProperties) {
+        // Extract datasource name from properties (set by Driver)
+        String dataSourceName = clientProperties != null ? 
+                clientProperties.getProperty(CommonConstants.DATASOURCE_NAME_PROPERTY, "default") : "default";
+        
+        // Create cache key that includes the properties hash to handle configuration changes
+        String cacheKey = createCacheKey(dataSourceName, clientProperties, true);
+        
+        // Cache lookup with lazy initialization
+        return (XADataSourceConfiguration) configCache.computeIfAbsent(cacheKey, k -> {
+            XADataSourceConfiguration config = new XADataSourceConfiguration(dataSourceName, clientProperties);
+            log.info("Created new XADataSourceConfiguration: {}", config);
+            return config;
+        });
+    }
+    
+    /**
      * Creates a cache key that includes datasource name and a hash of relevant properties.
      * The cache key is used to determine if a configuration has already been created and cached,
      * allowing for efficient reuse of configurations while detecting when property changes
      * require a new configuration to be created.
      */
-    private static String createCacheKey(String dataSourceName, Properties properties) {
+    private static String createCacheKey(String dataSourceName, Properties properties, boolean isXA) {
         if (properties == null) {
-            return dataSourceName + ":defaults";
+            return dataSourceName + ":" + (isXA ? "xa:" : "") + "defaults";
         }
         
         // Create a simple hash of the relevant properties to detect changes
-        StringBuilder sb = new StringBuilder(dataSourceName).append(":");
+        StringBuilder sb = new StringBuilder(dataSourceName).append(":").append(isXA ? "xa:" : "");
         
-        String[] keys = {
-                CommonConstants.MAXIMUM_POOL_SIZE_PROPERTY,
-                CommonConstants.MINIMUM_IDLE_PROPERTY, 
-                CommonConstants.IDLE_TIMEOUT_PROPERTY,
-                CommonConstants.MAX_LIFETIME_PROPERTY,
-                CommonConstants.CONNECTION_TIMEOUT_PROPERTY
-        };
+        String[] keys;
+        if (isXA) {
+            keys = new String[] {
+                    CommonConstants.XA_MAXIMUM_POOL_SIZE_PROPERTY,
+                    CommonConstants.XA_MINIMUM_IDLE_PROPERTY, 
+                    CommonConstants.XA_IDLE_TIMEOUT_PROPERTY,
+                    CommonConstants.XA_MAX_LIFETIME_PROPERTY,
+                    CommonConstants.XA_CONNECTION_TIMEOUT_PROPERTY,
+                    CommonConstants.XA_POOL_ENABLED_PROPERTY,
+                    // Include fallback properties in hash too
+                    CommonConstants.MAXIMUM_POOL_SIZE_PROPERTY,
+                    CommonConstants.MINIMUM_IDLE_PROPERTY,
+                    CommonConstants.POOL_ENABLED_PROPERTY
+            };
+        } else {
+            keys = new String[] {
+                    CommonConstants.MAXIMUM_POOL_SIZE_PROPERTY,
+                    CommonConstants.MINIMUM_IDLE_PROPERTY, 
+                    CommonConstants.IDLE_TIMEOUT_PROPERTY,
+                    CommonConstants.MAX_LIFETIME_PROPERTY,
+                    CommonConstants.CONNECTION_TIMEOUT_PROPERTY,
+                    CommonConstants.POOL_ENABLED_PROPERTY
+            };
+        }
         
         for (String key : keys) {
             String value = properties.getProperty(key, "");
@@ -133,6 +219,20 @@ public class DataSourceConfigurationManager {
             log.warn("Invalid long value for property '{}': {}, using default: {}", key, properties.getProperty(key), defaultValue);
             return defaultValue;
         }
+    }
+    
+    /**
+     * Gets a boolean property with a default value.
+     */
+    private static boolean getBooleanProperty(Properties properties, String key, boolean defaultValue) {
+        if (properties == null || !properties.containsKey(key)) {
+            return defaultValue;
+        }
+        String value = properties.getProperty(key);
+        if (value != null) {
+            return Boolean.parseBoolean(value);
+        }
+        return defaultValue;
     }
     
     /**

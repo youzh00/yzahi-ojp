@@ -31,8 +31,17 @@ public class CommonConstants {
     public static final String IDLE_TIMEOUT_PROPERTY = "ojp.connection.pool.idleTimeout";
     public static final String MAX_LIFETIME_PROPERTY = "ojp.connection.pool.maxLifetime";
     public static final String CONNECTION_TIMEOUT_PROPERTY = "ojp.connection.pool.connectionTimeout";
+    public static final String POOL_ENABLED_PROPERTY = "ojp.connection.pool.enabled";
     public static final String MAX_XA_TRANSACTIONS_PROPERTY = "ojp.xa.maxTransactions";
     public static final String XA_START_TIMEOUT_PROPERTY = "ojp.xa.startTimeoutMillis";
+    
+    // XA-specific pool configuration property keys
+    public static final String XA_MAXIMUM_POOL_SIZE_PROPERTY = "ojp.xa.connection.pool.maximumPoolSize";
+    public static final String XA_MINIMUM_IDLE_PROPERTY = "ojp.xa.connection.pool.minimumIdle";
+    public static final String XA_IDLE_TIMEOUT_PROPERTY = "ojp.xa.connection.pool.idleTimeout";
+    public static final String XA_MAX_LIFETIME_PROPERTY = "ojp.xa.connection.pool.maxLifetime";
+    public static final String XA_CONNECTION_TIMEOUT_PROPERTY = "ojp.xa.connection.pool.connectionTimeout";
+    public static final String XA_POOL_ENABLED_PROPERTY = "ojp.xa.connection.pool.enabled";
     
     // Multinode configuration property keys
     public static final String MULTINODE_RETRY_ATTEMPTS_PROPERTY = "ojp.multinode.retryAttempts";
