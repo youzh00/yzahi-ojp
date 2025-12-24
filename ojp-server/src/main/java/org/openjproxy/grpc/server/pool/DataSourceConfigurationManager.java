@@ -17,6 +17,7 @@ public class DataSourceConfigurationManager {
     
     // Cache for parsed datasource configurations
     private static final ConcurrentMap<String, DataSourceConfiguration> configCache = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, XADataSourceConfiguration> xaConfigCache = new ConcurrentHashMap<>();
     
     /**
      * Configuration for a specific datasource
@@ -136,8 +137,8 @@ public class DataSourceConfigurationManager {
         // Create cache key that includes the properties hash to handle configuration changes
         String cacheKey = createCacheKey(dataSourceName, clientProperties, true);
         
-        // Cache lookup with lazy initialization
-        return (XADataSourceConfiguration) configCache.computeIfAbsent(cacheKey, k -> {
+        // Cache lookup with lazy initialization (using separate XA cache)
+        return xaConfigCache.computeIfAbsent(cacheKey, k -> {
             XADataSourceConfiguration config = new XADataSourceConfiguration(dataSourceName, clientProperties);
             log.info("Created new XADataSourceConfiguration: {}", config);
             return config;
@@ -236,17 +237,18 @@ public class DataSourceConfigurationManager {
     }
     
     /**
-     * Clears the configuration cache. Useful for testing.
+     * Clears the configuration caches. Useful for testing.
      */
     public static void clearCache() {
         configCache.clear();
-        log.debug("Cleared DataSourceConfiguration cache");
+        xaConfigCache.clear();
+        log.debug("Cleared DataSourceConfiguration caches");
     }
     
     /**
      * Gets the number of cached configurations. Useful for monitoring.
      */
     public static int getCacheSize() {
-        return configCache.size();
+        return configCache.size() + xaConfigCache.size();
     }
 }

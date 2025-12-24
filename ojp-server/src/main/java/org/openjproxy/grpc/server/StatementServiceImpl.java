@@ -130,6 +130,17 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
     // Cluster health tracker for monitoring health changes
     private final ClusterHealthTracker clusterHealthTracker = new ClusterHealthTracker();
     
+    // Unpooled connection details (for passthrough mode when pooling is disabled)
+    @Builder
+    @Getter
+    private static class UnpooledConnectionDetails {
+        private final String url;
+        private final String username;
+        private final String password;
+        private final long connectionTimeout;
+    }
+    private final Map<String, UnpooledConnectionDetails> unpooledConnectionDetailsMap = new ConcurrentHashMap<>();
+    
     private static final List<String> INPUT_STREAM_TYPES = Arrays.asList("RAW", "BINARY VARYING", "BYTEA");
     private final Map<String, DbName> dbNameMap = new ConcurrentHashMap<>();
 
@@ -310,57 +321,75 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
             return;
         }
         
-        // Handle non-XA connection - use Connection Pool SPI (HikariCP by default)
+        // Handle non-XA connection - check if pooling is enabled
         DataSource ds = this.datasourceMap.get(connHash);
-        if (ds == null) {
+        UnpooledConnectionDetails unpooledDetails = this.unpooledConnectionDetailsMap.get(connHash);
+        
+        if (ds == null && unpooledDetails == null) {
             try {
                 // Get datasource-specific configuration from client properties
                 Properties clientProperties = ConnectionPoolConfigurer.extractClientProperties(connectionDetails);
                 DataSourceConfigurationManager.DataSourceConfiguration dsConfig = 
                         DataSourceConfigurationManager.getConfiguration(clientProperties);
                 
-                // Get pool sizes - apply multinode coordination if needed
-                int maxPoolSize = dsConfig.getMaximumPoolSize();
-                int minIdle = dsConfig.getMinimumIdle();
-                
-                List<String> serverEndpoints = connectionDetails.getServerEndpointsList();
-                if (serverEndpoints != null && !serverEndpoints.isEmpty()) {
-                    // Multinode: calculate divided pool sizes
-                    MultinodePoolCoordinator.PoolAllocation allocation = 
-                            ConnectionPoolConfigurer.getPoolCoordinator().calculatePoolSizes(
-                                    connHash, maxPoolSize, minIdle, serverEndpoints);
+                // Check if pooling is enabled
+                if (!dsConfig.isPoolEnabled()) {
+                    // Unpooled mode: store connection details for direct connection creation
+                    unpooledDetails = UnpooledConnectionDetails.builder()
+                            .url(UrlParser.parseUrl(connectionDetails.getUrl()))
+                            .username(connectionDetails.getUser())
+                            .password(connectionDetails.getPassword())
+                            .connectionTimeout(dsConfig.getConnectionTimeout())
+                            .build();
+                    this.unpooledConnectionDetailsMap.put(connHash, unpooledDetails);
                     
-                    maxPoolSize = allocation.getCurrentMaxPoolSize();
-                    minIdle = allocation.getCurrentMinIdle();
+                    log.info("Unpooled (passthrough) mode enabled for dataSource '{}' with connHash: {}", 
+                            dsConfig.getDataSourceName(), connHash);
+                } else {
+                    // Pooled mode: create datasource with Connection Pool SPI (HikariCP by default)
+                    // Get pool sizes - apply multinode coordination if needed
+                    int maxPoolSize = dsConfig.getMaximumPoolSize();
+                    int minIdle = dsConfig.getMinimumIdle();
                     
-                    log.info("Multinode pool coordination enabled for {}: {} servers, divided pool sizes: max={}, min={}", 
-                            connHash, serverEndpoints.size(), maxPoolSize, minIdle);
+                    List<String> serverEndpoints = connectionDetails.getServerEndpointsList();
+                    if (serverEndpoints != null && !serverEndpoints.isEmpty()) {
+                        // Multinode: calculate divided pool sizes
+                        MultinodePoolCoordinator.PoolAllocation allocation = 
+                                ConnectionPoolConfigurer.getPoolCoordinator().calculatePoolSizes(
+                                        connHash, maxPoolSize, minIdle, serverEndpoints);
+                        
+                        maxPoolSize = allocation.getCurrentMaxPoolSize();
+                        minIdle = allocation.getCurrentMinIdle();
+                        
+                        log.info("Multinode pool coordination enabled for {}: {} servers, divided pool sizes: max={}, min={}", 
+                                connHash, serverEndpoints.size(), maxPoolSize, minIdle);
+                    }
+                    
+                    // Build PoolConfig from connection details and configuration
+                    PoolConfig poolConfig = PoolConfig.builder()
+                            .url(UrlParser.parseUrl(connectionDetails.getUrl()))
+                            .username(connectionDetails.getUser())
+                            .password(connectionDetails.getPassword())
+                            .maxPoolSize(maxPoolSize)
+                            .minIdle(minIdle)
+                            .connectionTimeoutMs(dsConfig.getConnectionTimeout())
+                            .idleTimeoutMs(dsConfig.getIdleTimeout())
+                            .maxLifetimeMs(dsConfig.getMaxLifetime())
+                            .metricsPrefix("OJP-Pool-" + dsConfig.getDataSourceName())
+                            .build();
+                    
+                    // Create DataSource using the SPI (HikariCP by default)
+                    ds = ConnectionPoolProviderRegistry.createDataSource(poolConfig);
+                    this.datasourceMap.put(connHash, ds);
+                    
+                    // Create a slow query segregation manager for this datasource
+                    createSlowQuerySegregationManagerForDatasource(connHash, maxPoolSize);
+                    
+                    log.info("Created new DataSource for dataSource '{}' with connHash: {} using provider: {}, maxPoolSize={}, minIdle={}", 
+                            dsConfig.getDataSourceName(), connHash, 
+                            ConnectionPoolProviderRegistry.getDefaultProvider().map(p -> p.id()).orElse("unknown"),
+                            maxPoolSize, minIdle);
                 }
-                
-                // Build PoolConfig from connection details and configuration
-                PoolConfig poolConfig = PoolConfig.builder()
-                        .url(UrlParser.parseUrl(connectionDetails.getUrl()))
-                        .username(connectionDetails.getUser())
-                        .password(connectionDetails.getPassword())
-                        .maxPoolSize(maxPoolSize)
-                        .minIdle(minIdle)
-                        .connectionTimeoutMs(dsConfig.getConnectionTimeout())
-                        .idleTimeoutMs(dsConfig.getIdleTimeout())
-                        .maxLifetimeMs(dsConfig.getMaxLifetime())
-                        .metricsPrefix("OJP-Pool-" + dsConfig.getDataSourceName())
-                        .build();
-                
-                // Create DataSource using the SPI (HikariCP by default)
-                ds = ConnectionPoolProviderRegistry.createDataSource(poolConfig);
-                this.datasourceMap.put(connHash, ds);
-                
-                // Create a slow query segregation manager for this datasource
-                createSlowQuerySegregationManagerForDatasource(connHash, maxPoolSize);
-                
-                log.info("Created new DataSource for dataSource '{}' with connHash: {} using provider: {}, maxPoolSize={}, minIdle={}", 
-                        dsConfig.getDataSourceName(), connHash, 
-                        ConnectionPoolProviderRegistry.getDefaultProvider().map(p -> p.id()).orElse("unknown"),
-                        maxPoolSize, minIdle);
                 
             } catch (Exception e) {
                 log.error("Failed to create datasource for connection hash {}: {}", connHash, e.getMessage(), e);
@@ -414,12 +443,14 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
         // Calculate what the pool sizes SHOULD be based on current configuration
         int expectedMaxPoolSize;
         int expectedMinIdle;
+        boolean poolEnabled;
         try {
             Properties clientProperties = ConnectionPoolConfigurer.extractClientProperties(connectionDetails);
-            DataSourceConfigurationManager.DataSourceConfiguration dsConfig = 
-                    DataSourceConfigurationManager.getConfiguration(clientProperties);
-            expectedMaxPoolSize = dsConfig.getMaximumPoolSize();
-            expectedMinIdle = dsConfig.getMinimumIdle();
+            DataSourceConfigurationManager.XADataSourceConfiguration xaConfig = 
+                    DataSourceConfigurationManager.getXAConfiguration(clientProperties);
+            expectedMaxPoolSize = xaConfig.getMaximumPoolSize();
+            expectedMinIdle = xaConfig.getMinimumIdle();
+            poolEnabled = xaConfig.isPoolEnabled();
             
             // Apply multinode coordination to get expected divided sizes
             if (currentServerEndpoints != null && !currentServerEndpoints.isEmpty()) {
@@ -433,6 +464,7 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
             log.warn("Failed to calculate expected pool sizes, will skip validation: {}", e.getMessage());
             expectedMaxPoolSize = -1;
             expectedMinIdle = -1;
+            poolEnabled = true; // Default to pooled mode if config fails
         }
         
         // Check if registry exists and needs recreation due to configuration mismatch
@@ -474,18 +506,26 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
         
         if (registry == null) {
             log.info("Creating NEW XA registry for connHash: {} with serverEndpoints: {}", connHash, currentEndpointsHash);
+            
+            // Check if XA pooling is enabled
+            if (!poolEnabled) {
+                // TODO: Implement unpooled XA mode if needed
+                // For now, log a warning and fall back to pooled mode
+                log.warn("XA unpooled mode requested but not yet implemented for connHash: {}. Falling back to pooled mode.", connHash);
+            }
+            
             try {
                 // Parse URL to remove OJP-specific prefix (same as non-XA path)
                 String parsedUrl = UrlParser.parseUrl(connectionDetails.getUrl());
                 
-                // Get datasource configuration from client properties (same as non-XA)
+                // Get XA datasource configuration from client properties (uses XA-specific properties)
                 Properties clientProperties = ConnectionPoolConfigurer.extractClientProperties(connectionDetails);
-                DataSourceConfigurationManager.DataSourceConfiguration dsConfig = 
-                        DataSourceConfigurationManager.getConfiguration(clientProperties);
+                DataSourceConfigurationManager.XADataSourceConfiguration xaConfig = 
+                        DataSourceConfigurationManager.getXAConfiguration(clientProperties);
                 
-                // Get default pool sizes from configuration
-                int maxPoolSize = dsConfig.getMaximumPoolSize();
-                int minIdle = dsConfig.getMinimumIdle();
+                // Get default pool sizes from XA configuration
+                int maxPoolSize = xaConfig.getMaximumPoolSize();
+                int minIdle = xaConfig.getMinimumIdle();
                 
                 log.info("XA pool BEFORE multinode coordination for {}: requested max={}, min={}", 
                         connHash, maxPoolSize, minIdle);
@@ -525,9 +565,9 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
                 // Use calculated pool sizes (with multinode coordination if applicable)
                 xaPoolConfig.put("xa.maxPoolSize", String.valueOf(maxPoolSize));
                 xaPoolConfig.put("xa.minIdle", String.valueOf(minIdle));
-                xaPoolConfig.put("xa.maxWaitMillis", String.valueOf(dsConfig.getConnectionTimeout()));
-                xaPoolConfig.put("xa.idleTimeoutMinutes", String.valueOf(dsConfig.getIdleTimeout() / 60000));
-                xaPoolConfig.put("xa.maxLifetimeMinutes", String.valueOf(dsConfig.getMaxLifetime() / 60000));
+                xaPoolConfig.put("xa.maxWaitMillis", String.valueOf(xaConfig.getConnectionTimeout()));
+                xaPoolConfig.put("xa.idleTimeoutMinutes", String.valueOf(xaConfig.getIdleTimeout() / 60000));
+                xaPoolConfig.put("xa.maxLifetimeMinutes", String.valueOf(xaConfig.getMaxLifetime() / 60000));
                 
                 // Create pooled XA DataSource via provider
                 Object pooledXADataSource = xaPoolProvider.createXADataSource(xaPoolConfig);
@@ -1652,22 +1692,41 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
                 // This shouldn't happen as XA sessions are created eagerly
                 throw new SQLException("XA session should already exist. Session UUID is missing.");
             } else {
-                // Regular connection - acquire from datasource (HikariCP by default)
-                DataSource dataSource = this.datasourceMap.get(connHash);
-                if (dataSource == null) {
-                    throw new SQLException("No datasource found for connection hash: " + connHash);
-                }
+                // Regular connection - check if pooled or unpooled mode
+                UnpooledConnectionDetails unpooledDetails = this.unpooledConnectionDetailsMap.get(connHash);
                 
-                try {
-                    // Use enhanced connection acquisition with timeout protection
-                    conn = ConnectionAcquisitionManager.acquireConnection(dataSource, connHash);
-                    log.debug("Successfully acquired connection from pool for hash: {}", connHash);
-                } catch (SQLException e) {
-                    log.error("Failed to acquire connection from pool for hash: {}. Error: {}",
-                        connHash, e.getMessage());
+                if (unpooledDetails != null) {
+                    // Unpooled mode: create direct connection without pooling
+                    try {
+                        log.debug("Creating unpooled (passthrough) connection for hash: {}", connHash);
+                        conn = java.sql.DriverManager.getConnection(
+                                unpooledDetails.getUrl(),
+                                unpooledDetails.getUsername(),
+                                unpooledDetails.getPassword());
+                        log.debug("Successfully created unpooled connection for hash: {}", connHash);
+                    } catch (SQLException e) {
+                        log.error("Failed to create unpooled connection for hash: {}. Error: {}",
+                                connHash, e.getMessage());
+                        throw e;
+                    }
+                } else {
+                    // Pooled mode: acquire from datasource (HikariCP by default)
+                    DataSource dataSource = this.datasourceMap.get(connHash);
+                    if (dataSource == null) {
+                        throw new SQLException("No datasource found for connection hash: " + connHash);
+                    }
                     
-                    // Re-throw the enhanced exception from ConnectionAcquisitionManager
-                    throw e;
+                    try {
+                        // Use enhanced connection acquisition with timeout protection
+                        conn = ConnectionAcquisitionManager.acquireConnection(dataSource, connHash);
+                        log.debug("Successfully acquired connection from pool for hash: {}", connHash);
+                    } catch (SQLException e) {
+                        log.error("Failed to acquire connection from pool for hash: {}. Error: {}",
+                                connHash, e.getMessage());
+                        
+                        // Re-throw the enhanced exception from ConnectionAcquisitionManager
+                        throw e;
+                    }
                 }
                 
                 if (startSessionIfNone) {
