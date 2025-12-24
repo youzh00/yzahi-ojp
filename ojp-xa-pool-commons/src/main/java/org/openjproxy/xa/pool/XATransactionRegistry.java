@@ -47,16 +47,29 @@ public class XATransactionRegistry {
     private final ConcurrentMap<XidKey, TxContext> contexts = new ConcurrentHashMap<>();
     private final XAConnectionPoolProvider poolProvider;
     private final Object poolDataSource; // XADataSource instance from provider
+    private final String serverEndpointsHash; // Hash of serverEndpoints used to create this registry
     
     /**
      * Creates a new XA transaction registry.
      *
      * @param poolProvider the XA connection pool provider
      * @param poolDataSource the XADataSource instance from the provider
+     * @param serverEndpointsHash hash of serverEndpoints configuration used to create backend pools
      */
-    public XATransactionRegistry(XAConnectionPoolProvider poolProvider, Object poolDataSource) {
+    public XATransactionRegistry(XAConnectionPoolProvider poolProvider, Object poolDataSource, String serverEndpointsHash) {
         this.poolProvider = poolProvider;
         this.poolDataSource = poolDataSource;
+        this.serverEndpointsHash = serverEndpointsHash;
+    }
+    
+    /**
+     * Gets the serverEndpoints hash that was used to create this registry.
+     * This allows detection of configuration changes that require registry recreation.
+     *
+     * @return the serverEndpoints hash, or null if created with old code
+     */
+    public String getServerEndpointsHash() {
+        return serverEndpointsHash;
     }
     
     /**
@@ -569,6 +582,32 @@ public class XATransactionRegistry {
             case XAResource.TMSTARTRSCAN: return "TMSTARTRSCAN";
             case XAResource.TMENDRSCAN: return "TMENDRSCAN";
             default: return "UNKNOWN(" + flags + ")";
+        }
+    }
+    
+    /**
+     * Closes this registry and releases all resources.
+     * This should be called when the registry needs to be recreated due to configuration changes.
+     */
+    public void close() {
+        try {
+            // Close all active transaction contexts
+            for (TxContext ctx : contexts.values()) {
+                try {
+                    if (ctx != null && ctx.getSession() != null) {
+                        poolProvider.returnSession(poolDataSource, ctx.getSession());
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to return session during registry close: {}", e.getMessage());
+                }
+            }
+            contexts.clear();
+            
+            // Note: We don't close poolDataSource here because it might be reused
+            // The pool provider manages the lifecycle of the data source
+            log.info("XA registry closed successfully");
+        } catch (Exception e) {
+            log.error("Error during XA registry close: {}", e.getMessage(), e);
         }
     }
 }

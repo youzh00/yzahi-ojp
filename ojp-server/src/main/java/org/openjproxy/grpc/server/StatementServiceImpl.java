@@ -400,12 +400,38 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
                                                StreamObserver<SessionInfo> responseObserver) {
         log.info("Using XA Pool Provider SPI for connHash: {}", connHash);
         
+        // Get current serverEndpoints configuration
+        List<String> currentServerEndpoints = connectionDetails.getServerEndpointsList();
+        String currentEndpointsHash = (currentServerEndpoints == null || currentServerEndpoints.isEmpty()) 
+                ? "NONE" 
+                : String.join(",", currentServerEndpoints);
+        
         // Check if we already have an XA registry for this connection hash
         XATransactionRegistry registry = xaRegistries.get(connHash);
-        log.info("XA registry cache lookup for {}: exists={}", connHash, registry != null);
+        log.info("XA registry cache lookup for {}: exists={}, current serverEndpoints hash: {}", 
+                connHash, registry != null, currentEndpointsHash);
+        
+        // Check if registry exists and was created with different server endpoints configuration
+        boolean needsRecreation = false;
+        if (registry != null) {
+            String registryEndpointsHash = registry.getServerEndpointsHash();
+            if (registryEndpointsHash == null || !registryEndpointsHash.equals(currentEndpointsHash)) {
+                log.warn("XA registry for {} was created with serverEndpoints '{}' but current request has '{}'. Registry will be recreated to match current configuration.",
+                        connHash, registryEndpointsHash, currentEndpointsHash);
+                needsRecreation = true;
+                // Close and remove old registry
+                try {
+                    registry.close();
+                } catch (Exception e) {
+                    log.warn("Failed to close old XA registry during recreation: {}", e.getMessage());
+                }
+                xaRegistries.remove(connHash);
+                registry = null;
+            }
+        }
         
         if (registry == null) {
-            log.info("Creating NEW XA registry for connHash: {}", connHash);
+            log.info("Creating NEW XA registry for connHash: {} with serverEndpoints: {}", connHash, currentEndpointsHash);
             try {
                 // Parse URL to remove OJP-specific prefix (same as non-XA path)
                 String parsedUrl = UrlParser.parseUrl(connectionDetails.getUrl());
@@ -464,8 +490,8 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
                 // Create pooled XA DataSource via provider
                 Object pooledXADataSource = xaPoolProvider.createXADataSource(xaPoolConfig);
                 
-                // Create XA Transaction Registry
-                registry = new XATransactionRegistry(xaPoolProvider, pooledXADataSource);
+                // Create XA Transaction Registry with serverEndpoints hash for tracking
+                registry = new XATransactionRegistry(xaPoolProvider, pooledXADataSource, currentEndpointsHash);
                 xaRegistries.put(connHash, registry);
                 
                 // Create slow query segregation manager for XA
