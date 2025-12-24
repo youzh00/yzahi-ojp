@@ -411,14 +411,56 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
         log.info("XA registry cache lookup for {}: exists={}, current serverEndpoints hash: {}", 
                 connHash, registry != null, currentEndpointsHash);
         
-        // Check if registry exists and was created with different server endpoints configuration
+        // Calculate what the pool sizes SHOULD be based on current configuration
+        int expectedMaxPoolSize;
+        int expectedMinIdle;
+        try {
+            Properties clientProperties = ConnectionPoolConfigurer.extractClientProperties(connectionDetails);
+            DataSourceConfigurationManager.DataSourceConfiguration dsConfig = 
+                    DataSourceConfigurationManager.getConfiguration(clientProperties);
+            expectedMaxPoolSize = dsConfig.getMaximumPoolSize();
+            expectedMinIdle = dsConfig.getMinimumIdle();
+            
+            // Apply multinode coordination to get expected divided sizes
+            if (currentServerEndpoints != null && !currentServerEndpoints.isEmpty()) {
+                MultinodePoolCoordinator.PoolAllocation allocation = 
+                        ConnectionPoolConfigurer.getPoolCoordinator().calculatePoolSizes(
+                                connHash, expectedMaxPoolSize, expectedMinIdle, currentServerEndpoints);
+                expectedMaxPoolSize = allocation.getCurrentMaxPoolSize();
+                expectedMinIdle = allocation.getCurrentMinIdle();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to calculate expected pool sizes, will skip validation: {}", e.getMessage());
+            expectedMaxPoolSize = -1;
+            expectedMinIdle = -1;
+        }
+        
+        // Check if registry exists and needs recreation due to configuration mismatch
         boolean needsRecreation = false;
         if (registry != null) {
             String registryEndpointsHash = registry.getServerEndpointsHash();
+            int registryMaxPool = registry.getMaxPoolSize();
+            int registryMinIdle = registry.getMinIdle();
+            
+            // Check if serverEndpoints changed
             if (registryEndpointsHash == null || !registryEndpointsHash.equals(currentEndpointsHash)) {
-                log.warn("XA registry for {} was created with serverEndpoints '{}' but current request has '{}'. Registry will be recreated to match current configuration.",
+                log.warn("XA registry for {} has serverEndpoints mismatch: registry='{}' vs current='{}'. Will recreate.", 
                         connHash, registryEndpointsHash, currentEndpointsHash);
                 needsRecreation = true;
+            }
+            // Check if pool sizes don't match expected values (indicates wrong coordination on first creation)
+            else if (expectedMaxPoolSize > 0 && registryMaxPool != expectedMaxPoolSize) {
+                log.warn("XA registry for {} has maxPoolSize mismatch: registry={} vs expected={}. Will recreate with correct multinode coordination.",
+                        connHash, registryMaxPool, expectedMaxPoolSize);
+                needsRecreation = true;
+            }
+            else if (expectedMinIdle > 0 && registryMinIdle != expectedMinIdle) {
+                log.warn("XA registry for {} has minIdle mismatch: registry={} vs expected={}. Will recreate with correct multinode coordination.",
+                        connHash, registryMinIdle, expectedMinIdle);
+                needsRecreation = true;
+            }
+            
+            if (needsRecreation) {
                 // Close and remove old registry
                 try {
                     registry.close();
@@ -490,8 +532,8 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
                 // Create pooled XA DataSource via provider
                 Object pooledXADataSource = xaPoolProvider.createXADataSource(xaPoolConfig);
                 
-                // Create XA Transaction Registry with serverEndpoints hash for tracking
-                registry = new XATransactionRegistry(xaPoolProvider, pooledXADataSource, currentEndpointsHash);
+                // Create XA Transaction Registry with serverEndpoints hash and pool sizes for validation
+                registry = new XATransactionRegistry(xaPoolProvider, pooledXADataSource, currentEndpointsHash, maxPoolSize, minIdle);
                 xaRegistries.put(connHash, registry);
                 
                 // Create slow query segregation manager for XA

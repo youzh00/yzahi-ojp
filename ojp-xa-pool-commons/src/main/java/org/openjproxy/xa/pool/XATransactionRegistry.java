@@ -48,6 +48,8 @@ public class XATransactionRegistry {
     private final XAConnectionPoolProvider poolProvider;
     private final Object poolDataSource; // XADataSource instance from provider
     private final String serverEndpointsHash; // Hash of serverEndpoints used to create this registry
+    private final int maxPoolSize; // Max pool size used to create backend pool
+    private final int minIdle; // Min idle connections used to create backend pool
     
     /**
      * Creates a new XA transaction registry.
@@ -55,11 +57,15 @@ public class XATransactionRegistry {
      * @param poolProvider the XA connection pool provider
      * @param poolDataSource the XADataSource instance from the provider
      * @param serverEndpointsHash hash of serverEndpoints configuration used to create backend pools
+     * @param maxPoolSize the maximum pool size used to create the backend pool
+     * @param minIdle the minimum idle connections used to create the backend pool
      */
-    public XATransactionRegistry(XAConnectionPoolProvider poolProvider, Object poolDataSource, String serverEndpointsHash) {
+    public XATransactionRegistry(XAConnectionPoolProvider poolProvider, Object poolDataSource, String serverEndpointsHash, int maxPoolSize, int minIdle) {
         this.poolProvider = poolProvider;
         this.poolDataSource = poolDataSource;
         this.serverEndpointsHash = serverEndpointsHash;
+        this.maxPoolSize = maxPoolSize;
+        this.minIdle = minIdle;
     }
     
     /**
@@ -70,6 +76,24 @@ public class XATransactionRegistry {
      */
     public String getServerEndpointsHash() {
         return serverEndpointsHash;
+    }
+    
+    /**
+     * Gets the maximum pool size used to create the backend pool.
+     *
+     * @return the max pool size
+     */
+    public int getMaxPoolSize() {
+        return maxPoolSize;
+    }
+    
+    /**
+     * Gets the minimum idle connections used to create the backend pool.
+     *
+     * @return the min idle connections
+     */
+    public int getMinIdle() {
+        return minIdle;
     }
     
     /**
