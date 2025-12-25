@@ -202,6 +202,37 @@ public class CommonsPool2XADataSource implements XADataSource {
     }
     
     /**
+     * Sets the maximum number of sessions that can be allocated in the pool.
+     * Allows dynamic pool resizing at runtime for cluster rebalancing.
+     *
+     * @param maxTotal the new maximum pool size
+     */
+    public void setMaxTotal(int maxTotal) {
+        log.info("Resizing XA pool: setMaxTotal from {} to {}", pool.getMaxTotal(), maxTotal);
+        pool.setMaxTotal(maxTotal);
+    }
+    
+    /**
+     * Gets the minimum number of idle sessions maintained in the pool.
+     *
+     * @return the minimum idle sessions
+     */
+    public int getMinIdle() {
+        return pool.getMinIdle();
+    }
+    
+    /**
+     * Sets the minimum number of idle sessions to maintain in the pool.
+     * Allows dynamic pool resizing at runtime for cluster rebalancing.
+     *
+     * @param minIdle the new minimum idle sessions
+     */
+    public void setMinIdle(int minIdle) {
+        log.info("Resizing XA pool: setMinIdle from {} to {}", pool.getMinIdle(), minIdle);
+        pool.setMinIdle(minIdle);
+    }
+    
+    /**
      * Closes the pool and releases all resources.
      * <p>
      * This will close all sessions (active and idle) and shut down the pool.

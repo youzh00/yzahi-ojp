@@ -225,12 +225,40 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
         if (clusterHealth != null && !clusterHealth.isEmpty() && 
             connHash != null && !connHash.isEmpty()) {
             
-            // Get the DataSource for this connection hash to enable dynamic resizing
-            // Cast to HikariDataSource for backward compatibility with HikariCP-specific resizing
-            DataSource ds = datasourceMap.get(connHash);
-            HikariDataSource hikariDataSource = (ds instanceof HikariDataSource) ? (HikariDataSource) ds : null;
+            // Check if cluster health has changed
+            boolean healthChanged = clusterHealthTracker.hasHealthChanged(connHash, clusterHealth);
             
-            ConnectionPoolConfigurer.processClusterHealth(connHash, clusterHealth, clusterHealthTracker, hikariDataSource);
+            if (healthChanged) {
+                int healthyServerCount = clusterHealthTracker.countHealthyServers(clusterHealth);
+                log.info("Cluster health changed for {}, healthy servers: {}, triggering pool rebalancing", 
+                        connHash, healthyServerCount);
+                
+                // Update the pool coordinator with new healthy server count
+                ConnectionPoolConfigurer.getPoolCoordinator().updateHealthyServers(connHash, healthyServerCount);
+                
+                // Apply pool size changes to non-XA HikariDataSource if present
+                DataSource ds = datasourceMap.get(connHash);
+                if (ds instanceof HikariDataSource) {
+                    ConnectionPoolConfigurer.applyPoolSizeChanges(connHash, (HikariDataSource) ds);
+                }
+                
+                // Apply pool size changes to XA registry if present
+                XATransactionRegistry xaRegistry = xaRegistries.get(connHash);
+                if (xaRegistry != null) {
+                    MultinodePoolCoordinator.PoolAllocation allocation = 
+                            ConnectionPoolConfigurer.getPoolCoordinator().getPoolAllocation(connHash);
+                    
+                    if (allocation != null) {
+                        int newMaxPoolSize = allocation.getCurrentMaxPoolSize();
+                        int newMinIdle = allocation.getCurrentMinIdle();
+                        
+                        log.info("Resizing XA backend pool for {}: maxPoolSize={}, minIdle={}", 
+                                connHash, newMaxPoolSize, newMinIdle);
+                        
+                        xaRegistry.resizeBackendPool(newMaxPoolSize, newMinIdle);
+                    }
+                }
+            }
         }
     }
 

@@ -106,6 +106,44 @@ public class XATransactionRegistry {
     }
     
     /**
+     * Resizes the backend connection pool to the specified sizes.
+     * <p>
+     * This method is called during cluster rebalancing when the number of healthy
+     * servers changes. The XA backend pool needs to expand or contract to maintain
+     * proper load distribution across the cluster.
+     * </p>
+     *
+     * @param newMaxPoolSize the new maximum pool size
+     * @param newMinIdle the new minimum idle connections
+     */
+    public void resizeBackendPool(int newMaxPoolSize, int newMinIdle) {
+        if (poolDataSource instanceof org.openjproxy.xa.pool.commons.CommonsPool2XADataSource) {
+            org.openjproxy.xa.pool.commons.CommonsPool2XADataSource commonsPool = 
+                    (org.openjproxy.xa.pool.commons.CommonsPool2XADataSource) poolDataSource;
+            
+            // Determine resize direction
+            boolean isDecreasing = (newMaxPoolSize < commonsPool.getMaxTotal()) || 
+                                    (newMinIdle < commonsPool.getMinIdle());
+            
+            if (isDecreasing) {
+                // When decreasing: set minIdle first, then maxTotal to avoid validation errors
+                commonsPool.setMinIdle(newMinIdle);
+                commonsPool.setMaxTotal(newMaxPoolSize);
+                log.info("XA backend pool resized (decreased): maxTotal={}, minIdle={}", 
+                        newMaxPoolSize, newMinIdle);
+            } else {
+                // When increasing: set maxTotal first, then minIdle
+                commonsPool.setMaxTotal(newMaxPoolSize);
+                commonsPool.setMinIdle(newMinIdle);
+                log.info("XA backend pool resized (increased): maxTotal={}, minIdle={}", 
+                        newMaxPoolSize, newMinIdle);
+            }
+        } else {
+            log.warn("Cannot resize XA backend pool: poolDataSource is not CommonsPool2XADataSource");
+        }
+    }
+    
+    /**
      * Registers an existing XABackendSession with a new XA transaction.
      * <p>
      * Used when XABackendSession is allocated eagerly (during connect) rather than 
