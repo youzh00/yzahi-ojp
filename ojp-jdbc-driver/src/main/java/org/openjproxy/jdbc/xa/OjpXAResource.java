@@ -367,6 +367,9 @@ public class OjpXAResource implements XAResource {
             MultinodeConnectionManager connectionManager = multinodeService.getConnectionManager();
             String clusterHealth = connectionManager.generateClusterHealth();
             
+            System.out.println("OjpXAResource: Generated cluster health: " + clusterHealth);
+            System.out.println("OjpXAResource: Original SessionInfo clusterHealth: " + sessionInfo.getClusterHealth());
+            
             // Build new SessionInfo with all fields from original plus cluster health
             SessionInfo.Builder builder = SessionInfo.newBuilder()
                     .setConnHash(sessionInfo.getConnHash())
@@ -384,8 +387,11 @@ public class OjpXAResource implements XAResource {
                 builder.setTargetServer(sessionInfo.getTargetServer());
             }
             
-            return builder.build();
+            SessionInfo newSessionInfo = builder.build();
+            System.out.println("OjpXAResource: New SessionInfo clusterHealth: " + newSessionInfo.getClusterHealth());
+            return newSessionInfo;
         }
+        System.out.println("OjpXAResource: Not multinode service, returning original sessionInfo");
         return sessionInfo;
     }
 
