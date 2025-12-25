@@ -4,6 +4,8 @@ import com.google.protobuf.ByteString;
 import com.openjproxy.grpc.*;
 import io.grpc.StatusRuntimeException;
 import lombok.extern.slf4j.Slf4j;
+import org.openjproxy.grpc.client.MultinodeConnectionManager;
+import org.openjproxy.grpc.client.MultinodeStatementService;
 import org.openjproxy.grpc.client.StatementService;
 
 import javax.transaction.xa.XAException;
