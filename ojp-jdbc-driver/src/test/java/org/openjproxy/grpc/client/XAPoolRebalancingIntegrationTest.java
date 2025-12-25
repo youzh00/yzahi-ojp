@@ -1,16 +1,11 @@
 package org.openjproxy.grpc.client;
 
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvFileSource;
 import org.openjproxy.jdbc.xa.OjpXADataSource;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.Network;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.XAConnection;
 import javax.transaction.xa.XAResource;
@@ -21,102 +16,71 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 /**
  * Integration test for XA pool rebalancing behavior.
- * This test uses Testcontainers to create a controlled environment:
- * 1. PostgreSQL database
- * 2. Single OJP server configured with simulated 2-server cluster
+ * Tests a single OJP server's ability to rebalance its XA pool based on cluster health metadata.
  * 
- * The test injects cluster health metadata via connection URL parameters
- * to simulate a 2-server cluster, then simulates one server going down
- * to verify the XA backend pool properly rebalances.
+ * The test simulates multinode cluster topology changes by modifying the connection URL:
+ * 1. Connect to OJP server at localhost:1059 with a multinode URL (localhost:1059,localhost:99999)
+ *    This simulates a 2-server cluster where the second server (port 99999) doesn't actually exist
+ * 2. Verify the XA pool divides capacity (~10 connections per "server")
+ * 3. Reconnect with a single-node URL (localhost:1059)
+ *    This simulates the second server going down
+ * 4. Verify the XA pool expands to full capacity (~20 connections)
  * 
- * Test flow:
- * 1. Start PostgreSQL via Testcontainers
- * 2. Start OJP server
- * 3. Create a simple test table
- * 4. Connect with URL indicating 2 servers - verify pool is divided (~10 connections)
- * 5. Reconnect with URL indicating 1 server - verify pool expanded (~20 connections)
+ * This approach is much cheaper than spinning up multiple actual OJP servers.
  */
 @Slf4j
-@Testcontainers
 public class XAPoolRebalancingIntegrationTest {
-
-    private static Network network = Network.newNetwork();
-    
-    @Container
-    private static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:14-alpine")
-            .withNetwork(network)
-            .withNetworkAliases("postgres")
-            .withDatabaseName("testdb")
-            .withUsername("testuser")
-            .withPassword("testpass");
-
-    @Container
-    private static final GenericContainer<?> ojpServer = new GenericContainer<>("open-j-proxy/ojp:latest")
-            .withNetwork(network)
-            .withNetworkAliases("ojp-server")
-            .withEnv("OJP_BACKEND_URL", "jdbc:postgresql://postgres:5432/testdb")
-            .withEnv("OJP_BACKEND_USER", "testuser")
-            .withEnv("OJP_BACKEND_PASSWORD", "testpass")
-            .withEnv("OJP_XA_POOL_MAX_SIZE", "20")
-            .withEnv("OJP_XA_POOL_MIN_IDLE", "20")
-            .withExposedPorts(1059)
-            .waitingFor(Wait.forLogMessage(".*OJP Server started.*", 1));
 
     // XID components for testing
     private static final byte[] GLOBAL_TXN_ID_BASE = "global_txn_".getBytes();
     private static final byte[] BRANCH_QUALIFIER = "branch_001".getBytes();
     private static int xidCounter = 0;
+    
+    protected static boolean isTestDisabled;
 
     @BeforeAll
-    public static void setup() throws Exception {
-        // Wait for containers to be ready
-        postgres.start();
-        ojpServer.start();
+    public static void checkTestConfiguration() {
+        // Check both system property and environment variable
+        boolean sysPropEnabled = Boolean.parseBoolean(System.getProperty("poolRebalancingTestsEnabled", "false"));
+        boolean envVarEnabled = Boolean.parseBoolean(System.getenv("POOL_REBALANCING_TESTS_ENABLED"));
+        isTestDisabled = !(sysPropEnabled || envVarEnabled);
+    }
+
+    @SneakyThrows
+    @ParameterizedTest
+    @CsvFileSource(resources = "/multinode_connection.csv")
+    public void testXAPoolRebalancesOnSimulatedClusterChange(String driverClass, String url, String user, String password) throws Exception {
+        assumeFalse(isTestDisabled, "Pool rebalancing tests are disabled");
         
-        log.info("PostgreSQL started at: {}:{}", postgres.getHost(), postgres.getFirstMappedPort());
-        log.info("OJP Server started at: {}:{}", ojpServer.getHost(), ojpServer.getFirstMappedPort());
+        log.info("=== Starting XA Pool Rebalancing Test ===");
+        log.info("Base URL: {}", url);
         
-        // Create test table directly on PostgreSQL
-        try (Connection conn = postgres.createConnection("")) {
+        // Create test table using non-XA connection
+        Class.forName(driverClass);
+        try (Connection conn = java.sql.DriverManager.getConnection(url, user, password)) {
             Statement stmt = conn.createStatement();
             stmt.execute("DROP TABLE IF EXISTS test_rebalance");
             stmt.execute("CREATE TABLE test_rebalance (id SERIAL PRIMARY KEY, value VARCHAR(100))");
             stmt.close();
             log.info("Test table created successfully");
         }
-    }
-
-    @AfterAll
-    public static void teardown() {
-        if (ojpServer != null) {
-            ojpServer.stop();
-        }
-        if (postgres != null) {
-            postgres.stop();
-        }
-        if (network != null) {
-            network.close();
-        }
-    }
-
-    @Test
-    public void testXAPoolRebalancesOnSimulatedClusterChange() throws Exception {
-        log.info("=== Starting XA Pool Rebalancing Test ===");
         
-        String ojpHost = ojpServer.getHost();
-        Integer ojpPort = ojpServer.getFirstMappedPort();
-        String ojpUrl = String.format("jdbc:ojp:postgresql://%s:%d,%s:%d/testdb", 
-                ojpHost, ojpPort, ojpHost, ojpPort + 1);  // Simulate 2-server cluster
-        
-        // Phase 1: Insert with 2-server cluster URL
+        // Phase 1: Insert with 2-server cluster URL (localhost:1059,localhost:99999)
+        // The second server doesn't exist but the URL simulates a 2-server cluster
         log.info("Phase 1: Inserting data with 2-server cluster configuration");
-        log.info("URL: {}", ojpUrl);
+        String twoServerUrl = "jdbc:ojp:postgresql://localhost:1059,localhost:99999/defaultdb";
+        log.info("URL: {}", twoServerUrl);
         
-        OjpXADataSource xaDataSource = createXADataSource(ojpUrl);
-        int initialConnections = performXAInsert(xaDataSource, "phase1_value");
+        OjpXADataSource xaDataSource = new OjpXADataSource();
+        xaDataSource.setUrl(twoServerUrl);
+        xaDataSource.setUser(user);
+        xaDataSource.setPassword(password);
+        
+        int initialConnections = performXAInsert(xaDataSource, "phase1_value", url, user, password);
         
         log.info("Initial connection count: {}", initialConnections);
         
@@ -130,11 +94,15 @@ public class XAPoolRebalancingIntegrationTest {
         
         // Phase 2: Insert with 1-server cluster URL (simulating server failure)
         log.info("Phase 2: Inserting data with 1-server cluster configuration (server failure simulation)");
-        String singleServerUrl = String.format("jdbc:ojp:postgresql://%s:%d/testdb", ojpHost, ojpPort);
+        String singleServerUrl = "jdbc:ojp:postgresql://localhost:1059/defaultdb";
         log.info("URL: {}", singleServerUrl);
         
-        OjpXADataSource singleServerDataSource = createXADataSource(singleServerUrl);
-        int expandedConnections = performXAInsert(singleServerDataSource, "phase2_value");
+        OjpXADataSource singleServerDataSource = new OjpXADataSource();
+        singleServerDataSource.setUrl(singleServerUrl);
+        singleServerDataSource.setUser(user);
+        singleServerDataSource.setPassword(password);
+        
+        int expandedConnections = performXAInsert(singleServerDataSource, "phase2_value", url, user, password);
         
         log.info("Expanded connection count: {}", expandedConnections);
         
@@ -155,20 +123,9 @@ public class XAPoolRebalancingIntegrationTest {
     }
 
     /**
-     * Creates an XA DataSource with the given URL
-     */
-    private OjpXADataSource createXADataSource(String url) {
-        OjpXADataSource dataSource = new OjpXADataSource();
-        dataSource.setUrl(url);
-        dataSource.setUser(postgres.getUsername());
-        dataSource.setPassword(postgres.getPassword());
-        return dataSource;
-    }
-
-    /**
      * Performs an XA insert transaction and returns the current PostgreSQL connection count
      */
-    private int performXAInsert(OjpXADataSource dataSource, String value) throws Exception {
+    private int performXAInsert(OjpXADataSource dataSource, String value, String dbUrl, String dbUser, String dbPassword) throws Exception {
         XAConnection xaConn = null;
         Connection conn = null;
         
@@ -206,7 +163,7 @@ public class XAPoolRebalancingIntegrationTest {
             log.info("XA transaction committed successfully");
             
             // Wait for pool to adjust and stabilize
-            return waitForConnectionCount(8, 60);
+            return waitForConnectionCount(8, 60, dbUrl, dbUser, dbPassword);
             
         } finally {
             if (conn != null) {
@@ -239,12 +196,12 @@ public class XAPoolRebalancingIntegrationTest {
      * Waits for the connection count to reach at least the minimum expected count.
      * Polls every 5 seconds for up to maxWaitSeconds.
      */
-    private int waitForConnectionCount(int minExpected, int maxWaitSeconds) throws Exception {
+    private int waitForConnectionCount(int minExpected, int maxWaitSeconds, String dbUrl, String dbUser, String dbPassword) throws Exception {
         int elapsed = 0;
         int currentCount = 0;
         
         while (elapsed < maxWaitSeconds) {
-            currentCount = getPostgresConnectionCount();
+            currentCount = getPostgresConnectionCount(dbUrl, dbUser, dbPassword);
             log.info("Current PostgreSQL connections: {} (waiting for >= {})", currentCount, minExpected);
             
             if (currentCount >= minExpected) {
@@ -261,15 +218,15 @@ public class XAPoolRebalancingIntegrationTest {
     }
 
     /**
-     * Queries PostgreSQL to get the current number of active connections to the test database.
+     * Queries PostgreSQL to get the current number of active connections to the database.
      * Counts idle connections from the OJP server backend pool.
      */
-    private int getPostgresConnectionCount() throws Exception {
-        try (Connection conn = postgres.createConnection("")) {
+    private int getPostgresConnectionCount(String dbUrl, String dbUser, String dbPassword) throws Exception {
+        try (Connection conn = java.sql.DriverManager.getConnection(dbUrl, dbUser, dbPassword)) {
             Statement stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(
                     "SELECT count(*) FROM pg_stat_activity " +
-                    "WHERE datname = '" + postgres.getDatabaseName() + "' " +
+                    "WHERE datname = current_database() " +
                     "AND state = 'idle' " +
                     "AND application_name != 'psql'");
             
