@@ -369,15 +369,19 @@ public class OjpXAResource implements XAResource {
             
             // Build new SessionInfo with all fields from original plus cluster health
             SessionInfo.Builder builder = SessionInfo.newBuilder()
-                    .setSessionId(sessionInfo.getSessionId())
+                    .setConnHash(sessionInfo.getConnHash())
+                    .setClientUUID(sessionInfo.getClientUUID())
+                    .setSessionUUID(sessionInfo.getSessionUUID())
+                    .setSessionStatus(sessionInfo.getSessionStatus())
+                    .setIsXA(sessionInfo.getIsXA())
                     .setClusterHealth(clusterHealth);
             
             // Copy optional fields if present
-            if (sessionInfo.hasConnectionDetails()) {
-                builder.setConnectionDetails(sessionInfo.getConnectionDetails());
+            if (sessionInfo.hasTransactionInfo()) {
+                builder.setTransactionInfo(sessionInfo.getTransactionInfo());
             }
-            if (sessionInfo.hasTransactionId()) {
-                builder.setTransactionId(sessionInfo.getTransactionId());
+            if (!sessionInfo.getTargetServer().isEmpty()) {
+                builder.setTargetServer(sessionInfo.getTargetServer());
             }
             
             return builder.build();
