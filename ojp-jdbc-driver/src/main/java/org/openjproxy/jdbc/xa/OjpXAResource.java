@@ -366,9 +366,21 @@ public class OjpXAResource implements XAResource {
             MultinodeStatementService multinodeService = (MultinodeStatementService) statementService;
             MultinodeConnectionManager connectionManager = multinodeService.getConnectionManager();
             String clusterHealth = connectionManager.generateClusterHealth();
-            return SessionInfo.newBuilder(sessionInfo)
-                    .setClusterHealth(clusterHealth)
-                    .build();
+            
+            // Build new SessionInfo with all fields from original plus cluster health
+            SessionInfo.Builder builder = SessionInfo.newBuilder()
+                    .setSessionId(sessionInfo.getSessionId())
+                    .setClusterHealth(clusterHealth);
+            
+            // Copy optional fields if present
+            if (sessionInfo.hasConnectionDetails()) {
+                builder.setConnectionDetails(sessionInfo.getConnectionDetails());
+            }
+            if (sessionInfo.hasTransactionId()) {
+                builder.setTransactionId(sessionInfo.getTransactionId());
+            }
+            
+            return builder.build();
         }
         return sessionInfo;
     }
