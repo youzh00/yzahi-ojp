@@ -94,29 +94,39 @@ public class CommonsPool2XADataSource implements XADataSource {
      * @throws Exception if session cannot be borrowed for other reasons
      */
     public XABackendSession borrowSession() throws Exception {
-        log.debug("Borrowing session from pool");
+        long startTime = System.currentTimeMillis();
+        log.debug("Borrowing session from pool (maxWait={}ms, maxTotal={}, active={}, idle={})",
+                pool.getMaxWaitDuration().toMillis(), pool.getMaxTotal(), 
+                pool.getNumActive(), pool.getNumIdle());
         
         try {
             XABackendSession session = pool.borrowObject();
             
-            log.debug("Session borrowed successfully (active={}, idle={})",
-                    pool.getNumActive(), pool.getNumIdle());
+            long elapsedMs = System.currentTimeMillis() - startTime;
+            log.debug("Session borrowed successfully in {}ms (active={}, idle={})",
+                    elapsedMs, pool.getNumActive(), pool.getNumIdle());
             
             return session;
             
         } catch (java.util.NoSuchElementException e) {
             // Pool exhausted and maxWait timeout expired
-            long maxWaitMs = getLongConfig(config, "xa.connectionTimeoutMs", 30000L);
+            long elapsedMs = System.currentTimeMillis() - startTime;
+            long configuredMaxWaitMs = getLongConfig(config, "xa.connectionTimeoutMs", 30000L);
+            long actualMaxWaitMs = pool.getMaxWaitDuration().toMillis();
+            
             String errorMsg = String.format(
-                "XA connection pool exhausted: maxTotal=%d, active=%d, idle=%d, timeout=%dms. " +
+                "XA connection pool exhausted after waiting %dms: " +
+                "maxTotal=%d, active=%d, idle=%d, configuredTimeout=%dms, actualTimeout=%dms. " +
                 "Increase pool size or reduce concurrent XA transactions.",
-                pool.getMaxTotal(), pool.getNumActive(), pool.getNumIdle(), maxWaitMs);
+                elapsedMs, pool.getMaxTotal(), pool.getNumActive(), pool.getNumIdle(), 
+                configuredMaxWaitMs, actualMaxWaitMs);
             
             log.error(errorMsg);
             throw new SQLException(errorMsg, "08001", e);
             
         } catch (Exception e) {
-            log.error("Failed to borrow session from pool", e);
+            long elapsedMs = System.currentTimeMillis() - startTime;
+            log.error("Failed to borrow session from pool after {}ms: {}", elapsedMs, e.getMessage(), e);
             throw e;
         }
     }
