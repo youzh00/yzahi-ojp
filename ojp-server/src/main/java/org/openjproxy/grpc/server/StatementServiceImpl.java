@@ -2001,7 +2001,6 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
         // Convert proto Xid to XidKey
         XidKey xidKey = XidKey.from(convertXid(request.getXid()));
         int flags = request.getFlags();
-        String ojpSessionId = session.getSessionInfo().getSessionUUID();
         
         // Route based on XA flags
         if (flags == javax.transaction.xa.XAResource.TMNOFLAGS) {
@@ -2010,14 +2009,13 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
             if (backendSession == null) {
                 throw new SQLException("No XABackendSession found in session");
             }
-            registry.registerExistingSession(xidKey, backendSession, flags, ojpSessionId);
+            registry.registerExistingSession(xidKey, backendSession, flags);
             
         } else if (flags == javax.transaction.xa.XAResource.TMJOIN || 
                    flags == javax.transaction.xa.XAResource.TMRESUME) {
             // Join or resume existing transaction: delegate to xaStart
             // This requires the context to exist (from previous TMNOFLAGS start)
-            // Note: ojpSessionId is only used for TMNOFLAGS, but we pass it anyway for consistency
-            registry.xaStart(xidKey, flags, ojpSessionId);
+            registry.xaStart(xidKey, flags);
             
         } else {
             throw new SQLException("Unsupported XA flags: " + flags);
