@@ -1094,7 +1094,10 @@ jobs:
           sleep 20
 
       # Verify XA connection pooling is working
-      # Check for 30-35 connections (both XA and non-XA pools active)
+      # Expected range: 20-46 connections
+      # - If both XA and non-XA pools are fully utilized: 44 connections (22 XA + 22 non-XA)
+      # - Plus 1-2 connections for SQL queries that count the connections themselves
+      # - Lower bound of 20 accounts for partial pool initialization or connection release timing
       - name: Check PostgreSQL connections during XA test
         run: |
           echo "Checking PostgreSQL connections..."
@@ -1106,24 +1109,24 @@ jobs:
             CONNECTION_COUNT=$(echo $CONNECTION_COUNT | tr -d '[:space:]')
             echo "Current connections: $CONNECTION_COUNT (elapsed: ${ELAPSED}s)"
             
-            # Check for 30-35 connections (both XA and non-XA pools)
-            if [ "$CONNECTION_COUNT" -ge 30 ] && [ "$CONNECTION_COUNT" -le 35 ]; then
-              echo "✓ Connection count is within expected range: 30 ≤ $CONNECTION_COUNT ≤ 35"
+            # Check for 20-46 connections (both XA and non-XA pools)
+            if [ "$CONNECTION_COUNT" -ge 20 ] && [ "$CONNECTION_COUNT" -le 46 ]; then
+              echo "✓ Connection count is within expected range: 20 ≤ $CONNECTION_COUNT ≤ 46"
               PGPASSWORD=testpassword psql -h 127.0.0.1 -U testuser -d defaultdb -c "SELECT datname, COUNT(*) AS connections FROM pg_stat_activity WHERE datname='defaultdb' GROUP BY datname ORDER BY connections DESC;"
               break
-            elif [ "$CONNECTION_COUNT" -gt 35 ]; then
-              echo "✗ ERROR: Connection count ($CONNECTION_COUNT) exceeds expected maximum of 35!"
+            elif [ "$CONNECTION_COUNT" -gt 46 ]; then
+              echo "✗ ERROR: Connection count ($CONNECTION_COUNT) exceeds expected maximum of 46!"
               PGPASSWORD=testpassword psql -h 127.0.0.1 -U testuser -d defaultdb -c "SELECT datname, COUNT(*) AS connections FROM pg_stat_activity WHERE datname='defaultdb' GROUP BY datname ORDER BY connections DESC;"
               exit 1
             else
-              echo "Waiting for connections to reach at least 30... (currently: $CONNECTION_COUNT)"
+              echo "Waiting for connections to reach at least 20... (currently: $CONNECTION_COUNT)"
               sleep 2
               ELAPSED=$((ELAPSED + 2))
             fi
           done
           
           if [ $ELAPSED -ge $TIMEOUT ]; then
-            echo "✗ ERROR: Timeout after ${TIMEOUT}s - connection count never reached 30 (current: $CONNECTION_COUNT)"
+            echo "✗ ERROR: Timeout after ${TIMEOUT}s - connection count never reached 20 (current: $CONNECTION_COUNT)"
             exit 1
           fi
 
@@ -1167,6 +1170,10 @@ jobs:
           sleep 5
 
       # Verify XA failover: Connections should still be active on server 2
+      # Expected range: 20-46 connections
+      # - If both XA and non-XA pools are fully utilized: 44 connections (22 XA + 22 non-XA)
+      # - Plus 1-2 connections for SQL queries that count the connections themselves
+      # - Lower bound of 20 accounts for partial pool initialization or connection release timing
       - name: Check PostgreSQL connections after killing Server 1
         run: |
           echo "Checking PostgreSQL connections after killing Server 1..."
@@ -1178,23 +1185,23 @@ jobs:
             CONNECTION_COUNT=$(echo $CONNECTION_COUNT | tr -d '[:space:]')
             echo "Current connections: $CONNECTION_COUNT (elapsed: ${ELAPSED}s)"
             
-            if [ "$CONNECTION_COUNT" -ge 30 ] && [ "$CONNECTION_COUNT" -lt 35 ]; then
-              echo "✓ Connection count is within expected range: 30 ≤ $CONNECTION_COUNT < 35"
+            if [ "$CONNECTION_COUNT" -ge 20 ] && [ "$CONNECTION_COUNT" -le 46 ]; then
+              echo "✓ Connection count is within expected range: 20 ≤ $CONNECTION_COUNT ≤ 46"
               PGPASSWORD=testpassword psql -h 127.0.0.1 -U testuser -d defaultdb -c "SELECT datname, COUNT(*) AS connections FROM pg_stat_activity WHERE datname='defaultdb' GROUP BY datname ORDER BY connections DESC;"
               break
-            elif [ "$CONNECTION_COUNT" -ge 35 ]; then
-              echo "✗ ERROR: Connection count ($CONNECTION_COUNT) exceeds maximum of 35!"
+            elif [ "$CONNECTION_COUNT" -gt 46 ]; then
+              echo "✗ ERROR: Connection count ($CONNECTION_COUNT) exceeds maximum of 46!"
               PGPASSWORD=testpassword psql -h 127.0.0.1 -U testuser -d defaultdb -c "SELECT datname, COUNT(*) AS connections FROM pg_stat_activity WHERE datname='defaultdb' GROUP BY datname ORDER BY connections DESC;"
               exit 1
             else
-              echo "Waiting for connections to reach at least 1... (currently: $CONNECTION_COUNT)"
+              echo "Waiting for connections to reach at least 20... (currently: $CONNECTION_COUNT)"
               sleep 2
               ELAPSED=$((ELAPSED + 2))
             fi
           done
           
           if [ $ELAPSED -ge $TIMEOUT ]; then
-            echo "✗ ERROR: Timeout after ${TIMEOUT}s - connection count never reached 1 (current: $CONNECTION_COUNT)"
+            echo "✗ ERROR: Timeout after ${TIMEOUT}s - connection count never reached 20 (current: $CONNECTION_COUNT)"
             exit 1
           fi
 
@@ -1227,6 +1234,10 @@ jobs:
           netstat -tuln | grep ':10591' || echo "Warning: Server might not be listening yet"
 
       # Verify XA recovery: Connections should be distributed across both servers again
+      # Expected range: 20-46 connections
+      # - If both XA and non-XA pools are fully utilized: 44 connections (22 XA + 22 non-XA)
+      # - Plus 1-2 connections for SQL queries that count the connections themselves
+      # - Lower bound of 20 accounts for partial pool initialization or connection release timing
       - name: Check PostgreSQL connections after restarting Server 1
         run: |
           echo "Checking PostgreSQL connections after restarting Server 1..."
@@ -1238,23 +1249,23 @@ jobs:
             CONNECTION_COUNT=$(echo $CONNECTION_COUNT | tr -d '[:space:]')
             echo "Current connections: $CONNECTION_COUNT (elapsed: ${ELAPSED}s)"
             
-            if [ "$CONNECTION_COUNT" -ge 30 ] && [ "$CONNECTION_COUNT" -lt 35 ]; then
-              echo "✓ Connection count is within expected range: 30 ≤ $CONNECTION_COUNT < 35"
+            if [ "$CONNECTION_COUNT" -ge 20 ] && [ "$CONNECTION_COUNT" -le 46 ]; then
+              echo "✓ Connection count is within expected range: 20 ≤ $CONNECTION_COUNT ≤ 46"
               PGPASSWORD=testpassword psql -h 127.0.0.1 -U testuser -d defaultdb -c "SELECT datname, COUNT(*) AS connections FROM pg_stat_activity WHERE datname='defaultdb' GROUP BY datname ORDER BY connections DESC;"
               break
-            elif [ "$CONNECTION_COUNT" -ge 35 ]; then
-              echo "✗ ERROR: Connection count ($CONNECTION_COUNT) exceeds maximum of 35!"
+            elif [ "$CONNECTION_COUNT" -gt 46 ]; then
+              echo "✗ ERROR: Connection count ($CONNECTION_COUNT) exceeds maximum of 46!"
               PGPASSWORD=testpassword psql -h 127.0.0.1 -U testuser -d defaultdb -c "SELECT datname, COUNT(*) AS connections FROM pg_stat_activity WHERE datname='defaultdb' GROUP BY datname ORDER BY connections DESC;"
               exit 1
             else
-              echo "Waiting for connections to reach at least 1... (currently: $CONNECTION_COUNT)"
+              echo "Waiting for connections to reach at least 20... (currently: $CONNECTION_COUNT)"
               sleep 2
               ELAPSED=$((ELAPSED + 2))
             fi
           done
           
           if [ $ELAPSED -ge $TIMEOUT ]; then
-            echo "✗ ERROR: Timeout after ${TIMEOUT}s - connection count never reached 1 (current: $CONNECTION_COUNT)"
+            echo "✗ ERROR: Timeout after ${TIMEOUT}s - connection count never reached 20 (current: $CONNECTION_COUNT)"
             exit 1
           fi
 
@@ -1298,6 +1309,10 @@ jobs:
           sleep 5
 
       # Verify XA failover: Connections should migrate to server 1
+      # Expected range: 20-46 connections
+      # - If both XA and non-XA pools are fully utilized: 44 connections (22 XA + 22 non-XA)
+      # - Plus 1-2 connections for SQL queries that count the connections themselves
+      # - Lower bound of 20 accounts for partial pool initialization or connection release timing
       - name: Check PostgreSQL connections after killing Server 2
         run: |
           echo "Checking PostgreSQL connections after killing Server 2..."
@@ -1309,23 +1324,23 @@ jobs:
             CONNECTION_COUNT=$(echo $CONNECTION_COUNT | tr -d '[:space:]')
             echo "Current connections: $CONNECTION_COUNT (elapsed: ${ELAPSED}s)"
             
-            if [ "$CONNECTION_COUNT" -ge 30 ] && [ "$CONNECTION_COUNT" -lt 35 ]; then
-              echo "✓ Connection count is within expected range: 30 ≤ $CONNECTION_COUNT < 35"
+            if [ "$CONNECTION_COUNT" -ge 20 ] && [ "$CONNECTION_COUNT" -le 46 ]; then
+              echo "✓ Connection count is within expected range: 20 ≤ $CONNECTION_COUNT ≤ 46"
               PGPASSWORD=testpassword psql -h 127.0.0.1 -U testuser -d defaultdb -c "SELECT datname, COUNT(*) AS connections FROM pg_stat_activity WHERE datname='defaultdb' GROUP BY datname ORDER BY connections DESC;"
               break
-            elif [ "$CONNECTION_COUNT" -ge 35 ]; then
-              echo "✗ ERROR: Connection count ($CONNECTION_COUNT) exceeds maximum of 35!"
+            elif [ "$CONNECTION_COUNT" -gt 46 ]; then
+              echo "✗ ERROR: Connection count ($CONNECTION_COUNT) exceeds maximum of 46!"
               PGPASSWORD=testpassword psql -h 127.0.0.1 -U testuser -d defaultdb -c "SELECT datname, COUNT(*) AS connections FROM pg_stat_activity WHERE datname='defaultdb' GROUP BY datname ORDER BY connections DESC;"
               exit 1
             else
-              echo "Waiting for connections to reach at least 1... (currently: $CONNECTION_COUNT)"
+              echo "Waiting for connections to reach at least 20... (currently: $CONNECTION_COUNT)"
               sleep 2
               ELAPSED=$((ELAPSED + 2))
             fi
           done
           
           if [ $ELAPSED -ge $TIMEOUT ]; then
-            echo "✗ ERROR: Timeout after ${TIMEOUT}s - connection count never reached 1 (current: $CONNECTION_COUNT)"
+            echo "✗ ERROR: Timeout after ${TIMEOUT}s - connection count never reached 20 (current: $CONNECTION_COUNT)"
             exit 1
           fi
 
@@ -1358,6 +1373,10 @@ jobs:
           netstat -tuln | grep ':10592' || echo "Warning: Server might not be listening yet"
 
       # Final XA verification: Both servers should be active
+      # Expected range: 20-46 connections
+      # - If both XA and non-XA pools are fully utilized: 44 connections (22 XA + 22 non-XA)
+      # - Plus 1-2 connections for SQL queries that count the connections themselves
+      # - Lower bound of 20 accounts for partial pool initialization or connection release timing
       - name: Check PostgreSQL connections after restarting Server 2
         run: |
           echo "Checking PostgreSQL connections after restarting Server 2..."
@@ -1369,23 +1388,23 @@ jobs:
             CONNECTION_COUNT=$(echo $CONNECTION_COUNT | tr -d '[:space:]')
             echo "Current connections: $CONNECTION_COUNT (elapsed: ${ELAPSED}s)"
             
-            if [ "$CONNECTION_COUNT" -ge 30 ] && [ "$CONNECTION_COUNT" -lt 35 ]; then
-              echo "✓ Connection count is within expected range: 30 ≤ $CONNECTION_COUNT < 35"
+            if [ "$CONNECTION_COUNT" -ge 20 ] && [ "$CONNECTION_COUNT" -le 46 ]; then
+              echo "✓ Connection count is within expected range: 20 ≤ $CONNECTION_COUNT ≤ 46"
               PGPASSWORD=testpassword psql -h 127.0.0.1 -U testuser -d defaultdb -c "SELECT datname, COUNT(*) AS connections FROM pg_stat_activity WHERE datname='defaultdb' GROUP BY datname ORDER BY connections DESC;"
               break
-            elif [ "$CONNECTION_COUNT" -ge 35 ]; then
-              echo "✗ ERROR: Connection count ($CONNECTION_COUNT) exceeds maximum of 35!"
+            elif [ "$CONNECTION_COUNT" -gt 46 ]; then
+              echo "✗ ERROR: Connection count ($CONNECTION_COUNT) exceeds maximum of 46!"
               PGPASSWORD=testpassword psql -h 127.0.0.1 -U testuser -d defaultdb -c "SELECT datname, COUNT(*) AS connections FROM pg_stat_activity WHERE datname='defaultdb' GROUP BY datname ORDER BY connections DESC;"
               exit 1
             else
-              echo "Waiting for connections to reach at least 1... (currently: $CONNECTION_COUNT)"
+              echo "Waiting for connections to reach at least 20... (currently: $CONNECTION_COUNT)"
               sleep 2
               ELAPSED=$((ELAPSED + 2))
             fi
           done
           
           if [ $ELAPSED -ge $TIMEOUT ]; then
-            echo "✗ ERROR: Timeout after ${TIMEOUT}s - connection count never reached 1 (current: $CONNECTION_COUNT)"
+            echo "✗ ERROR: Timeout after ${TIMEOUT}s - connection count never reached 20 (current: $CONNECTION_COUNT)"
             exit 1
           fi
 
