@@ -650,6 +650,32 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
         
         this.sessionManager.registerClientUUID(connHash, connectionDetails.getClientUUID());
         
+        // CRITICAL FIX: Call processClusterHealth() BEFORE borrowing session
+        // This ensures pool rebalancing happens even when server 1 fails before any XA operations execute
+        // Without this, pool exhaustion prevents cluster health propagation and pool never expands
+        if (connectionDetails.getClusterHealth() != null && !connectionDetails.getClusterHealth().isEmpty()) {
+            // Use the ACTUAL cluster health from the client (not synthetic)
+            // The client sends the current health status of all servers
+            String actualClusterHealth = connectionDetails.getClusterHealth();
+            
+            // Create a temporary SessionInfo with cluster health for processing
+            // We don't have the actual sessionInfo yet since we haven't borrowed from the pool
+            SessionInfo tempSessionInfo = SessionInfo.newBuilder()
+                    .setSessionUUID("temp-for-health-check")
+                    .setConnectionHash(connHash)
+                    .setClusterHealth(actualClusterHealth)
+                    .build();
+            
+            log.info("[XA-CONNECT-REBALANCE] Calling processClusterHealth BEFORE borrow for connHash={}, clusterHealth={}", 
+                    connHash, actualClusterHealth);
+            
+            // Process cluster health to trigger pool rebalancing if needed
+            processClusterHealth(tempSessionInfo);
+        } else {
+            log.warn("[XA-CONNECT-REBALANCE] No cluster health provided in ConnectionDetails for connHash={}, pool rebalancing may be delayed", 
+                    connHash);
+        }
+        
         // Borrow a XABackendSession from the pool for immediate use
         // Note: Unlike the original "deferred" approach, we allocate eagerly because
         // XA applications expect getConnection() to work immediately, before xaStart()
@@ -674,28 +700,8 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
             log.info("Created XA session (pooled, eager allocation) with client UUID: {} for connHash: {}", 
                     connectionDetails.getClientUUID(), connHash);
             
-            // CRITICAL FIX: Call processClusterHealth() during XA connection establishment
-            // This ensures pool rebalancing happens even when server 1 fails before any XA operations execute
-            // Without this, pool exhaustion prevents cluster health propagation and pool never expands
-            if (connectionDetails.getClusterHealth() != null && !connectionDetails.getClusterHealth().isEmpty()) {
-                // Use the ACTUAL cluster health from the client (not synthetic)
-                // The client sends the current health status of all servers
-                String actualClusterHealth = connectionDetails.getClusterHealth();
-                
-                // Create SessionInfo with cluster health for processing
-                SessionInfo sessionInfoWithHealth = SessionInfo.newBuilder(sessionInfo)
-                        .setClusterHealth(actualClusterHealth)
-                        .build();
-                
-                log.info("[XA-CONNECT-REBALANCE] Calling processClusterHealth during XA connect for connHash={}, clusterHealth={}", 
-                        connHash, actualClusterHealth);
-                
-                // Process cluster health to trigger pool rebalancing if needed
-                processClusterHealth(sessionInfoWithHealth);
-            } else {
-                log.warn("[XA-CONNECT-REBALANCE] No cluster health provided in ConnectionDetails for connHash={}, pool rebalancing may be delayed", 
-                        connHash);
-            }
+            // Note: processClusterHealth() already called BEFORE borrowing session (see above)
+            // This ensures pool is resized before we try to borrow, preventing exhaustion
             
             responseObserver.onNext(sessionInfo);
             this.dbNameMap.put(connHash, DatabaseUtils.resolveDbName(connectionDetails.getUrl()));
