@@ -662,7 +662,7 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
             // We don't have the actual sessionInfo yet since we haven't borrowed from the pool
             SessionInfo tempSessionInfo = SessionInfo.newBuilder()
                     .setSessionUUID("temp-for-health-check")
-                    .setConnectionHash(connHash)
+                    .setConnHash(connHash)
                     .setClusterHealth(actualClusterHealth)
                     .build();
             
