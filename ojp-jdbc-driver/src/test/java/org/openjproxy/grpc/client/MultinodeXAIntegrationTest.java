@@ -140,6 +140,7 @@ public class MultinodeXAIntegrationTest {
         ExecutorService executor = Executors.newFixedThreadPool(THREADS);
         int rampupPerThread = (THREADS > 1) ? RAMPUP_MS / (THREADS - 1) : 0;
         for (int t = 0; t < THREADS; t++) {
+
             final int threadNum = t;
             executor.submit(() -> {
                 try {
@@ -326,9 +327,6 @@ public class MultinodeXAIntegrationTest {
     }
 
     private static void runExactQuerySequence(int threadNum, String driverClass, String url, String user, String password) throws SQLException {
-
-
-        nonXAHeartbeatQuery(url, user, password);
 
         // Transaction Block 1: create user, create order for that user, add order items
         timeAndRun(() -> {
@@ -1251,22 +1249,6 @@ public class MultinodeXAIntegrationTest {
                 }
                 return null;
             });
-        }
-    }
-
-    /**
-     * This is useful to guarantee that in every thread one non XA query is sent to the database so that in server
-     * restarts the non XA connections are reestablished.
-     */
-    private static void nonXAHeartbeatQuery(String url, String user, String password) throws SQLException {
-        try (Connection conn = java.sql.DriverManager.getConnection(url, user, password)) {
-            try (Statement statement = conn.createStatement()) {
-                statement.execute("SELECT 1");
-                try (ResultSet rs = statement.getResultSet()) {
-                    Integer res = rs.getInt(1);
-                    Assertions.assertEquals(1, res);
-                }
-            }
         }
     }
 
