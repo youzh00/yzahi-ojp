@@ -161,9 +161,6 @@ public class MultinodeStatementService implements StatementService {
                 .setClusterHealth(clusterHealth)
                 .build();
         
-        System.out.println("[XA-REBALANCE-TRACE] Enhanced SessionInfo: connHash=" + enhanced.getConnHash() + 
-                ", isXA=" + enhanced.getIsXA() + ", clusterHealth=" + enhanced.getClusterHealth());
-        
         return enhanced;
     }
     

@@ -223,10 +223,7 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
         String clusterHealth = sessionInfo.getClusterHealth();
         String connHash = sessionInfo.getConnHash();
         
-        System.out.println("[XA-REBALANCE-TRACE] processClusterHealth: connHash=" + connHash + 
-                ", clusterHealth=" + clusterHealth + ", isXA=" + sessionInfo.getIsXA());
-        
-        log.info("[XA-REBALANCE-DEBUG] processClusterHealth called: connHash={}, clusterHealth='{}', isXA={}, hasXARegistry={}", 
+        log.debug("[XA-REBALANCE] processClusterHealth called: connHash={}, clusterHealth='{}', isXA={}, hasXARegistry={}", 
                 connHash, clusterHealth, sessionInfo.getIsXA(), xaRegistries.containsKey(connHash));
         
         if (clusterHealth != null && !clusterHealth.isEmpty() && 
@@ -235,14 +232,12 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
             // Check if cluster health has changed
             boolean healthChanged = clusterHealthTracker.hasHealthChanged(connHash, clusterHealth);
             
-            log.info("[XA-REBALANCE-DEBUG] Cluster health check for {}: changed={}, current health='{}', isXA={}", 
+            log.debug("[XA-REBALANCE] Cluster health check for {}: changed={}, current health='{}', isXA={}", 
                     connHash, healthChanged, clusterHealth, sessionInfo.getIsXA());
             
             if (healthChanged) {
                 int healthyServerCount = clusterHealthTracker.countHealthyServers(clusterHealth);
-                System.out.println("[XA-REBALANCE-TRACE] CLUSTER HEALTH CHANGED! connHash=" + connHash + 
-                        ", healthyServers=" + healthyServerCount + ", isXA=" + sessionInfo.getIsXA());
-                log.info("[XA-REBALANCE-DEBUG] Cluster health changed for {}, healthy servers: {}, triggering pool rebalancing, isXA={}", 
+                log.info("[XA-REBALANCE] Cluster health changed for {}, healthy servers: {}, triggering pool rebalancing, isXA={}", 
                         connHash, healthyServerCount, sessionInfo.getIsXA());
                 
                 // Update the pool coordinator with new healthy server count
