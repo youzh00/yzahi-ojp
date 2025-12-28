@@ -94,18 +94,18 @@ public class MultinodeConnectionManager {
         this.roundRobinCounter = new AtomicInteger(0);
         this.retryAttempts = retryAttempts;
         this.retryDelayMs = retryDelayMs;
-        this.healthListeners = new ArrayList<>(); // Phase 2: Initialize listener list
+        this.healthListeners = new ArrayList<>();
         this.healthCheckConfig = healthCheckConfig != null ? healthCheckConfig : HealthCheckConfig.createDefault();
         this.lastHealthCheckTimestamp = new AtomicLong(0);
         this.connectionTracker = connectionTracker != null ? connectionTracker : new ConnectionTracker(); // Legacy
-        this.sessionTracker = new SessionTracker(); // New unified tracker
+        this.sessionTracker = new SessionTracker();
         this.healthCheckValidator = new HealthCheckValidator(this.healthCheckConfig, this);
         this.connectionRedistributor = new ConnectionRedistributor(this.connectionTracker, this.healthCheckConfig);
         
         // Initialize channels and stubs for all servers
         initializeConnections();
         
-        // Start periodic health checker if redistribution is enabled
+        // Start periodic health checker
         if (this.healthCheckConfig.isRedistributionEnabled()) {
             this.healthCheckScheduler = Executors.newSingleThreadScheduledExecutor(r -> {
                 Thread t = new Thread(r, "ojp-health-checker");

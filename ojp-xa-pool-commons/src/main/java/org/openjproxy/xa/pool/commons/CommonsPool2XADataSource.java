@@ -138,13 +138,13 @@ public class CommonsPool2XADataSource implements XADataSource {
             return;
         }
         
-        log.info("[XA-POOL-RETURN] Attempting to return session to pool (state BEFORE: active={}, idle={}, maxTotal={}, minIdle={})",
+        log.debug("[XA-POOL-RETURN] Attempting to return session to pool (state BEFORE: active={}, idle={}, maxTotal={}, minIdle={})",
                 pool.getNumActive(), pool.getNumIdle(), pool.getMaxTotal(), pool.getMinIdle());
         
         try {
             pool.returnObject(session);
             
-            log.info("[XA-POOL-RETURN] Session returned successfully (state AFTER: active={}, idle={}, maxTotal={})",
+            log.debug("[XA-POOL-RETURN] Session returned successfully (state AFTER: active={}, idle={}, maxTotal={})",
                     pool.getNumActive(), pool.getNumIdle(), pool.getMaxTotal());
             
         } catch (Exception e) {

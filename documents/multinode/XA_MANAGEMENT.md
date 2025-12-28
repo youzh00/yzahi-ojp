@@ -32,8 +32,8 @@ OJP provides comprehensive XA (distributed transaction) support with backend ses
 ### Architecture Principles
 
 1. **Separation of Concerns**:
-   - **Client Side**: HikariCP pools OJP JDBC connections (non-XA only)
-   - **Server Side**: Apache Commons Pool 2 pools PostgreSQL XA backend sessions
+   - **Application Side**: Applications may use HikariCP or other pools to pool OJP JDBC connections
+   - **Server Side**: Apache Commons Pool 2 (XA) or HikariCP (non-XA) pools PostgreSQL backend sessions via SPIs
 
 2. **Pooling Contract**:
    - Pool's `makeObject()` → `open()` creates physical PostgreSQL XAConnection
@@ -110,7 +110,7 @@ PostgreSQL Database
    ```
    Client: xaConnection.close()
    → Server: Mark transaction complete, keep in registry
-   → When BOTH conditions met: Return session to pool
+   → When BOTH conditions met (transaction complete AND XAConnection closed): Return session to pool
    → Pool: passivateObject() → reset() (clean state, keep connection open)
    ```
 
@@ -201,55 +201,11 @@ Multinode division:
 
 ## Configuration
 
-### Client-Side Configuration
+**Note**: All pool configuration properties are documented in detail at `documents/configuration/ojp-jdbc-configuration.md`. This section provides a high-level overview of XA-specific configuration.
 
-XA connections use **separate pool configuration** from non-XA connections.
+### Server-Side Pool Configuration
 
-#### ojp.properties
-
-```properties
-# Non-XA connection pool (HikariCP on client side)
-ojp.connection.pool.maximumPoolSize=22
-ojp.connection.pool.minimumIdle=20
-ojp.connection.pool.connectionTimeout=10000
-ojp.connection.pool.idleTimeout=600000
-ojp.connection.pool.maxLifetime=1800000
-
-# XA backend session pool (Commons Pool 2 on server side)
-ojp.xa.connection.pool.maxTotal=22
-ojp.xa.connection.pool.minIdle=20
-ojp.xa.connection.pool.connectionTimeout=20000
-ojp.xa.connection.pool.idleTimeout=600000
-ojp.xa.connection.pool.maxLifetime=1800000
-```
-
-#### Configuration Properties
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `ojp.xa.connection.pool.maxTotal` | int | 22 | Maximum XA backend sessions per server |
-| `ojp.xa.connection.pool.minIdle` | int | 20 | Minimum idle XA sessions (pre-warmed) |
-| `ojp.xa.connection.pool.connectionTimeout` | long | 20000 | Max wait time (ms) to borrow session |
-| `ojp.xa.connection.pool.idleTimeout` | long | 600000 | Max idle time (ms) before eviction (10 min) |
-| `ojp.xa.connection.pool.maxLifetime` | long | 1800000 | Max lifetime (ms) of XA session (30 min) |
-
-#### Named DataSource Configuration
-
-```properties
-# High-volume application with more XA concurrency
-mainApp.ojp.xa.connection.pool.maxTotal=44
-mainApp.ojp.xa.connection.pool.minIdle=40
-mainApp.ojp.xa.connection.pool.connectionTimeout=30000
-
-# Analytics with lower XA concurrency
-analytics.ojp.xa.connection.pool.maxTotal=11
-analytics.ojp.xa.connection.pool.minIdle=5
-analytics.ojp.xa.connection.pool.connectionTimeout=15000
-```
-
-### Server-Side Configuration
-
-Server automatically applies client-provided configuration when creating XA datasources.
+XA connections use **separate pool configuration** from non-XA connections. Configuration is provided by the client and applied on the server side when creating XA datasources.
 
 #### Multinode Pool Division
 
@@ -258,8 +214,8 @@ For N servers with maxTotal=M:
 - Example: 2 servers, maxTotal=22 → 11 per server
 
 Pool sizes automatically rebalance when:
-- Server fails → remaining servers increase pool size
-- Server recovers → all servers rebalance pools proportionally
+- Server fails → remaining servers expand to compensate for lost sessions on Server 1
+- Server recovers → Both servers rebalance, dividing the total sessions among all servers in the cluster
 
 ---
 
@@ -400,8 +356,8 @@ public class XATransactionRegistry {
 ### Why Dynamic Rebalancing?
 
 In multinode deployments, server failures require immediate pool resizing:
-- Server 1 fails → Server 2 must expand from 11 to 22 sessions
-- Server 1 recovers → Both servers rebalance to 11 sessions each
+- Server 1 fails → Server 2 must expand to compensate for lost sessions on Server 1
+- Server 1 recovers → Both servers rebalance, dividing the total sessions among all servers in the cluster
 
 ### Rebalancing Triggers
 
@@ -421,58 +377,14 @@ In multinode deployments, server failures require immediate pool resizing:
 
 ### Resizing Algorithm
 
-```java
-public void processClusterHealth(ClusterHealthProto clusterHealth) {
-    int totalMaxTotal = configuredMaxTotal;  // e.g., 22
-    int totalMinIdle = configuredMinIdle;    // e.g., 20
-    
-    int healthyCount = countHealthyServers(clusterHealth);
-    if (healthyCount == 0) return;  // All servers down
-    
-    int newMaxTotal = totalMaxTotal / healthyCount;  // 22 / 1 = 22 (after failure)
-    int newMinIdle = totalMinIdle / healthyCount;    // 20 / 1 = 20
-    
-    for (Server server : healthyServers) {
-        CommonsPool2XADataSource ds = getDataSource(server);
-        ds.setMaxTotal(newMaxTotal);
-        ds.setMinIdle(newMinIdle);  // Pre-warms idle connections
-    }
-}
-```
+Pool resizing is handled by `StatementServiceImpl.processClusterHealth()` and `CommonsPool2XADataSource` classes. The algorithm divides the configured total pool size among healthy servers:
 
-### Pre-Warming Mechanism
+- Count healthy servers in the cluster
+- Divide total maxTotal and minIdle by healthy server count
+- Call `setMaxTotal()` and `setMinIdle()` on each healthy server's pool
+- Pre-warm idle connections to the new minIdle target
 
-When `setMinIdle()` is called:
-1. Pool's `maxIdle` updated to match new `maxTotal`
-2. `preparePool()` called to create idle connections
-3. If pool under load, manual `addObject()` loop ensures all connections created
-4. Validates at least partial success (allows some failures without aborting)
-
-```java
-public void setMinIdle(int minIdle) {
-    pool.setMinIdle(minIdle);
-    pool.setMaxIdle(maxTotal);  // Ensure maxIdle doesn't limit growth
-    
-    try {
-        pool.preparePool();  // Pre-warm idle connections
-    } catch (Exception e) {
-        // Fallback: Manual creation
-        int created = 0;
-        for (int i = 0; i < minIdle; i++) {
-            try {
-                if (pool.getNumIdle() + pool.getNumActive() >= maxTotal) break;
-                pool.addObject();
-                created++;
-            } catch (Exception ex) {
-                log.warn("Failed to create connection {}: {}", i, ex.getMessage());
-            }
-        }
-        if (created == 0) {
-            throw new SQLException("Failed to pre-warm any connections");
-        }
-    }
-}
-```
+When `setMinIdle()` is called, the pool ensures maxIdle is updated and attempts to create idle connections immediately using `preparePool()`. If under load, a manual creation loop ensures connections are created even if the pool is actively being used.
 
 ### Rebalancing Timing
 
@@ -574,7 +486,7 @@ public boolean performHealthCheck(ServerEndpoint server) {
 **Distributed Transaction Example** (2 databases, 2 OJP servers):
 
 ```
-Transaction Manager (e.g., Atomikos)
+Transaction Manager (e.g., Narayana, Bitronix)
     │
     ├─→ OJP Server 1 (XAResource 1)
     │       ↓
@@ -590,6 +502,10 @@ Transaction Manager (e.g., Atomikos)
 4. TM: xaResource1.end() → prepare() → commit()
 5. TM: xaResource2.end() → prepare() → commit()
 ```
+
+**Supported Transaction Managers**: Narayana, Bitronix, and other JTA-compliant transaction managers.
+
+**Note on Atomikos**: Atomikos is currently **not supported** due to its architecture requiring pooled XAConnections at the application side. OJP manages all pooling on the server side, so XA connections obtained by the application must be unpooled (open/close directly without intermediate pooling). Atomikos does not support unpooled XA connections in its free version, making it incompatible with OJP's server-side pooling model.
 
 Each OJP server:
 - Manages its own backend session pool
