@@ -348,9 +348,6 @@ A: Yes, place all required JARs (driver + dependencies + additional libraries) i
 **Q: Can I use this with Oracle UCP or other connection pool libraries?**  
 A: Yes, any JAR file placed in the directory will be loaded into the classpath. This includes connection pool libraries like Oracle UCP (ucp.jar), monitoring libraries, and other dependencies. **Note**: Oracle UCP requires implementing at least one OJP SPI (Service Provider Interface) for connection pooling.
 
-**Q: Can I use this when embedding OJP in my own application?**  
-A: Yes, when using OJP as an embedded library in your Java application (not as a standalone server), you can configure the external libraries path by setting the `ojp.libs.path` system property before initializing OJP components. This allows your application to use proprietary drivers without bundling them.
-
 ## Support
 
 For issues or questions about driver support:
