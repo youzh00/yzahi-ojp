@@ -27,23 +27,39 @@ public class DriverUtils {
         //Register open source drivers
         try {
             Class.forName(H2_DRIVER_CLASS);
+            log.info("H2 JDBC driver loaded successfully");
         } catch (ClassNotFoundException e) {
-            log.error("Failed to register H2 JDBC driver.", e);
+            log.info("H2 JDBC driver not found. To use H2 databases:");
+            log.info("  1. Download h2-*.jar from Maven Central (https://mvnrepository.com/artifact/com.h2database/h2)");
+            log.info("  2. Place it in: {}", driverPathMessage);
+            log.info("  3. Restart OJP Server");
         }
         try {
             Class.forName(POSTGRES_DRIVER_CLASS);
+            log.info("PostgreSQL JDBC driver loaded successfully");
         } catch (ClassNotFoundException e) {
-            log.error("Failed to register PostgreSQL JDBC driver.", e);
+            log.info("PostgreSQL JDBC driver not found. To use PostgreSQL databases:");
+            log.info("  1. Download postgresql-*.jar from Maven Central (https://mvnrepository.com/artifact/org.postgresql/postgresql)");
+            log.info("  2. Place it in: {}", driverPathMessage);
+            log.info("  3. Restart OJP Server");
         }
         try {
             Class.forName(MYSQL_DRIVER_CLASS);
+            log.info("MySQL JDBC driver loaded successfully");
         } catch (ClassNotFoundException e) {
-            log.error("Failed to register MySQL JDBC driver.", e);
+            log.info("MySQL JDBC driver not found. To use MySQL databases:");
+            log.info("  1. Download mysql-connector-j-*.jar from Maven Central (https://mvnrepository.com/artifact/com.mysql/mysql-connector-j)");
+            log.info("  2. Place it in: {}", driverPathMessage);
+            log.info("  3. Restart OJP Server");
         }
         try {
             Class.forName(MARIADB_DRIVER_CLASS);
+            log.info("MariaDB JDBC driver loaded successfully");
         } catch (ClassNotFoundException e) {
-            log.error("Failed to register MariaDB JDBC driver.", e);
+            log.info("MariaDB JDBC driver not found. To use MariaDB databases:");
+            log.info("  1. Download mariadb-java-client-*.jar from Maven Central (https://mvnrepository.com/artifact/org.mariadb.jdbc/mariadb-java-client)");
+            log.info("  2. Place it in: {}", driverPathMessage);
+            log.info("  3. Restart OJP Server");
         }
         //Register proprietary drivers (if present)
         try {
@@ -81,27 +97,7 @@ public class DriverUtils {
      */
     @Deprecated
     public void registerDrivers() {
-        // Just call the open source driver registration
-        // Proprietary drivers are registered in StatementServiceImpl static block
-        try {
-            Class.forName(H2_DRIVER_CLASS);
-        } catch (ClassNotFoundException e) {
-            log.error("Failed to register H2 JDBC driver.", e);
-        }
-        try {
-            Class.forName(POSTGRES_DRIVER_CLASS);
-        } catch (ClassNotFoundException e) {
-            log.error("Failed to register PostgreSQL JDBC driver.", e);
-        }
-        try {
-            Class.forName(MYSQL_DRIVER_CLASS);
-        } catch (ClassNotFoundException e) {
-            log.error("Failed to register MySQL JDBC driver.", e);
-        }
-        try {
-            Class.forName(MARIADB_DRIVER_CLASS);
-        } catch (ClassNotFoundException e) {
-            log.error("Failed to register MariaDB JDBC driver.", e);
-        }
+        // Delegate to main method with default path
+        registerDrivers(null);
     }
 }
