@@ -81,10 +81,6 @@ jobs:
       - name: Test (ojp-grpc-commons) with JDK 22
         run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
 
-      # Download open source JDBC drivers to ojp-libs
-      - name: Download Open Source Drivers
-        run: bash ojp-server/download-drivers.sh ojp-server/ojp-libs
-
       - name: Build (ojp-server) with JDK 22
         run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
 
@@ -175,10 +171,6 @@ jobs:
       - name: Test (ojp-grpc-commons) with JDK 22
         run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
 
-      # Download open source JDBC drivers to ojp-libs
-      - name: Download Open Source Drivers
-        run: bash ojp-server/download-drivers.sh ojp-server/ojp-libs
-
       - name: Build (ojp-server) with JDK 22
         run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
 
@@ -266,10 +258,6 @@ jobs:
 
       - name: Test (ojp-grpc-commons) with JDK 22
         run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
-
-      # Download open source JDBC drivers to ojp-libs
-      - name: Download Open Source Drivers
-        run: bash ojp-server/download-drivers.sh ojp-server/ojp-libs
 
       - name: Build (ojp-server) with JDK 22
         run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
@@ -359,10 +347,6 @@ jobs:
       - name: Test (ojp-grpc-commons) with JDK 22
         run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
 
-      # Download open source JDBC drivers to ojp-libs
-      - name: Download Open Source Drivers
-        run: bash ojp-server/download-drivers.sh ojp-server/ojp-libs
-
       - name: Build (ojp-server) with JDK 22
         run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
 
@@ -440,10 +424,6 @@ jobs:
 
       - name: Test (ojp-grpc-commons) with JDK 22
         run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
-
-      # Download open source JDBC drivers to ojp-libs
-      - name: Download Open Source Drivers
-        run: bash ojp-server/download-drivers.sh ojp-server/ojp-libs
 
       - name: Build (ojp-server) with JDK 22
         run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
@@ -604,10 +584,6 @@ jobs:
       - name: Test (ojp-grpc-commons) with JDK 22
         run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
 
-      # Download open source JDBC drivers to ojp-libs
-      - name: Download Open Source Drivers
-        run: bash ojp-server/download-drivers.sh ojp-server/ojp-libs
-
       - name: Build (ojp-server) with JDK 22
         run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
 
@@ -695,10 +671,6 @@ jobs:
 
       - name: Test (ojp-grpc-commons) with JDK 22
         run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
-
-      # Download open source JDBC drivers to ojp-libs
-      - name: Download Open Source Drivers
-        run: bash ojp-server/download-drivers.sh ojp-server/ojp-libs
 
       - name: Build (ojp-server) with JDK 22
         run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
@@ -1074,10 +1046,6 @@ jobs:
 
       - name: Test (ojp-grpc-commons) with JDK 22
         run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
-
-      # Download open source JDBC drivers to ojp-libs
-      - name: Download Open Source Drivers
-        run: bash ojp-server/download-drivers.sh ojp-server/ojp-libs
 
       - name: Build (ojp-server) with JDK 22
         run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
@@ -1651,10 +1619,6 @@ jobs:
       - name: Test (ojp-grpc-commons) with JDK 22
         run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
 
-      # Download open source JDBC drivers to ojp-libs
-      - name: Download Open Source Drivers
-        run: bash ojp-server/download-drivers.sh ojp-server/ojp-libs
-
       - name: Build (ojp-server) with JDK 22
         run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
 
@@ -1748,10 +1712,6 @@ jobs:
 
       - name: Test (ojp-grpc-commons) with JDK 22
         run: mvn test -pl ojp-grpc-commons -Dgpg.skip=true
-
-      # Download open source JDBC drivers to ojp-libs
-      - name: Download Open Source Drivers
-        run: bash ojp-server/download-drivers.sh ojp-server/ojp-libs
 
       - name: Build (ojp-server) with JDK 22
         run: mvn clean install -pl ojp-server -am -DskipTests -Dgpg.skip=true
