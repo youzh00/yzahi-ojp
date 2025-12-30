@@ -56,6 +56,134 @@ Multiple providers can coexist. OJP automatically selects the best available pro
 
 ---
 
+## External Driver Loading and SPIs
+
+### Overview
+
+OJP Server supports loading JDBC drivers and SPI implementations from an external directory (`ojp-libs` by default). This provides flexibility for:
+- Using custom driver versions without rebuilding OJP
+- Adding proprietary database drivers (Oracle, SQL Server, DB2)
+- Deploying custom SPI implementations without modifying OJP Server
+
+### How It Works
+
+OJP uses Java's `URLClassLoader` to dynamically load JARs from the external directory:
+
+1. **At Startup**: OJP scans the `ojp-libs` directory for JAR files
+2. **Class Loading**: All JARs are added to the classpath using `URLClassLoader`
+3. **Driver Discovery**: JDBC drivers are discovered via `ServiceLoader<Driver>`
+4. **SPI Discovery**: Connection pool providers are discovered via `ServiceLoader<ConnectionPoolProvider>` and `ServiceLoader<XAConnectionPoolProvider>`
+
+### Configuration
+
+The external libraries directory is configurable:
+
+```bash
+# Environment variable
+export OJP_DRIVERS_PATH=/opt/ojp/external-libs
+
+# JVM system property
+java -Dojp.drivers.path=/opt/ojp/external-libs -jar ojp-server.jar
+```
+
+**Default**: `./ojp-libs`
+
+### Using with Docker
+
+**Built-in Drivers** (included in Docker image):
+```bash
+# H2, PostgreSQL, MySQL, MariaDB are pre-installed
+docker run -d -p 1059:1059 rrobetti/ojp:latest
+```
+
+**Adding Proprietary Drivers**:
+```bash
+# Create directory and add drivers
+mkdir -p ./ojp-libs
+cp ~/Downloads/ojdbc11.jar ./ojp-libs/
+
+# Mount as volume
+docker run -d \
+  -p 1059:1059 \
+  -v $(pwd)/ojp-libs:/opt/ojp/ojp-libs \
+  rrobetti/ojp:latest
+```
+
+### Using with Runnable JAR
+
+**Step 1**: Download open source drivers (optional, for non-Docker deployments):
+```bash
+cd ojp-server
+bash download-drivers.sh
+```
+
+This downloads H2, PostgreSQL, MySQL, and MariaDB drivers from Maven Central.
+
+**Step 2**: Add proprietary drivers:
+```bash
+# Add to the same directory
+cp ~/Downloads/mssql-jdbc-12.4.2.jar ./ojp-libs/
+```
+
+**Step 3**: Run OJP Server:
+```bash
+java -jar ojp-server-with-dependencies.jar
+# Automatically loads drivers from ./ojp-libs
+```
+
+### Deploying Custom SPI Implementations
+
+You can deploy custom connection pool providers without rebuilding OJP:
+
+**1. Create your custom provider JAR** with the SPI registration file:
+```
+my-custom-pool-1.0.jar
+├── com/example/pool/MyCustomPoolProvider.class
+└── META-INF/services/org.openjproxy.datasource.ConnectionPoolProvider
+    (contains: com.example.pool.MyCustomPoolProvider)
+```
+
+**2. Deploy to external directory**:
+```bash
+cp my-custom-pool-1.0.jar ./ojp-libs/
+```
+
+**3. Restart OJP Server** - your provider will be automatically discovered and used if it has the highest priority.
+
+### Example: Custom Oracle UCP Provider
+
+Here's how to deploy a custom Oracle UCP XA provider:
+
+**Directory structure**:
+```
+ojp-libs/
+├── ojdbc11.jar           # Oracle JDBC driver
+├── ucp.jar               # Oracle Universal Connection Pool
+├── ons.jar               # Oracle Notification Service
+└── oracle-ucp-xa-1.0.jar # Your custom provider
+```
+
+**Your provider** (`oracle-ucp-xa-1.0.jar`):
+- Implements `XAConnectionPoolProvider`
+- Has priority 150 (higher than CommonsPool2XAProvider's 100)
+- Registered in `META-INF/services/org.openjproxy.xa.pool.spi.XAConnectionPoolProvider`
+
+OJP will automatically:
+1. Load all JARs from `ojp-libs`
+2. Discover your `OracleUCPXAProvider` via ServiceLoader
+3. Select it (priority 150) over CommonsPool2XAProvider (priority 100)
+4. Use Oracle UCP for all XA connection pooling
+
+### Benefits
+
+- **No Recompilation**: Add drivers and providers without rebuilding OJP
+- **Version Control**: Easily upgrade driver versions independently
+- **Security**: Scan drivers separately from OJP core
+- **Flexibility**: Mix open source and proprietary drivers
+- **Custom Extensions**: Deploy custom SPI implementations as drop-in JARs
+
+---
+
 ## Part 1: Implementing ConnectionPoolProvider
 
 Let's walk through implementing a custom connection pool provider.
@@ -740,6 +868,7 @@ Key takeaways:
 - ServiceLoader automatically discovers and loads implementations
 - Priority-based selection with graceful fallback
 - Zero vendor dependencies through reflection-based configuration
+- External driver loading supports drop-in JARs without recompilation
 
 Start by exploring the built-in implementations (HikariCP, CommonsPool2), then create your own when you need custom behavior. The SPI approach ensures your extensions integrate seamlessly with OJP's architecture.
 
@@ -747,11 +876,19 @@ Start by exploring the built-in implementations (HikariCP, CommonsPool2), then c
 
 ## Additional Resources
 
-- [OJP GitHub Repository](https://github.com/Open-J-Proxy/ojp)
+### SPI Interfaces and Implementations
 - [ConnectionPoolProvider Interface](https://github.com/Open-J-Proxy/ojp/blob/main/ojp-datasource-api/src/main/java/org/openjproxy/datasource/ConnectionPoolProvider.java)
 - [XAConnectionPoolProvider Interface](https://github.com/Open-J-Proxy/ojp/blob/main/ojp-xa-pool-commons/src/main/java/org/openjproxy/xa/pool/spi/XAConnectionPoolProvider.java)
 - [HikariCP Implementation Example](https://github.com/Open-J-Proxy/ojp/blob/main/ojp-datasource-hikari/src/main/java/org/openjproxy/datasource/hikari/HikariConnectionPoolProvider.java)
 - [CommonsPool2 XA Implementation Example](https://github.com/Open-J-Proxy/ojp/blob/main/ojp-xa-pool-commons/src/main/java/org/openjproxy/xa/pool/commons/CommonsPool2XAProvider.java)
+
+### External Driver Loading
+- [External Libraries Configuration Guide](../configuration/DRIVERS_AND_LIBS.md) - Complete guide for loading JDBC drivers from external directory
+- [Driver Externalization Implementation Summary](../analysis/DRIVER_EXTERNALIZATION_IMPLEMENTATION_SUMMARY.md) - Technical details of the driver loading mechanism
+- [DriverLoader Implementation](https://github.com/Open-J-Proxy/ojp/blob/main/ojp-server/src/main/java/org/openjproxy/grpc/server/utils/DriverLoader.java) - Source code for dynamic JAR loading
+
+### General Resources
+- [OJP GitHub Repository](https://github.com/Open-J-Proxy/ojp)
 - [Java ServiceLoader Documentation](https://docs.oracle.com/javase/8/docs/api/java/util/ServiceLoader.html)
 - [XA Specification Overview](https://pubs.opengroup.org/onlinepubs/009680699/toc.pdf)
 
