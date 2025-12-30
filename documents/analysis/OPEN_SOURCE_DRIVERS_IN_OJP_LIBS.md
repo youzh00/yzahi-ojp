@@ -1,14 +1,16 @@
 # Analysis: Moving Open Source Drivers to ojp-libs Directory
 
 **Date**: 2025-12-30  
-**Status**: Analysis Complete  
+**Status**: Implementation Plan Ready  
 **Related**: [DRIVERS_AND_LIBS.md](../configuration/DRIVERS_AND_LIBS.md), [ADR-XXX: External Driver Loading](../ADRs/)
 
 ## Executive Summary
 
-This analysis explores the feasibility and implications of moving all open source JDBC drivers (H2, PostgreSQL, MySQL, MariaDB) from the `pom.xml` to the `ojp-libs` directory, leveraging the existing drop-in driver loading mechanism currently used for proprietary drivers (Oracle, SQL Server, DB2).
+This analysis explores moving all open source JDBC drivers (H2, PostgreSQL, MySQL, MariaDB) from the `pom.xml` to the `ojp-libs` directory, leveraging the existing drop-in driver loading mechanism currently used for proprietary drivers (Oracle, SQL Server, DB2).
 
-**Recommendation**: This change is technically feasible and offers significant benefits for customers who need driver customization, but requires careful planning for backwards compatibility and CI/CD adjustments.
+**Decision**: Implement this change immediately in a single release. The infrastructure already exists, and the benefits justify proceeding without a phased rollout.
+
+**Implementation**: 5 phases designed for isolated testing with existing integration tests.
 
 ## Current State
 
@@ -81,126 +83,188 @@ Remove all JDBC driver dependencies from `pom.xml` and place them in the `ojp-li
    - Easier reproduction of customer environments
    - Faster CI iteration (download drivers as needed)
 
-### Challenges
+### Implementation Considerations
 
-1. **Breaking Change**:
-   - Existing deployments expect drivers in the JAR
-   - Requires migration path for current users
-   - Documentation updates needed
+1. **Setup Simplification**:
+   - Provide driver bundle for easy download
+   - Create helper scripts for driver management
+   - Docker images will include drivers by default
 
-2. **First-Run Experience**:
-   - New users must download drivers separately
-   - Extra setup step before OJP can run
-   - Potential for confusion
+2. **CI/CD Updates**:
+   - Must download drivers in each CI job (pattern already used for Oracle/DB2/SQL Server)
+   - Cache drivers for faster builds
+   - Document driver versions in CI
 
-3. **CI/CD Complexity**:
-   - Must download drivers in each CI job
-   - Current workflows rely on drivers in JAR
-   - Need to manage driver versions in CI
+3. **Distribution Strategy**:
+   - GitHub Releases: Include driver bundle alongside OJP JAR
+   - Docker Images: Include drivers in base image for "batteries included" experience
+   - Maven Central: OJP JAR without drivers (cleaner artifact)
 
-4. **Default Experience**:
-   - Question: Should we ship a "batteries included" version?
-   - Consider two distribution models (see below)
+## Implementation Plan (5 Phases)
 
-## Technical Implementation Plan
+This implementation can be completed immediately with 5 distinct, testable phases. Each phase can be validated using existing integration tests without requiring new test infrastructure.
 
-### Phase 1: Preparation (No Breaking Changes)
+### Phase 1: Update DriverUtils for Consistent Error Handling
 
-**1.1 Create Driver Distribution Package**
+**Goal**: Make driver registration messages consistent for all drivers (open source and proprietary).
+
+**Changes**:
+- `ojp-server/src/main/java/org/openjproxy/grpc/server/utils/DriverUtils.java`
+  - Change all open source driver errors from `log.error()` to `log.info()` with helpful instructions
+  - Make message format consistent with proprietary driver messages
+  - All drivers should have same pattern: "Driver not found" → helpful instructions
+
+**Testing**: Run existing H2 tests
 ```bash
-# Create a standard driver bundle for easy download
-ojp-drivers-bundle/
-  ├── h2-2.3.232.jar
-  ├── postgresql-42.7.8.jar
-  ├── mysql-connector-j-9.5.0.jar
-  └── mariadb-java-client-3.5.2.jar
+mvn test -pl ojp-jdbc-driver -DenableH2Tests=true
 ```
 
-**1.2 Update Build Process**
-- Add profile: `mvn clean install -Pno-drivers` to build without drivers
-- Add profile: `mvn clean install -Pwith-drivers` to build with drivers (default)
-- Create script to download drivers to ojp-libs
-- Document both approaches
+**Expected Result**: Tests pass, logs show helpful messages instead of errors for missing drivers.
 
-**1.3 Update DriverUtils.java**
-Improve error messages to be driver-location agnostic:
-```java
-// Before (assumes drivers are in classpath)
-log.error("Failed to register H2 JDBC driver.", e);
+---
 
-// After (provides guidance for ojp-libs)
-log.info("H2 JDBC driver not found. To use H2 databases:");
-log.info("  1. Download h2-*.jar from https://mvnrepository.com/artifact/com.h2database/h2");
-log.info("  2. Place it in: {}", driverPathMessage);
-log.info("  3. Restart OJP Server");
-```
+### Phase 2: Remove Driver Dependencies from pom.xml
 
-### Phase 2: Transition Period (Both Models Supported)
+**Goal**: Remove H2, PostgreSQL, MySQL, and MariaDB dependencies from ojp-server/pom.xml.
 
-**2.1 Distribution Options**
+**Changes**:
+- `ojp-server/pom.xml`
+  - Remove `com.h2database:h2:2.3.232`
+  - Remove `org.postgresql:postgresql:42.7.8`
+  - Remove `com.mysql:mysql-connector-j:9.5.0`
+  - Remove `org.mariadb.jdbc:mariadb-java-client:3.5.2`
 
-**Option A: Include Drivers (Default)**
-```xml
-<!-- Keep drivers in pom.xml for backwards compatibility -->
-<dependencies>
-    <dependency>
-        <groupId>com.h2database</groupId>
-        <artifactId>h2</artifactId>
-        <version>2.3.232</version>
-    </dependency>
-    <!-- ... other drivers ... -->
-</dependencies>
-```
-
-**Option B: External Drivers Only**
+**Testing**: Build should succeed without drivers
 ```bash
-# Build without drivers
-mvn clean install -Pno-drivers
-
-# Download driver bundle
-curl -O https://github.com/Open-J-Proxy/ojp/releases/download/v0.3.2/ojp-drivers-bundle.zip
-unzip ojp-drivers-bundle.zip -d ./ojp-libs
+mvn clean install -pl ojp-server -DskipTests
 ```
 
-**2.2 Documentation**
-- Update all guides to show both approaches
-- Add "Driver Management" section to README
-- Create video tutorial for driver setup
-- Add FAQ entries
+**Expected Result**: OJP server JAR builds successfully, size reduced from ~70MB to ~30MB.
 
-### Phase 3: Migration (Breaking Change)
+---
 
-**3.1 Remove Drivers from pom.xml**
-```xml
-<!-- Remove these dependencies -->
-<!-- H2, PostgreSQL, MySQL, MariaDB -->
-```
+### Phase 3: Create Driver Download Script
 
-**3.2 Update Default Distribution**
-- GitHub Releases: Include driver bundle
-- Docker Images: Include drivers in base image OR provide empty image + volume mount pattern
-- Maven Central: OJP JAR without drivers
+**Goal**: Provide helper script to download open source drivers to ojp-libs directory.
 
-**3.3 Version Guidance**
-- Mark as breaking change in release notes
-- Provide clear migration guide
-- Consider major version bump (0.4.0 or 1.0.0)
+**Changes**:
+- Create `ojp-server/download-drivers.sh`
+  - Script downloads H2, PostgreSQL, MySQL, MariaDB from Maven Central
+  - Places drivers in specified directory (default: `./ojp-libs`)
+  - Makes script executable
 
-### Phase 4: Enhanced Automation
-
-**4.1 Driver Management CLI**
+**Testing**: Run script and verify drivers downloaded
 ```bash
-# Proposed tooling
-java -jar ojp-server.jar --download-drivers
-java -jar ojp-server.jar --download-drivers h2,postgresql
-java -jar ojp-server.jar --list-drivers
-java -jar ojp-server.jar --verify-drivers
+cd ojp-server
+./download-drivers.sh
+ls -lh ojp-libs/*.jar
 ```
 
-**4.2 Smart Defaults**
-- Auto-download missing drivers on first run (with user consent)
-- Cache drivers in user home directory
-- Share drivers across OJP instances
+**Expected Result**: Four driver JARs downloaded to ojp-libs directory.
+
+---
+
+### Phase 4: Update CI/CD Workflows
+
+**Goal**: Update all GitHub Actions workflows to download drivers before running tests.
+
+**Changes**:
+- `.github/workflows/main.yml`
+  - Add "Download Open Source Drivers" step before running tests in ALL jobs
+  - Use same pattern as proprietary drivers (Oracle, DB2, SQL Server)
+  - Download H2, PostgreSQL, MySQL, MariaDB to `ojp-server/ojp-libs/`
+  - Update server startup to use `-Dojp.libs.path=ojp-server/ojp-libs`
+
+**Testing**: Run existing integration tests for each database
+```bash
+# H2 tests
+mvn test -pl ojp-jdbc-driver -DenableH2Tests=true
+
+# PostgreSQL tests (requires PostgreSQL container)
+mvn test -pl ojp-jdbc-driver -DenablePostgresTests=true
+
+# MySQL tests (requires MySQL container)
+mvn test -pl ojp-jdbc-driver -DenableMySQLTests=true
+
+# MariaDB tests (requires MariaDB container)
+mvn test -pl ojp-jdbc-driver -DenableMariaDBTests=true
+```
+
+**Expected Result**: All existing integration tests pass with drivers loaded from ojp-libs.
+
+---
+
+### Phase 5: Update Documentation and Docker Configuration
+
+**Goal**: Update all documentation and Docker images to reflect external driver loading.
+
+**Changes**:
+
+**Documentation**:
+- `README.md` - Update Quick Start to include driver download step
+- `documents/configuration/DRIVERS_AND_LIBS.md` - Update to include open source drivers
+- `documents/runnable-jar/README.md` - Add driver download instructions
+- `Dockerfile.proprietary` - Rename to `Dockerfile.with-drivers` (more accurate name)
+
+**Docker/Build**:
+- `ojp-server/pom.xml` (Jib configuration)
+  - Configure Jib to copy ojp-libs directory into Docker image at `/opt/ojp/ojp-libs`
+  - Ensures "batteries included" Docker experience
+  
+- Create `ojp-server/docker-build.sh` helper script
+  - Downloads drivers
+  - Builds Docker image with drivers
+
+**Testing**: Build and run Docker image
+```bash
+# Download drivers
+cd ojp-server
+./download-drivers.sh
+
+# Build Docker image with Jib
+mvn compile jib:dockerBuild -pl ojp-server
+
+# Run Docker container
+docker run -d -p 1059:1059 --name ojp-test rrobetti/ojp:0.3.2-snapshot
+
+# Test H2 connection through Docker
+mvn test -pl ojp-jdbc-driver -DenableH2Tests=true
+```
+
+**Expected Result**: Docker image includes drivers, all tests pass through containerized OJP server.
+
+---
+
+## Phase Dependencies
+
+- **Phase 1** → Independent (can run first)
+- **Phase 2** → Depends on Phase 1 (error messages should be helpful before removing drivers)
+- **Phase 3** → Independent (helper script, doesn't affect code)
+- **Phase 4** → Depends on Phase 2 and 3 (needs drivers removed and download script available)
+- **Phase 5** → Depends on all previous phases (documentation reflects final state)
+
+## Validation Strategy
+
+Each phase is validated using **existing integration tests**:
+
+| Phase | Test Command | What It Validates |
+|-------|--------------|-------------------|
+| 1 | `mvn test -pl ojp-jdbc-driver -DenableH2Tests=true` | Driver error messages are helpful |
+| 2 | `mvn clean install -pl ojp-server -DskipTests` | Build succeeds without drivers |
+| 3 | `./download-drivers.sh && ls ojp-libs/` | Download script works |
+| 4 | `mvn test -pl ojp-jdbc-driver -Denable*Tests=true` | All database tests pass with external drivers |
+| 5 | Docker build + integration tests | Docker image works with external drivers |
+
+**No new tests required** - all validation uses existing test infrastructure.
+
+## Rollback Strategy
+
+If issues are discovered:
+1. **Phase 1-3**: Simply revert commits (no breaking changes yet)
+2. **Phase 4**: Revert workflow changes, add drivers back to pom.xml
+3. **Phase 5**: Revert documentation, use old Docker config
+
+Since all phases are tested in isolation, issues can be identified and fixed early.
 
 ## Impact Analysis
 
@@ -348,48 +412,45 @@ ojp-server/
     └── mariadb-java-client-3.5.2.jar
 ```
 
-## Customer Impact and Migration Guide
+## Customer Impact Guide
 
-### For New Customers
+### Quick Start for New Users
 
-**Quick Start (Recommended)**:
+**Step 1: Download OJP**:
 ```bash
-# Download OJP
-wget https://github.com/Open-J-Proxy/ojp/releases/download/v0.4.0/ojp-server-0.4.0-shaded.jar
+# Download OJP server JAR
+wget https://github.com/Open-J-Proxy/ojp/releases/download/v0.3.2/ojp-server-0.3.2-snapshot-shaded.jar
+```
 
-# Download open source drivers bundle
-wget https://github.com/Open-J-Proxy/ojp/releases/download/v0.4.0/ojp-drivers-bundle.zip
+**Step 2: Download Drivers**:
+```bash
+# Option A: Download driver bundle
+wget https://github.com/Open-J-Proxy/ojp/releases/download/v0.3.2/ojp-drivers-bundle.zip
 unzip ojp-drivers-bundle.zip
 
-# Run
-java -jar ojp-server-0.4.0-shaded.jar
+# Option B: Use download script (if building from source)
+cd ojp-server
+./download-drivers.sh
 ```
 
-**Docker**:
+**Step 3: Run**:
 ```bash
-# With all drivers pre-installed
-docker run -d -p 1059:1059 rrobetti/ojp:0.4.0
-
-# Or with custom drivers
-docker run -d -p 1059:1059 -v ./ojp-libs:/opt/ojp/ojp-libs rrobetti/ojp:0.4.0-minimal
+java -jar ojp-server-0.3.2-snapshot-shaded.jar
+# Drivers auto-loaded from ./ojp-libs/
 ```
 
-### For Existing Customers
+### Docker Usage
 
-**Option 1: Continue with Embedded Drivers (0.3.x)**
+**Pre-built image with drivers included**:
 ```bash
-# No change needed - keep using 0.3.x releases
+# Batteries included - drivers already in image
 docker run -d -p 1059:1059 rrobetti/ojp:0.3.2-snapshot
 ```
 
-**Option 2: Migrate to External Drivers (0.4.0+)**
+**Custom driver setup**:
 ```bash
-# Step 1: Download driver bundle
-wget https://github.com/Open-J-Proxy/ojp/releases/download/v0.4.0/ojp-drivers-bundle.zip
-unzip ojp-drivers-bundle.zip -d ./ojp-libs
-
-# Step 2: Update to new version
-docker run -d -p 1059:1059 -v $(pwd)/ojp-libs:/opt/ojp/ojp-libs rrobetti/ojp:0.4.0
+# Mount your own ojp-libs directory
+docker run -d -p 1059:1059 -v $(pwd)/ojp-libs:/opt/ojp/ojp-libs rrobetti/ojp:0.3.2-snapshot
 ```
 
 ### Customer Use Cases
@@ -425,31 +486,23 @@ java -jar ojp-server.jar
 ```bash
 # Customer must scan all JARs before deployment
 # Download drivers separately
-wget https://github.com/Open-J-Proxy/ojp/releases/download/v0.4.0/ojp-drivers-bundle.zip
+wget https://github.com/Open-J-Proxy/ojp/releases/download/v0.3.2/ojp-drivers-bundle.zip
 unzip ojp-drivers-bundle.zip -d ./ojp-libs
 
 # Scan drivers
 scan-tool ./ojp-libs/*.jar
 
 # Deploy if clean
-docker run -d -p 1059:1059 -v $(pwd)/ojp-libs:/opt/ojp/ojp-libs rrobetti/ojp:0.4.0
+docker run -d -p 1059:1059 -v $(pwd)/ojp-libs:/opt/ojp/ojp-libs rrobetti/ojp:0.3.2-snapshot
 ```
 
 ## Documentation Changes Required
 
-### New Documents
-1. **Driver Management Guide** (`DRIVER_MANAGEMENT.md`)
-   - How to download drivers
-   - How to update drivers
-   - How to remove drivers
-   - Troubleshooting
-
-2. **Migration Guide** (`MIGRATION_0.3_TO_0.4.md`)
-   - Breaking changes
-   - Step-by-step migration
-   - Rollback procedures
-
-3. **Driver Version Matrix** (`DRIVER_VERSIONS.md`)
+### Documents to Update (Phase 5)
+1. **README.md** - Add driver download step to Quick Start
+2. **DRIVERS_AND_LIBS.md** - Extend to include open source drivers  
+3. **runnable-jar/README.md** - Add driver download instructions
+4. **Dockerfile.proprietary** - Rename to `Dockerfile.with-drivers`
    - Tested driver versions
    - Compatibility notes
    - Known issues
@@ -666,35 +719,6 @@ ENV OJP_LIBS_PATH=/opt/ojp/ojp-libs
 </plugin>
 ```
 
-## Release Strategy
-
-### Phased Rollout (Recommended)
-
-**Phase 1: v0.3.3 (Current Model)**
-- Keep drivers in pom.xml
-- Document alternative external driver approach
-- Test community feedback
-- Duration: 1-2 months
-
-**Phase 2: v0.4.0-beta (Hybrid Model)**
-- Build produces two artifacts:
-  - `ojp-server-with-drivers.jar` (backwards compatible)
-  - `ojp-server-minimal.jar` (no drivers)
-- Update documentation
-- Gather community feedback
-- Duration: 2-3 months
-
-**Phase 3: v0.4.0 (External Drivers Default)**
-- Remove drivers from pom.xml
-- Provide driver bundle for download
-- Major version bump
-- Clear migration documentation
-- Duration: Ongoing
-
-### Alternative: Big Bang (Not Recommended)
-
-Skip directly to v0.4.0 with all changes at once. Higher risk of breaking existing deployments.
-
 ## Testing Strategy
 
 ### Unit Tests
@@ -702,8 +726,18 @@ No changes needed - unit tests don't depend on driver loading mechanism.
 
 ### Integration Tests
 
-**Before** (current):
+Tests validate each phase independently using existing test infrastructure (see Implementation Plan above for phase-specific tests).
+
+**Pattern for all tests**:
 ```bash
+# Download drivers first
+./download-drivers.sh ojp-server/ojp-libs
+
+# Run tests with driver path
+mvn test -pl ojp-jdbc-driver -Dojp.libs.path=ojp-server/ojp-libs -Denable*Tests=true
+```
+
+CI workflows will handle this automatically (Phase 4 implementation).
 mvn test -pl ojp-jdbc-driver -DenableH2Tests=true
 # Drivers in classpath, tests run immediately
 ```
@@ -789,105 +823,57 @@ Create test matrix:
    - Bundle version independent of OJP version?
    - Recommendation: Yes, allows driver updates without OJP releases
 
-## Recommendations
+## Implementation Summary
 
-### Short Term (Next Release)
+This change is **immediately implementable** with the 5-phase plan described above. The infrastructure already exists and has been proven with proprietary drivers.
 
-1. **Document the external driver approach**
-   - Add section to DRIVERS_AND_LIBS.md
-   - Show how to build without drivers
-   - Show how to use ojp-libs for open source drivers
+**Key Points**:
+1. **Testable in isolation** - Each phase can be validated independently with existing integration tests
+2. **No breaking changes concern** - Docker images will include drivers by default for "batteries included" experience
+3. **Clear rollback path** - Each phase can be reverted if issues are discovered
+4. **Immediate benefits** - Customers gain flexibility, smaller base JAR, consistent driver loading
 
-2. **Create driver bundle artifact**
-   - Publish ojp-drivers-bundle.zip with each release
-   - Include checksums
-
-3. **Test the approach internally**
-   - Run CI with external drivers only
-   - Identify any edge cases
-
-### Medium Term (2-3 months)
-
-1. **Release hybrid version (0.4.0-beta)**
-   - Provide both with-drivers and without-drivers JARs
-   - Update documentation comprehensively
-   - Gather community feedback
-
-2. **Update Docker images**
-   - Publish both full and minimal images
-   - Document volume mount patterns
-
-3. **Create migration tools**
-   - Scripts to download drivers
-   - Docker compose examples
-   - Kubernetes examples
-
-### Long Term (6+ months)
-
-1. **Make external drivers the default (1.0.0)**
-   - Remove drivers from pom.xml
-   - Driver bundle as primary distribution
-   - Maintain backwards compatibility with "batteries included" Docker image
-
-2. **Enhanced driver management**
-   - CLI tool for driver operations
-   - Auto-update capabilities
-   - Driver marketplace/catalog
-
-3. **Multi-driver testing**
-   - Automated testing against multiple driver versions
-   - Compatibility matrix in documentation
-
-## Conclusion
-
-Moving open source drivers to the ojp-libs directory is **technically feasible** and offers significant benefits for customer flexibility. However, it requires careful planning to avoid breaking existing deployments.
-
-**Key Success Factors**:
-1. Clear, comprehensive documentation
-2. Phased rollout with hybrid period
-3. Excellent migration guides
-4. Responsive support during transition
-5. Automated tooling for driver management
-
-**Recommended Approach**:
-- Start with documentation and optional external driver support (v0.3.3)
-- Release hybrid version with both options (v0.4.0-beta)
-- Transition to external drivers as default (v1.0.0)
-- Maintain "batteries included" Docker image indefinitely
-
-This approach balances innovation with backwards compatibility, giving customers the flexibility they need while maintaining a smooth user experience.
+**Success Criteria**:
+- All existing integration tests pass after each phase
+- Docker image includes drivers and maintains current user experience
+- Documentation clearly explains driver management
+- Download script works reliably
+- CI workflows complete successfully with external drivers
 
 ---
 
-## Appendix A: Customer Education Plan
+## Appendix A: Code Changes Summary
 
-### Tutorial Videos
-1. "Getting Started with OJP External Drivers" (5 min)
-2. "Migrating from Embedded to External Drivers" (3 min)
-3. "Custom Driver Management" (7 min)
+### Files to Modify
+1. `ojp-server/src/main/java/org/openjproxy/grpc/server/utils/DriverUtils.java` - Consistent error messages
+2. `ojp-server/pom.xml` - Remove 4 driver dependencies, update Jib config
+3. `.github/workflows/main.yml` - Add driver download steps to all jobs
+4. `README.md` - Update Quick Start
+5. `documents/configuration/DRIVERS_AND_LIBS.md` - Extend to open source drivers
+6. `documents/runnable-jar/README.md` - Add driver instructions
+7. `Dockerfile.proprietary` - Rename to `Dockerfile.with-drivers`
 
-### Documentation
-1. Driver Management Guide (comprehensive)
-2. Quick Start (updated)
-3. Migration Guide (0.3.x to 0.4.0)
-4. FAQ (20+ driver-related questions)
+### Files to Create
+1. `ojp-server/download-drivers.sh` - Helper script to download drivers
+2. `ojp-server/docker-build.sh` - Docker build helper
 
-### Community Engagement
-1. Blog post announcing the change
-2. Discord channel for migration support
-3. GitHub Discussions for Q&A
-4. Sample projects demonstrating both approaches
+### No Changes Needed
+- `DriverLoader.java` - Already supports external drivers
+- `ServerConfiguration.java` - Already has ojp.libs.path config
+- `GrpcServer.java` - Already calls DriverLoader
+- `.gitignore` - Already excludes ojp-libs
 
 ## Appendix B: Risk Assessment
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| Breaking existing deployments | High | High | Phased rollout, clear migration guide |
-| Confusion among new users | Medium | Medium | Excellent documentation, driver bundle |
-| Increased support burden | Medium | Medium | Comprehensive FAQ, community support |
-| CI/CD complexity | Low | Medium | Update templates, provide examples |
-| Driver version incompatibilities | Low | High | Test matrix, document versions |
-| Security concerns (untrusted drivers) | Low | High | Document trusted sources, provide checksums |
+| Build failures | Low | Medium | Phase 2 tested in isolation with existing build |
+| Test failures | Low | Medium | Each phase validated with existing tests |
+| CI issues | Low | Medium | Pattern already used for proprietary drivers |
+| Docker image issues | Low | Low | Jib extraDirectories well-tested feature |
+| User confusion | Medium | Low | Clear documentation, "batteries included" Docker |
+
+All risks are manageable with the 5-phase implementation approach.
 
 ## Appendix C: Comparison with Other Projects
 
@@ -911,17 +897,16 @@ This pattern is well-established and understood in the Java ecosystem.
 mvn dependency:copy -Dartifact=com.h2database:h2:2.3.232 -DoutputDirectory=./ojp-libs
 
 # From GitHub release
-wget https://github.com/Open-J-Proxy/ojp/releases/download/v0.4.0/ojp-drivers-bundle.zip
+wget https://github.com/Open-J-Proxy/ojp/releases/download/v0.3.2/ojp-drivers-bundle.zip
 unzip ojp-drivers-bundle.zip
 ```
 
 ### Build Without Drivers
 ```bash
-# Maven
-mvn clean install -pl ojp-server -Pno-drivers
+# Maven (after Phase 2)
+mvn clean install -pl ojp-server -DskipTests
 
-# Docker
-docker build -f Dockerfile.minimal -t ojp:minimal .
+# Result: Smaller JAR (~30MB vs ~70MB)
 ```
 
 ### Run with External Drivers
@@ -929,8 +914,11 @@ docker build -f Dockerfile.minimal -t ojp:minimal .
 # JAR
 java -Dojp.libs.path=./ojp-libs -jar ojp-server.jar
 
-# Docker
-docker run -v $(pwd)/ojp-libs:/opt/ojp/ojp-libs rrobetti/ojp:0.4.0
+# Docker (batteries included)
+docker run -d -p 1059:1059 rrobetti/ojp:0.3.2-snapshot
+
+# Docker (custom drivers)
+docker run -d -p 1059:1059 -v $(pwd)/ojp-libs:/opt/ojp/ojp-libs rrobetti/ojp:0.3.2-snapshot
 ```
 
 ### Verify Drivers
@@ -939,5 +927,5 @@ docker run -v $(pwd)/ojp-libs:/opt/ojp/ojp-libs rrobetti/ojp:0.4.0
 ls -lh ./ojp-libs/*.jar
 
 # Check server logs for loaded drivers
-grep "driver loaded successfully" /var/log/ojp-server.log
+grep "driver loaded successfully" ojp-server.log
 ```
