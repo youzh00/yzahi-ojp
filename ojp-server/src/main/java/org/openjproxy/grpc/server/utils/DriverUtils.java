@@ -3,6 +3,8 @@ package org.openjproxy.grpc.server.utils;
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
+import org.openjproxy.grpc.server.utils.DriverLoader.DriverShim;
+
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.util.Enumeration;
@@ -72,9 +74,8 @@ public class DriverUtils {
                 if (driver.getClass().getName().equals(driverClass)) {
                     found = true;
                     break;
-                } else if (driver instanceof org.openjproxy.grpc.server.utils.DriverLoader.DriverShim) {
-                    org.openjproxy.grpc.server.utils.DriverLoader.DriverShim shim = 
-                        (org.openjproxy.grpc.server.utils.DriverLoader.DriverShim) driver;
+                } else if (driver instanceof DriverShim) {
+                    DriverShim shim = (DriverShim) driver;
                     if (shim.getWrappedDriverClassName().equals(driverClass)) {
                         found = true;
                         break;

@@ -109,6 +109,9 @@ public class DriverLoader {
      * Wrapper class for JDBC drivers loaded from external class loaders.
      * This is necessary because DriverManager only accepts drivers loaded by the system class loader
      * or its parent. This shim delegates all calls to the actual driver.
+     * 
+     * Package-private visibility allows DriverUtils to check if drivers are properly loaded
+     * by inspecting the wrapped driver class name.
      */
     static class DriverShim implements Driver {
         private final Driver driver;
