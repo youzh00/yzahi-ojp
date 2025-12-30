@@ -1,13 +1,24 @@
 # OJP External Libraries Support
 
-OJP Server includes built-in support for open-source database drivers (H2, PostgreSQL, MySQL, MariaDB). For proprietary databases like Oracle, SQL Server, and DB2, you can add drivers and related libraries without recompiling OJP.
+OJP Server supports loading JDBC drivers from an external directory. While open-source drivers (H2, PostgreSQL, MySQL, MariaDB) are included in Docker images by default, you can also provide your own versions or add proprietary database drivers without recompiling OJP.
 
 ## Overview
 
-Due to licensing restrictions, OJP cannot distribute proprietary JDBC drivers and related libraries. Instead, OJP provides a "drop-in" mechanism that allows you to add these at deployment time.
+OJP provides a flexible "drop-in" mechanism for JDBC drivers and related libraries:
 
-### Supported Proprietary Databases and Libraries
+- **Docker Images**: Include open-source drivers by default ("batteries included")
+- **Runnable JAR**: Download drivers separately using the provided script
+- **Custom Drivers**: Replace default drivers with specific versions or add proprietary drivers
 
+### Supported Databases
+
+**Open Source (included in Docker images)**:
+- **H2** - Embedded/file-based database
+- **PostgreSQL** - Popular open-source relational database
+- **MySQL** - Widely-used open-source database
+- **MariaDB** - MySQL-compatible open-source database
+
+**Proprietary (add via drop-in mechanism)**:
 - **Oracle Database** - Requires `ojdbc*.jar`
   - **Optional**: Oracle UCP for advanced connection pooling (`ucp.jar`, `ons.jar`)
     - **Note**: To use Oracle UCP with OJP, you must provide an implementation of at least one OJP SPI (Service Provider Interface): `XAConnectionPoolProvider` for XA transactions or `DataSourceProvider` for regular connections. See [OJP SPI Documentation](../spi/) for details.
@@ -21,47 +32,78 @@ Due to licensing restrictions, OJP cannot distribute proprietary JDBC drivers an
 1. **External Libraries Directory**: OJP loads all JAR files from a configurable directory at startup
 2. **Automatic Detection**: Drivers and libraries are automatically loaded into the classpath
 3. **Helpful Messages**: OJP provides clear instructions when a driver is missing
+4. **Docker Images**: Open-source drivers (H2, PostgreSQL, MySQL, MariaDB) are pre-installed in Docker images
 
 ## Setup Instructions
 
-### Option 1: Runnable JAR (Local/VM Deployment)
+### Option 1: Docker (Recommended - Batteries Included)
+
+**Quick Start** - Open source drivers are pre-installed:
+
+```bash
+# Run OJP with open source drivers included
+docker run -d -p 1059:1059 --name ojp rrobetti/ojp:0.3.2-snapshot
+```
+
+The Docker image includes H2, PostgreSQL, MySQL, and MariaDB drivers by default. No additional setup needed!
+
+**Adding Proprietary Drivers** - Mount external directory:
+
+```bash
+# Create external libraries directory on host
+mkdir -p ./ojp-libs
+
+# Add proprietary drivers (e.g., Oracle, SQL Server, DB2)
+cp ~/Downloads/ojdbc11.jar ./ojp-libs/
+
+# Run with volume mount
+docker run -d \
+  -p 1059:1059 \
+  -v $(pwd)/ojp-libs:/opt/ojp/ojp-libs \
+  --name ojp \
+  rrobetti/ojp:0.3.2-snapshot
+```
+
+### Option 2: Runnable JAR (Local/VM Deployment)
 
 For complete instructions on building and running OJP as a runnable JAR, see the [OJP Server Runnable JAR Guide](../runnable-jar/README.md).
 
-#### Step 1: Download Drivers and Libraries
+#### Step 1: Download Open Source Drivers
 
-Download the required JDBC driver and any additional libraries from the vendor:
+OJP provides a convenient script to download open source drivers:
+
+```bash
+cd ojp-server
+
+# Download to default location (./ojp-libs)
+bash download-drivers.sh
+
+# Or specify custom directory
+bash download-drivers.sh /opt/ojp/drivers
+```
+
+This downloads H2, PostgreSQL, MySQL, and MariaDB drivers from Maven Central.
+
+#### Step 2: (Optional) Add Proprietary Drivers
+
+Download proprietary JDBC drivers from vendors and add them to the same directory:
 
 - **Oracle**: [Oracle JDBC Downloads](https://www.oracle.com/database/technologies/jdbc-downloads.html) (ojdbc*.jar)
   - Optional: Oracle UCP for advanced connection pooling (ucp.jar, ons.jar) - requires SPI implementation
 - **SQL Server**: [Microsoft JDBC Driver Downloads](https://learn.microsoft.com/en-us/sql/connect/jdbc/download-microsoft-jdbc-driver-for-sql-server)
 - **DB2**: Contact IBM or check your DB2 installation directory
 
-#### Step 2: Create External Libraries Directory
-
 ```bash
-mkdir -p ./ojp-libs
-```
-
-#### Step 3: Copy JARs
-
-```bash
-# Example for Oracle JDBC driver
+# Example: Adding Oracle driver
 cp ~/Downloads/ojdbc11.jar ./ojp-libs/
 
-# Example for Oracle with UCP (Universal Connection Pool) - requires SPI implementation
+# Example: Adding Oracle with UCP (requires SPI implementation)
 cp ~/Downloads/ojdbc11.jar ./ojp-libs/
 cp ~/Downloads/ucp.jar ./ojp-libs/
 cp ~/Downloads/ons.jar ./ojp-libs/
-
-# Example for SQL Server
-cp ~/Downloads/mssql-jdbc-12.4.2.jre11.jar ./ojp-libs/
-
-# Example for DB2
-cp ~/Downloads/db2jcc4.jar ./ojp-libs/
 ```
 
-#### Step 4: Run OJP Server
+#### Step 3: Run OJP Server
 
 ```bash
 # Default location (./ojp-libs)
@@ -71,7 +113,7 @@ java -jar ojp-server-0.3.2-snapshot-shaded.jar
 java -Dojp.libs.path=/path/to/ojp-libs -jar ojp-server-0.3.2-snapshot-shaded.jar
 ```
 
-### Option 2: Docker with Volume Mount
+### Option 3: Docker with Custom Drivers (Volume Mount)
 
 #### Step 1: Download and Prepare Libraries
 
@@ -79,7 +121,10 @@ java -Dojp.libs.path=/path/to/ojp-libs -jar ojp-server-0.3.2-snapshot-shaded.jar
 # Create external libraries directory on host
 mkdir -p ./ojp-libs
 
-# Download and copy drivers and libraries
+# (Optional) Download open source drivers if you want specific versions
+# The container already includes H2, PostgreSQL, MySQL, MariaDB
+
+# Add proprietary drivers and libraries
 cp ~/Downloads/ojdbc11.jar ./ojp-libs/
 # Optional: Add Oracle UCP for advanced connection pooling
 cp ~/Downloads/ucp.jar ./ojp-libs/
@@ -94,16 +139,17 @@ docker run -d \
   rrobetti/ojp:0.3.2-snapshot
 ```
 
-The container is pre-configured to look for libraries in `/opt/ojp/ojp-libs`.
+The container is pre-configured to look for libraries in `/opt/ojp/ojp-libs`. Your volume-mounted drivers will be loaded alongside the pre-installed open source drivers.
 
-### Option 3: Docker - Custom Image Build
+### Option 4: Docker - Custom Image Build
 
-This option creates a single container image with drivers and libraries embedded.
+This option creates a single container image with additional proprietary drivers embedded.
 
-#### Step 1: Download Libraries
+#### Step 1: Download Additional Libraries
 
 ```bash
 mkdir -p ./ojp-libs
+# Add proprietary drivers (open source drivers already included in base image)
 cp ~/Downloads/ojdbc11.jar ./ojp-libs/
 # Optional: Add additional libraries like Oracle UCP
 cp ~/Downloads/ucp.jar ./ojp-libs/
@@ -122,7 +168,7 @@ docker build -f Dockerfile.proprietary -t my-company/ojp:1.0.0 .
 docker run -d -p 1059:1059 my-company/ojp:1.0.0
 ```
 
-### Option 4: Docker Compose
+### Option 5: Docker Compose
 
 ```yaml
 version: '3.8'
@@ -132,10 +178,12 @@ services:
     ports:
       - "1059:1059"
     volumes:
-      - ./ojp-libs:/opt/ojp/ojp-libs
+      - ./ojp-libs:/opt/ojp/ojp-libs  # Optional: for proprietary drivers
     environment:
       - OJP_LIBS_PATH=/opt/ojp/ojp-libs
 ```
+
+**Note**: The Docker image already includes open-source drivers. The volume mount is only needed if you want to add proprietary drivers or use specific driver versions.
 
 ## Configuration
 
@@ -164,8 +212,27 @@ When OJP starts, check the logs for driver loading messages:
 
 ```
 INFO  Loading external JDBC drivers...
+INFO  Loading driver JAR: h2-2.3.232.jar
+INFO  Loading driver JAR: postgresql-42.7.8.jar
+INFO  Loading driver JAR: mysql-connector-j-9.5.0.jar
+INFO  Loading driver JAR: mariadb-java-client-3.5.2.jar
+INFO  Successfully loaded 4 driver JAR(s) from: /opt/ojp/ojp-libs
+INFO  H2 JDBC driver loaded successfully
+INFO  PostgreSQL JDBC driver loaded successfully
+INFO  MySQL JDBC driver loaded successfully
+INFO  MariaDB JDBC driver loaded successfully
+```
+
+With proprietary drivers:
+
+```
+INFO  Loading external JDBC drivers...
+INFO  Loading driver JAR: h2-2.3.232.jar
+INFO  Loading driver JAR: postgresql-42.7.8.jar
 INFO  Loading driver JAR: ojdbc11.jar
-INFO  Successfully loaded 1 driver JAR(s) from: /opt/ojp/ojp-libs
+INFO  Successfully loaded 5 driver JAR(s) from: /opt/ojp/ojp-libs
+INFO  H2 JDBC driver loaded successfully
+INFO  PostgreSQL JDBC driver loaded successfully
 INFO  Oracle JDBC driver loaded successfully
 ```
 
@@ -337,7 +404,10 @@ jobs:
 A: Yes, place all required JAR files in the external libraries directory.
 
 **Q: What if I don't need proprietary drivers?**  
-A: No action needed. OJP works with open-source drivers out of the box.
+A: Docker images include open-source drivers by default. For runnable JAR deployments, use the `download-drivers.sh` script to get the open source drivers.
+
+**Q: Can I use specific versions of open source drivers?**  
+A: Yes, simply download your preferred version and place it in the ojp-libs directory. It will override the default drivers in Docker images.
 
 **Q: Can I hot-reload drivers?**  
 A: No, OJP loads drivers and libraries at startup. Restart the server to load new JARs.

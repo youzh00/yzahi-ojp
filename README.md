@@ -34,10 +34,22 @@ OJP protects your databases from overwhelming connection storms by acting as a s
 
 Get OJP running in under 5 minutes:
 
-### 1. Start OJP Server
+### 1. Start OJP Server (Docker - Batteries Included)
 ```bash
+# Includes H2, PostgreSQL, MySQL, MariaDB drivers
 docker run --rm -d --network host rrobetti/ojp:0.3.1-beta
 ```
+
+**Alternative: Runnable JAR (No Docker)**
+
+```bash
+# Download OJP Server JAR and open source drivers
+cd ojp-server
+bash download-drivers.sh  # Downloads H2, PostgreSQL, MySQL, MariaDB
+java -jar ojp-server-0.3.2-snapshot-shaded.jar
+```
+
+📖 See [Executable JAR Setup Guide](documents/runnable-jar/README.md) for details.
 
 ### 2. Add OJP JDBC Driver to your project
 ```xml
@@ -67,6 +79,8 @@ Replace your existing connection URL by prefixing with `ojp[host:port]_`:
 Use the ojp driver: `org.openjproxy.jdbc.Driver`
 
 That's it! Your application now uses intelligent connection pooling through OJP.
+
+**Note**: Docker images include H2, PostgreSQL, MySQL, and MariaDB drivers by default. For proprietary databases (Oracle, SQL Server, DB2), see the [Drop-In Driver Documentation](documents/configuration/DRIVERS_AND_LIBS.md).
 
 ## Alternative Setup: Executable JAR (No Docker)
 
