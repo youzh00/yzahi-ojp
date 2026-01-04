@@ -139,7 +139,7 @@ Professional technical diagram style
 
 The **ojp-jdbc-driver** is a complete JDBC 4.2 specification implementation that applications use as a drop-in replacement for traditional JDBC drivers.
 
-The driver implements all required JDBC interfaces to ensure full compliance with the standard. Rather than maintaining actual database connections, it provides lightweight virtual connection objects that delegate to the server. Under the hood, it acts as a gRPC client, communicating with ojp-server to execute all database operations. The driver handles result set streaming efficiently to minimize memory overhead, and manages transaction state across the network boundary. For high availability scenarios, it supports connecting to multiple OJP servers simultaneously, automatically failing over when needed.
+The driver implements the JDBC API interfaces to ensure compliance with the standard. Rather than maintaining actual database connections, it provides lightweight virtual connection objects that delegate to the server. Under the hood, it acts as a gRPC client, communicating with ojp-server to execute all database operations. The driver handles result set streaming efficiently to minimize memory overhead, and manages transaction state across the network boundary. For high availability scenarios, it supports connecting to multiple OJP servers simultaneously, automatically failing over when needed.
 
 **JDBC Implementation Mapping**:
 
@@ -677,6 +677,8 @@ com.example.MyCustomPoolProvider
 
 This architecture makes OJP adaptable to specialized requirements while maintaining HikariCP as the proven, high-performance default.
 
+**XA Transaction Support**: Beyond the standard connection pool, OJP also provides an **XA Pool SPI** for distributed transactions. This pluggable architecture allows custom XA-aware pooling providers while defaulting to Apache Commons Pool 2. The XA pooling strategy and its unique dual-condition lifecycle are covered in detail in **Chapter 10: XA Distributed Transactions**.
+
 ---
 
 ## 2.4 Architecture Diagrams
@@ -823,7 +825,7 @@ sequenceDiagram
     Server->>HikariCP: getConnection()
     HikariCP->>DB: Use real connection
     DB-->>HikariCP: ResultSet
-    HikariCP-->>Server: Release connection
+    Note over HikariCP,Server: Connection held for ResultSet
     Server->>Commons: Serialize ResultSetResponse
     Server-->>Driver: Stream results
     Driver->>Driver: Deserialize to JDBC ResultSet
@@ -834,6 +836,9 @@ sequenceDiagram
     Driver-->>App: Data from cached results
     
     Note over App: Close resources
+    App->>Driver: rs.close()
+    Driver->>Server: CloseResultSet RPC
+    Server->>HikariCP: Release connection NOW
     App->>Driver: conn.close()
     Driver->>Server: CloseSession RPC
     Server->>Server: Cleanup session

@@ -36,7 +36,7 @@ graph TB
     HELM --> KUBECTL
     
     style K8S fill:#326ce5
-    style HELM fill:#0f1689
+    style HELM fill:#5c8dd8
     style KUBECTL fill:#326ce5
 ```
 
@@ -258,7 +258,7 @@ graph TD
     SVC --> POD
     POD -.reads.-> CM
     
-    style HELM fill:#0f1689
+    style HELM fill:#5c8dd8
     style NS fill:#326ce5
     style POD fill:#4caf50
 ```
@@ -350,9 +350,9 @@ resources:
     cpu: "500m"
     memory: "1Gi"
 
-# Enable autoscaling
+# Enable autoscaling (see note below about OJP multinode considerations)
 autoscaling:
-  enabled: true
+  enabled: false  # Disabled by default - see architectural note
   minReplicas: 2
   maxReplicas: 10
   targetCPUUtilizationPercentage: 70
@@ -926,16 +926,87 @@ spec:
 
 ### Ingress Configuration
 
-**[IMAGE PROMPT 13]**: Create an Ingress architecture diagram showing:
-External traffic → Ingress Controller → Ingress Rules → OJP Service → OJP Pods
-Include TLS termination at Ingress
-Use Kubernetes ingress architecture style
+**[IMAGE PROMPT 13]**: Create an architecture comparison diagram showing:
+- Traditional approach: External traffic → Ingress Controller → Load Balanced OJP Pods (showing single TCP connection issue)
+- Recommended approach: External traffic → Individual OJP Pod Services (NodePort/LoadBalancer) → Client-side load balancing
+Use Kubernetes architecture comparison style with pros/cons annotations
 Professional K8s networking guide
 
-Expose OJP via Ingress for external gRPC access:
+#### ⚠️ Important: Ingress and OJP Multinode Architecture
+
+**OJP's multinode architecture requires special consideration in Kubernetes**:
+
+OJP clients use a **client-side load balancing** strategy where the JDBC driver connects to multiple OJP server addresses simultaneously (e.g., `jdbc:ojp[server1:1059,server2:1059,server3:1059]_...`). This enables:
+- **Intelligent load distribution** based on real-time server load
+- **Automatic failover** when servers become unavailable
+- **Connection affinity** for transactions and temporary tables
+
+**Ingress Limitations for OJP**:
+
+While Ingress can technically expose OJP via gRPC, it creates architectural challenges:
+
+1. **TCP Connection Stickiness**: Ingress controllers load balance at the **TCP connection level**. Once a gRPC connection is established, all requests flow through that single OJP pod, defeating OJP's client-side load balancing.
+
+2. **Loss of Failover Capabilities**: If the selected pod fails, the entire connection fails rather than transparently failing over to another pod.
+
+3. **Reduced Load Distribution**: The OJP driver cannot intelligently distribute load across servers based on real-time metrics.
+
+**Recommended Approach for Production**:
+
+Instead of using a single Ingress endpoint, **expose each OJP pod individually** so the JDBC driver can connect to all instances:
 
 ```yaml
-# ingress.yaml
+# Per-pod services using StatefulSet
+apiVersion: v1
+kind: Service
+metadata:
+  name: ojp-server-0
+  namespace: ojp
+spec:
+  type: LoadBalancer  # or NodePort
+  selector:
+    statefulset.kubernetes.io/pod-name: ojp-server-0
+  ports:
+    - protocol: TCP
+      port: 1059
+      targetPort: 1059
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ojp-server-1
+  namespace: ojp
+spec:
+  type: LoadBalancer
+  selector:
+    statefulset.kubernetes.io/pod-name: ojp-server-1
+  ports:
+    - protocol: TCP
+      port: 1059
+      targetPort: 1059
+# Repeat for each replica
+```
+
+**JDBC URL with multiple endpoints**:
+
+```java
+// Connect to all OJP pods directly
+String url = "jdbc:ojp[ojp-server-0.example.com:1059,ojp-server-1.example.com:1059,ojp-server-2.example.com:1059]_postgresql://localhost:5432/mydb";
+```
+
+This configuration preserves OJP's advanced capabilities while leveraging Kubernetes orchestration.
+
+**When Ingress Might Be Acceptable**:
+
+Ingress can be used for OJP in specific scenarios where the trade-offs are acceptable:
+- **Development/testing environments** where simplified access is prioritized over resilience
+- **Single-server deployments** where client-side load balancing isn't needed
+- **Non-critical workloads** where connection-level affinity is acceptable
+
+If you choose to use Ingress despite the limitations, here's the configuration:
+
+```yaml
+# ingress.yaml (for single-endpoint access - not recommended for production HA)
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -944,7 +1015,7 @@ metadata:
   annotations:
     # For gRPC support (nginx-specific)
     nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
-    # For other ingress controllers, check their docs
+    # Note: This creates TCP-level load balancing, not request-level
 spec:
   ingressClassName: nginx
   rules:
@@ -974,10 +1045,10 @@ kubectl create secret tls ojp-tls-cert \
   --key=path/to/key.pem
 ```
 
-**gRPC Client configuration**:
+**gRPC Client configuration (single endpoint)**:
 
 ```java
-// Connect via Ingress
+// Connect via Ingress (loses multinode benefits)
 String url = "jdbc:ojp[ojp.example.com:443]_postgresql://localhost:5432/mydb";
 ```
 
@@ -1057,12 +1128,16 @@ stateDiagram-v2
 
 ### Rolling Updates and Rollbacks
 
-**[IMAGE PROMPT 15]**: Create a visual representation of rolling update strategy:
+**[IMAGE PROMPT 15]**: Create a visual representation of rolling update strategy for OJP:
 Show old pods gradually being replaced by new pods
-Display: maxSurge and maxUnavailable settings
-Illustrate zero-downtime deployment
-Use timeline/animation-style diagram
+Display: maxSurge and maxUnavailable settings with client reconnection
+Illustrate graceful client failover to new pods
+Use timeline/animation-style diagram showing JDBC driver reconnection
 Professional deployment strategy guide
+
+#### Rolling Updates with OJP's Multinode Architecture
+
+**Important Consideration**: OJP's client-side load balancing provides natural support for rolling updates. When the JDBC driver detects a pod is unavailable (during replacement), it automatically fails over to available pods. This makes rolling updates seamless from the client perspective.
 
 Configure deployment strategy:
 
@@ -1073,6 +1148,14 @@ strategy:
     maxSurge: 1          # Max extra pods during update
     maxUnavailable: 0    # Max unavailable pods (for zero-downtime)
 ```
+
+**How It Works with OJP**:
+
+1. New pod starts with updated version
+2. Health probes pass, pod becomes ready
+3. Old pod is terminated (graceful shutdown)
+4. JDBC driver detects unavailable pod and redistributes connections
+5. Process repeats for next pod
 
 **Zero-Downtime Update Example**:
 
@@ -1179,32 +1262,148 @@ podAnnotations:
   loki.io/labels: "app=ojp-server,namespace=ojp"
 ```
 
-### Multi-Replica Deployments
+### Multi-Replica Deployments for High Availability
 
 **[IMAGE PROMPT 17]**: Create a high-availability deployment diagram showing:
-- 3+ OJP replicas across different nodes
-- Load balancer distributing traffic
-- Each replica connecting to the same database
-- Node failure scenario with automatic pod rescheduling
-Use HA architecture diagram style
-Professional high-availability guide
+- 3 OJP replicas (StatefulSet pods) with individual Services/endpoints
+- JDBC driver connecting to all three endpoints simultaneously
+- Client-side load balancing and failover arrows
+- Node failure scenario with automatic failover to remaining pods
+- Each replica connecting to the same database backend
+Use HA architecture diagram style emphasizing client-side intelligence
+Professional high-availability guide with OJP multinode focus
 
-For high availability, run multiple replicas:
+#### Understanding OJP HA Architecture in Kubernetes
+
+**Key Principle**: OJP achieves high availability through **client-side load balancing** rather than traditional server-side load balancers. This requires exposing each pod individually so JDBC drivers can connect to all instances.
+
+**Recommended HA Setup**:
+
+For high availability, deploy multiple replicas using **StatefulSet** with individual pod services:
+
+```yaml
+# Use StatefulSet instead of Deployment for stable network identities
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ojp-server
+  namespace: ojp
+spec:
+  serviceName: ojp-server
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ojp-server
+  template:
+    metadata:
+      labels:
+        app: ojp-server
+    spec:
+      # Anti-affinity to spread across nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - ojp-server
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: ojp-server
+          image: rrobetti/ojp-server:latest
+          ports:
+            - containerPort: 1059
+              name: grpc
+            - containerPort: 9090
+              name: prometheus
+```
+
+**Individual Pod Services** (for client-side load balancing):
+
+```yaml
+# Service for pod-0
+apiVersion: v1
+kind: Service
+metadata:
+  name: ojp-server-0
+  namespace: ojp
+spec:
+  type: LoadBalancer  # or NodePort
+  selector:
+    statefulset.kubernetes.io/pod-name: ojp-server-0
+  ports:
+    - protocol: TCP
+      port: 1059
+      targetPort: 1059
+      name: grpc
+---
+# Service for pod-1
+apiVersion: v1
+kind: Service
+metadata:
+  name: ojp-server-1
+  namespace: ojp
+spec:
+  type: LoadBalancer
+  selector:
+    statefulset.kubernetes.io/pod-name: ojp-server-1
+  ports:
+    - protocol: TCP
+      port: 1059
+      targetPort: 1059
+      name: grpc
+---
+# Service for pod-2
+apiVersion: v1
+kind: Service
+metadata:
+  name: ojp-server-2
+  namespace: ojp
+spec:
+  type: LoadBalancer
+  selector:
+    statefulset.kubernetes.io/pod-name: ojp-server-2
+  ports:
+    - protocol: TCP
+      port: 1059
+      targetPort: 1059
+      name: grpc
+```
+
+**JDBC URL Configuration**:
+
+```java
+// All pods accessible to JDBC driver for client-side load balancing
+String url = "jdbc:ojp[ojp-server-0.example.com:1059,ojp-server-1.example.com:1059,ojp-server-2.example.com:1059]_postgresql://db.example.com:5432/mydb";
+```
+
+**Why This Architecture**:
+
+- ✅ **True Load Balancing**: Driver distributes connections based on real-time server load
+- ✅ **Automatic Failover**: If one pod fails, driver immediately fails over to healthy pods
+- ✅ **Transaction Affinity**: Transactions stay on the same pod automatically
+- ✅ **No Single Point of Failure**: No load balancer dependency
+
+**Autoscaling Considerations**:
+
+Kubernetes HPA (Horizontal Pod Autoscaler) can scale OJP pods, **but** clients must be reconfigured with new pod addresses. This makes autoscaling operationally complex:
+
+```yaml
+# Autoscaling is possible but requires coordination
+autoscaling:
+  enabled: false  # Disabled by default
+  minReplicas: 3  # Fixed size recommended
+  maxReplicas: 10
+```
+
+**Current Limitation**: OJP doesn't yet support dynamic service discovery (planned enhancement). For now, use a **fixed replica count** that handles peak load:
 
 ```yaml
 replicaCount: 3
-
-# Anti-affinity to spread across nodes
-affinity:
-  podAntiAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
                   - ojp-server
           topologyKey: kubernetes.io/hostname
 ```
