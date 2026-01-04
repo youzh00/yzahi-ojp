@@ -58,6 +58,8 @@ OJP operates as a **Layer 7 (Application Layer) proxy**, which means it understa
 ### Core Definition
 
 > **Open J Proxy is the only open-source JDBC Type 3 driver globally**, introducing a transparent Quality-of-Service layer that decouples application performance from database bottlenecks.
+> 
+> — Roberto Robetti, OJP Creator
 
 In simple terms: **OJP sits between your application and your database, intelligently managing connections so your application can scale elastically without overwhelming your database.**
 
@@ -205,8 +207,12 @@ sequenceDiagram
 2. **Virtual Connection Returned**: OJP JDBC Driver returns a connection object immediately (no database connection yet)
 3. **Lazy Connection Allocation**: When you execute a query, OJP Server allocates a real database connection from its pool
 4. **Query Execution**: The query runs on the real connection
-5. **Immediate Release**: The real connection returns to the pool immediately after the operation completes
-6. **Virtual Connection Remains**: Your application still holds the "connection," but no database resources are consumed
+5. **Smart Release**: The real connection returns to the pool after the operation completes (but remains held for active transactions or open ResultSets)
+6. **Virtual Connection Remains**: Your application still holds the "connection," but minimal database resources are consumed
+
+**Important**: Real connections are retained for the duration of:
+- Active transactions (until `commit()` or `rollback()` is called)
+- Open ResultSets (until `ResultSet.close()` or the ResultSet is fully consumed)
 
 ### Smart Backpressure Mechanism
 
@@ -276,9 +282,12 @@ try (Connection conn = DriverManager.getConnection(url, "user", "pass")) {
     while (rs.next()) {
         System.out.println(rs.getString("name"));
     }
-    // Real connection immediately returned to pool
+    rs.close(); // NOW real connection returned to pool
     
 } // Virtual connection closed, no database impact
+
+// Note: If you don't explicitly close the ResultSet, 
+// the real connection is held until the ResultSet is garbage collected
 ```
 
 **Connection Lifecycle Stages**:
