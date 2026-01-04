@@ -45,10 +45,7 @@ graph TB
 ```
 
 These drivers are:
-- ✅ **Pre-installed** in Docker images
-- ✅ **Automatically available** for runnable JAR (via download script)
-- ✅ **Tested and verified** with OJP
-- ✅ **Up-to-date versions** from Maven Central
+These drivers come pre-installed in Docker images, making deployment instant. For runnable JAR deployments, they're automatically available through the download script. All drivers are tested and verified to work correctly with OJP, and they're kept up-to-date with the latest stable versions from Maven Central.
 
 ### Using Docker with Open Source Drivers
 
@@ -118,12 +115,7 @@ bash download-drivers.sh
 # All drivers downloaded successfully to ./ojp-libs
 ```
 
-**Script Features**:
-- Downloads from Maven Central (official source)
-- Verifies downloads
-- Places files in correct location (`./ojp-libs`)
-- Idempotent (safe to run multiple times)
-- Total download size: ~7 MB
+The script handles everything automatically. It downloads drivers from Maven Central (the official source), verifies each download to ensure integrity, places files in the correct location (`./ojp-libs`), and is idempotent so you can safely run it multiple times. The total download size is approximately 7 MB.
 
 **Custom Download Location**:
 

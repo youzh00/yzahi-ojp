@@ -508,11 +508,7 @@ graph TB
     style DB2 fill:#4caf50
 ```
 
-**Why Double Pooling is Bad**:
-- Wastes connections: N apps × M pool size × P OJP pool = N×M×P database connections
-- Defeats OJP's purpose: No centralized control
-- Resource exhaustion: Database connection limits reached quickly
-- Performance degradation: Multiple pool layers add overhead
+Double pooling creates several serious problems. It wastes connections through multiplication—N applications times M pool size times P OJP pool size equals N×M×P database connections, far more than needed. This defeats OJP's core purpose of providing centralized connection control. Resource exhaustion becomes inevitable as database connection limits are reached quickly. Finally, performance degrades because multiple pool layers add unnecessary overhead at each level.
 
 ### Spring Boot Integration
 
