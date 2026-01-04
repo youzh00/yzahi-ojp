@@ -33,18 +33,11 @@ OpenJDK Runtime Environment (build 22.0.1+8-16)
 OpenJDK 64-Bit Server VM (build 22.0.1+8-16, mixed mode, sharing)
 ```
 
-If you don't have Java 22+, download it from:
-- [Eclipse Temurin](https://adoptium.net/)
-- [Oracle JDK](https://www.oracle.com/java/technologies/downloads/)
-- [Amazon Corretto](https://aws.amazon.com/corretto/)
+If you don't have Java 22+, you can download it from Eclipse Temurin at adoptium.net, Oracle JDK from oracle.com, or Amazon Corretto from aws.amazon.com/corretto.
 
 ### Docker/Container Options
 
-Docker is **optional** but recommended for the quickest setup:
-
-- **Docker Desktop**: For Windows and macOS development
-- **Docker Engine**: For Linux servers
-- **Podman**: Docker-compatible alternative
+Docker is **optional** but recommended for the quickest setup. You can use Docker Desktop for Windows and macOS development, Docker Engine for Linux servers, or Podman as a Docker-compatible alternative.
 
 Check Docker installation:
 ```bash
@@ -67,10 +60,7 @@ graph LR
     style E fill:#90caf9
 ```
 
-**Firewall Configuration**:
-- **Port 1059**: Must be accessible to application instances
-- **Port 9159**: Optional, for metrics/monitoring
-- **Database Ports**: OJP Server must reach your databases
+For firewall configuration, port 1059 must be accessible to all application instances that need to connect. Port 9159 is optional but useful for metrics and monitoring. Additionally, the OJP Server must be able to reach your database ports (typically 5432 for PostgreSQL, 3306 for MySQL, 1521 for Oracle, etc.).
 
 ---
 
@@ -99,13 +89,7 @@ docker run --rm -d \
   rrobetti/ojp:0.3.1-beta
 ```
 
-**What this does**:
-- ✅ Downloads the OJP Server image (~50MB)
-- ✅ Includes H2, PostgreSQL, MySQL, MariaDB drivers
-- ✅ Starts server on port 1059 (gRPC)
-- ✅ Exposes metrics on port 9159 (Prometheus)
-- ✅ Runs in detached mode (`-d`)
-- ✅ Removes container on stop (`--rm`)
+This command accomplishes several things in one step. It downloads the OJP Server image (approximately 50MB), which includes drivers for H2, PostgreSQL, MySQL, and MariaDB out of the box. The server starts on port 1059 for gRPC communication and exposes metrics on port 9159 for Prometheus. The `-d` flag runs the container in detached mode, while `--rm` ensures the container is automatically removed when stopped.
 
 **Verify it's running**:
 
@@ -577,12 +561,7 @@ quarkus.datasource.password=mypassword
 
 **Problem**: `ClassNotFoundException: org.openjproxy.jdbc.Driver`
 
-**Solutions**:
-
-1. **Check Maven/Gradle dependency** is correctly added
-2. **Verify dependency is downloaded**: Look in `.m2/repository` or Gradle cache
-3. **Clean and rebuild**: `mvn clean install` or `gradle clean build`
-4. **Check IDE**: Refresh/reimport project in your IDE
+If you encounter `ClassNotFoundException: org.openjproxy.jdbc.Driver`, start by checking that your Maven or Gradle dependency is correctly added. Verify the dependency actually downloaded by looking in your `.m2/repository` directory or Gradle cache. Try a clean rebuild with `mvn clean install` or `gradle clean build`. Finally, refresh or reimport the project in your IDE to ensure it picks up the dependency changes.
 
 ### Issue #3: Port Configuration
 
@@ -615,30 +594,7 @@ jdbc:ojp[localhost:8080]_postgresql://...
 
 **Problem**: `Connection refused: localhost/127.0.0.1:1059`
 
-**Checklist**:
-
-```bash
-# 1. Is OJP Server running?
-docker ps | grep ojp-server
-# or
-ps aux | grep ojp-server
-
-# 2. Is it listening on the correct port?
-netstat -tlnp | grep 1059
-lsof -i :1059
-
-# 3. Can you reach it?
-telnet localhost 1059
-# or
-nc -zv localhost 1059
-
-# 4. Check firewall rules (Linux)
-sudo iptables -L | grep 1059
-sudo firewall-cmd --list-ports
-
-# 5. Check Docker networking (if using Docker)
-docker network inspect bridge
-```
+When you see "Connection refused: localhost/127.0.0.1:1059", work through these diagnostic steps. First, confirm OJP Server is actually running with `docker ps | grep ojp-server` or `ps aux | grep ojp-server`. Next, verify it's listening on the correct port using `netstat -tlnp | grep 1059` or `lsof -i :1059`. Test basic connectivity with `telnet localhost 1059` or `nc -zv localhost 1059`. Check your firewall rules with `sudo iptables -L | grep 1059` or `sudo firewall-cmd --list-ports`. If using Docker, inspect the network configuration with `docker network inspect bridge`.
 
 ### Issue #5: Wrong Database Driver
 
@@ -654,10 +610,7 @@ cd ojp-server
 bash download-drivers.sh
 ```
 
-**For Proprietary Databases** (Oracle, SQL Server, DB2):
-1. Download the driver JAR from the vendor
-2. Place it in `ojp-libs` directory
-3. Restart OJP Server
+For proprietary databases like Oracle, SQL Server, or DB2, you'll need to download the driver JAR from the vendor. Place it in the `ojp-libs` directory and restart the OJP Server.
 
 ```bash
 # Example: Adding Oracle driver
@@ -756,19 +709,9 @@ public class TestConnection {
 
 ## Summary
 
-You now have OJP up and running! Here's what you accomplished:
+You now have OJP up and running! You've successfully installed OJP Server using Docker, JAR, or built from source. The JDBC driver is now part of your project dependencies. You've updated your JDBC URL with the OJP prefix format and executed your first query through the proxy. Most importantly, you understand the common gotchas and how to avoid them, particularly around double-pooling.
 
-✅ **Installed OJP Server** using Docker, JAR, or built from source  
-✅ **Added the JDBC driver** to your project dependencies  
-✅ **Updated your JDBC URL** with the OJP prefix  
-✅ **Executed your first query** through the OJP proxy  
-✅ **Understood common gotchas** and how to avoid them
-
-**Key Takeaways**:
-- OJP requires only **one** change: the JDBC URL format
-- **Disable** application-level connection pooling
-- OJP Server can run via Docker (easiest) or standalone JAR
-- The driver is a standard JDBC implementation—no special API to learn
+The key takeaways are straightforward. OJP requires only one change to your existing code: the JDBC URL format. Remember to disable application-level connection pooling to avoid resource waste. You can run OJP Server via Docker for the easiest setup, or use the standalone JAR when needed. Best of all, the driver is a standard JDBC implementation, so there's no special API to learn.
 
 In the next chapter, we'll explore Kubernetes deployment with Helm charts for cloud-native environments.
 
