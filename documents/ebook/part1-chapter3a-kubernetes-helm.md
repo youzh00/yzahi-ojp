@@ -2,6 +2,8 @@
 
 > **Chapter Overview**: Deploy OJP Server to Kubernetes using Helm charts. This chapter covers everything from prerequisites and basic installation to advanced Kubernetes patterns and production best practices for cloud-native environments.
 
+> **⚠️ Important Note**: The guidance in this chapter recommends using StatefulSet with individual per-pod services for production HA deployments. The current ojp-helm charts may need updates to align with this approach. The default chart should create a StatefulSet (not Deployment) with per-pod LoadBalancer or NodePort services to make each OJP instance individually addressable for client-side load balancing.
+
 ---
 
 ## 3a.1 Kubernetes Prerequisites
@@ -1026,12 +1028,21 @@ kubectl get svc -n ojp ojp-server-0 ojp-server-1 ojp-server-2
 # ojp-server-2    LoadBalancer   34.123.45.69      1059:30003/TCP
 ```
 
-**JDBC URL with all three endpoints**:
+**JDBC URL using Kubernetes DNS names**:
 
 ```java
-// Connect to all OJP pods for full multinode benefits
-String url = "jdbc:ojp[34.123.45.67:1059,34.123.45.68:1059,34.123.45.69:1059]_postgresql://dbhost:5432/mydb";
+// Connect to all OJP pods using StatefulSet DNS for full multinode benefits
+// Use the full DNS names that survive pod restarts
+String url = "jdbc:ojp[ojp-server-0.ojp-server.ojp.svc.cluster.local:1059,ojp-server-1.ojp-server.ojp.svc.cluster.local:1059,ojp-server-2.ojp-server.ojp.svc.cluster.local:1059]_postgresql://dbhost:5432/mydb";
+
+// For external access with LoadBalancer IPs (use DNS or configure external DNS):
+// String url = "jdbc:ojp[ojp-0.example.com:1059,ojp-1.example.com:1059,ojp-2.example.com:1059]_postgresql://dbhost:5432/mydb";
 ```
+
+**Why use DNS names instead of IPs**:
+- Pod IPs change on every restart - DNS provides stable identities
+- StatefulSet DNS pattern: `<pod-name>.<service-name>.<namespace>.svc.cluster.local`
+- For external clients, configure DNS records pointing to LoadBalancer IPs
 
 This configuration preserves OJP's intelligent client-side load balancing, automatic failover, and connection affinity while running in Kubernetes.
 
@@ -1120,7 +1131,12 @@ Professional StatefulSet deployment strategy guide
 
 #### Rolling Updates with OJP's Multinode Architecture
 
-**OJP's client-side load balancing naturally supports rolling updates**. When the JDBC driver detects a pod is unavailable (during pod termination), it automatically fails over to the remaining healthy pods. This makes rolling updates seamless from the client perspective.
+**Rolling updates require careful handling to minimize disruption**. When a pod is terminated during a rolling update:
+- **In-flight transactions will fail** - any active database transactions on that pod's connections will be interrupted
+- **Active queries will be disrupted** - queries mid-execution will fail with connection errors
+- **The JDBC driver will failover** - it automatically detects the unavailable pod and routes new requests to healthy pods
+
+**This is not automatic zero-downtime** - the failover is reactive, not proactive, so there will be brief disruptions for requests in progress on the terminating pod.
 
 **StatefulSet Update Strategy**:
 
@@ -1175,12 +1191,62 @@ gantt
     Connected to 0,1,2 : 3, 7
 ```
 
-**Best Practices for Zero-Downtime Updates**:
+**Best Practices for Minimizing Disruption During Updates**:
 
 1. **Always deploy at least 3 replicas** for updates (minimum 2 remain available)
-2. **Monitor client connections** during updates to verify failover behavior
+2. **Implement connection draining** using lifecycle hooks (see below)
 3. **Use pod disruption budgets** to control update pace
-4. **Test updates in staging** with production-like traffic patterns
+4. **Monitor client connections** during updates to verify failover behavior
+5. **Test updates in staging** with production-like traffic patterns
+
+#### Achieving Graceful Shutdowns with Connection Draining
+
+To minimize failed requests during rolling updates, implement connection draining strategies:
+
+**Approach 1: PreStop Hook with Delay**
+
+Give active connections time to complete before termination:
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ojp-server
+spec:
+  template:
+    spec:
+      containers:
+      - name: ojp-server
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - |
+                # Stop accepting new connections
+                echo "Draining connections..."
+                # Wait for active connections to complete (30 seconds)
+                sleep 30
+        # Allow 40 seconds total for graceful shutdown
+      terminationGracePeriodSeconds: 40
+```
+
+**How it works**:
+- Kubernetes stops sending new requests to the pod (removes from endpoints)
+- PreStop hook delays actual SIGTERM for 30 seconds
+- Active connections have time to complete naturally
+- Remaining connections are forcefully closed after grace period
+
+**Approach 2: Application-Level Coordination** (Future Enhancement)
+
+For true zero-downtime, OJP would need:
+- Health check endpoint that can signal "draining" state
+- Readiness probe that fails when draining starts
+- Application logic to reject new connections while finishing existing ones
+- This requires implementing a graceful shutdown mode in OJP server
+
+**Current Recommendation**: Use Approach 1 (preStop hook) for best-effort graceful shutdowns. Accept that some in-flight operations may still fail during pod termination.
 
 **Pod Disruption Budget Example**:
 
