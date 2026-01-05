@@ -35,6 +35,7 @@ import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.openjproxy.constants.CommonConstants;
 import org.openjproxy.database.DatabaseUtils;
+import org.openjproxy.datasource.ConnectionPoolProvider;
 import org.openjproxy.datasource.ConnectionPoolProviderRegistry;
 import org.openjproxy.datasource.PoolConfig;
 import org.openjproxy.grpc.ProtoConverter;
@@ -379,7 +380,8 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
                                 connHash, serverEndpoints.size(), maxPoolSize, minIdle);
                     }
                     
-                    // Build PoolConfig from connection details and configuration
+                    // Build initial PoolConfig from connection details and configuration
+                    // We'll detect the default transaction isolation level after creating the pool
                     PoolConfig poolConfig = PoolConfig.builder()
                             .url(UrlParser.parseUrl(connectionDetails.getUrl()))
                             .username(connectionDetails.getUser())
@@ -394,6 +396,43 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
                     
                     // Create DataSource using the SPI (HikariCP by default)
                     ds = ConnectionPoolProviderRegistry.createDataSource(poolConfig);
+                    String providerId = ConnectionPoolProviderRegistry.getDefaultProvider()
+                            .map(ConnectionPoolProvider::id)
+                            .orElse("hikari");
+                    
+                    // Detect default transaction isolation level from the database
+                    // and reconfigure the pool to reset connections to this level
+                    try (Connection testConn = ds.getConnection()) {
+                        int defaultTransactionIsolation = testConn.getTransactionIsolation();
+                        log.info("Detected default transaction isolation level for {}: {}", 
+                                connHash, defaultTransactionIsolation);
+                        
+                        // Close and recreate the datasource with proper transaction isolation configuration
+                        ConnectionPoolProviderRegistry.closeDataSource(providerId, ds);
+                        
+                        poolConfig = PoolConfig.builder()
+                                .url(UrlParser.parseUrl(connectionDetails.getUrl()))
+                                .username(connectionDetails.getUser())
+                                .password(connectionDetails.getPassword())
+                                .maxPoolSize(maxPoolSize)
+                                .minIdle(minIdle)
+                                .connectionTimeoutMs(dsConfig.getConnectionTimeout())
+                                .idleTimeoutMs(dsConfig.getIdleTimeout())
+                                .maxLifetimeMs(dsConfig.getMaxLifetime())
+                                .defaultTransactionIsolation(defaultTransactionIsolation)
+                                .metricsPrefix("OJP-Pool-" + dsConfig.getDataSourceName())
+                                .build();
+                        
+                        ds = ConnectionPoolProviderRegistry.createDataSource(poolConfig);
+                        log.info("Recreated DataSource with transaction isolation reset configured");
+                    } catch (SQLException e) {
+                        log.warn("Failed to detect and configure default transaction isolation level for {}: {}. " +
+                                "Connection state may not be properly reset between sessions.", connHash, e.getMessage());
+                    } catch (Exception e) {
+                        log.error("Failed to reconfigure DataSource with transaction isolation: {}", e.getMessage(), e);
+                        // Continue with the originally created datasource
+                    }
+                    
                     this.datasourceMap.put(connHash, ds);
                     
                     // Create a slow query segregation manager for this datasource
