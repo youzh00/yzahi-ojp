@@ -74,9 +74,10 @@ public class TransactionIsolationResetTest {
         log.info("Client 1: Changed isolation to SERIALIZABLE, closing connection");
         connection1.close();
         
-        // Small delay to ensure connection is returned to pool
+        // Small delay to ensure connection is processed and returned to pool
+        // HikariCP processes connection returns asynchronously
         try {
-            Thread.sleep(100);
+            Thread.sleep(50);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -97,9 +98,10 @@ public class TransactionIsolationResetTest {
         assertEquals(Connection.TRANSACTION_READ_UNCOMMITTED, connection2.getTransactionIsolation());
         connection2.close();
         
-        // Small delay to ensure connection is returned to pool
+        // Small delay to ensure connection is processed and returned to pool
+        // HikariCP processes connection returns asynchronously
         try {
-            Thread.sleep(100);
+            Thread.sleep(50);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -143,8 +145,10 @@ public class TransactionIsolationResetTest {
         // Close and reopen - should get default isolation
         connection1.close();
         
+        // Small delay to ensure connection is processed and returned to pool
+        // HikariCP processes connection returns asynchronously
         try {
-            Thread.sleep(100);
+            Thread.sleep(50);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

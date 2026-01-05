@@ -401,7 +401,14 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
                             .orElse("hikari");
                     
                     // Detect default transaction isolation level from the database
-                    // and reconfigure the pool to reset connections to this level
+                    // and reconfigure the pool to reset connections to this level.
+                    // 
+                    // NOTE: We create the datasource twice here because we face a chicken-and-egg problem:
+                    // - We need a connection to detect the default transaction isolation level
+                    // - But we need the isolation level to properly configure the connection pool
+                    // This double-creation only happens once during datasource initialization,
+                    // and the overhead is minimal (typically < 100ms) compared to the benefit
+                    // of preventing connection state pollution throughout the application lifetime.
                     try (Connection testConn = ds.getConnection()) {
                         int defaultTransactionIsolation = testConn.getTransactionIsolation();
                         log.info("Detected default transaction isolation level for {}: {}", 
