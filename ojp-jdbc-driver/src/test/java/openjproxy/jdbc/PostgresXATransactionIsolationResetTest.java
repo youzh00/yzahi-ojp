@@ -367,44 +367,57 @@ public class PostgresXATransactionIsolationResetTest {
 
     /**
      * Tests custom configured isolation level.
-     * This test uses a separate CSV file with custom isolation property configured.
+     * This test uses system property to configure custom isolation.
      */
     @ParameterizedTest
-    @CsvFileSource(resources = "/postgres_xa_connection_custom_isolation.csv")
+    @CsvFileSource(resources = "/postgres_xa_connection.csv")
     public void testXAConfiguredCustomIsolation(String driverClass, String url, String user, String password) throws Exception {
         setUp(driverClass, url, user, password);
         
-        // When custom isolation is configured via properties, connections should start with that isolation
-        xaConnection1 = createXAConnection(url, user, password);
-        connection1 = xaConnection1.getConnection();
-        XAResource xaResource1 = xaConnection1.getXAResource();
-        
-        // The CSV has SERIALIZABLE configured, so default should be SERIALIZABLE
-        int configuredDefault = connection1.getTransactionIsolation();
-        assertEquals(Connection.TRANSACTION_SERIALIZABLE, configuredDefault,
-                "With custom configuration, default should be SERIALIZABLE");
-        log.info("Verified: Custom configured isolation (SERIALIZABLE) is applied");
-        
-        // Change to different isolation
-        Xid xid1 = new TestXid(1, "custom-test-1".getBytes(), "branch-1".getBytes());
-        xaResource1.start(xid1, XAResource.TMNOFLAGS);
-        
-        connection1.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
-        
-        xaResource1.end(xid1, XAResource.TMSUCCESS);
-        xaResource1.commit(xid1, true);
-        
-        connection1.close();
-        xaConnection1.close();
-        Thread.sleep(500);
-        
-        // New connection should reset to configured default (SERIALIZABLE)
-        xaConnection2 = createXAConnection(url, user, password);
-        connection2 = xaConnection2.getConnection();
-        
-        assertEquals(Connection.TRANSACTION_SERIALIZABLE, connection2.getTransactionIsolation(),
-                "Should reset to configured default (SERIALIZABLE), not READ_COMMITTED");
-        log.info("Verified: Isolation reset to custom configured default (SERIALIZABLE)");
+        // Set custom isolation via system property before creating connection
+        String originalValue = System.getProperty("ojp.xa.connection.pool.defaultTransactionIsolation");
+        try {
+            System.setProperty("ojp.xa.connection.pool.defaultTransactionIsolation", "SERIALIZABLE");
+            
+            // When custom isolation is configured via properties, connections should start with that isolation
+            xaConnection1 = createXAConnection(url, user, password);
+            connection1 = xaConnection1.getConnection();
+            XAResource xaResource1 = xaConnection1.getXAResource();
+            
+            // With SERIALIZABLE configured, default should be SERIALIZABLE
+            int configuredDefault = connection1.getTransactionIsolation();
+            assertEquals(Connection.TRANSACTION_SERIALIZABLE, configuredDefault,
+                    "With custom configuration, default should be SERIALIZABLE");
+            log.info("Verified: Custom configured isolation (SERIALIZABLE) is applied");
+            
+            // Change to different isolation
+            Xid xid1 = new TestXid(1, "custom-test-1".getBytes(), "branch-1".getBytes());
+            xaResource1.start(xid1, XAResource.TMNOFLAGS);
+            
+            connection1.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
+            
+            xaResource1.end(xid1, XAResource.TMSUCCESS);
+            xaResource1.commit(xid1, true);
+            
+            connection1.close();
+            xaConnection1.close();
+            Thread.sleep(500);
+            
+            // New connection should reset to configured default (SERIALIZABLE)
+            xaConnection2 = createXAConnection(url, user, password);
+            connection2 = xaConnection2.getConnection();
+            
+            assertEquals(Connection.TRANSACTION_SERIALIZABLE, connection2.getTransactionIsolation(),
+                    "Should reset to configured default (SERIALIZABLE), not READ_COMMITTED");
+            log.info("Verified: Isolation reset to custom configured default (SERIALIZABLE)");
+        } finally {
+            // Restore original system property
+            if (originalValue != null) {
+                System.setProperty("ojp.xa.connection.pool.defaultTransactionIsolation", originalValue);
+            } else {
+                System.clearProperty("ojp.xa.connection.pool.defaultTransactionIsolation");
+            }
+        }
     }
 
     /**
