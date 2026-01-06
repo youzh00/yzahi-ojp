@@ -84,70 +84,77 @@ docker logs ojp-server | grep "driver"
 | MySQL | 9.5.0 | ~2.5 MB | Production MySQL 5.7+ |
 | MariaDB | 3.5.2 | ~726 KB | Production MariaDB |
 
-### Using Custom Driver Versions with Docker
+### Managing Drivers in Docker Deployments
 
-Sometimes you need a specific driver version different from the bundled ones—perhaps for compatibility with an older database version, to test a newer driver release, or to use only specific drivers to reduce container size.
+The Docker image includes open-source drivers by default, but you have full flexibility to customize which drivers are loaded. This is the standard approach for using specific driver versions, adding proprietary drivers (Oracle, SQL Server, DB2), or optimizing the container for specific databases.
 
-**Volume Mount Workaround** (recommended):
+**Volume Mount Method** (recommended):
 
-The Docker image loads all `.jar` files from `/opt/ojp/ojp-libs`. You can override this directory entirely by mounting your own:
+The Docker image loads all `.jar` files from `/opt/ojp/ojp-libs`. You can replace the bundled drivers by mounting your own directory:
 
 ```bash
-# Step 1: Create directory with only your desired drivers
-mkdir custom-drivers
+# Step 1: Create directory with your desired drivers
+mkdir my-drivers
 
-# Step 2: Copy specific driver versions you need
-cp ~/Downloads/postgresql-42.6.0.jar custom-drivers/
-cp ~/Downloads/mysql-connector-j-8.0.33.jar custom-drivers/
+# Step 2: Add specific driver versions (open-source or proprietary)
+cp ~/Downloads/postgresql-42.6.0.jar my-drivers/
+cp ~/Downloads/mysql-connector-j-8.0.33.jar my-drivers/
 
-# Step 3: Mount over the bundled drivers directory
+# For proprietary databases, add their drivers:
+cp ~/Downloads/ojdbc11-23.5.0.23.jar my-drivers/          # Oracle
+cp ~/Downloads/mssql-jdbc-12.8.1.jre11.jar my-drivers/    # SQL Server
+cp ~/Downloads/db2jcc4.jar my-drivers/                     # IBM DB2
+
+# Step 3: Mount your drivers directory
 docker run -d \
   --name ojp-server \
   -p 1059:1059 \
   -p 9159:9159 \
-  -v $(pwd)/custom-drivers:/opt/ojp/ojp-libs \
+  -v $(pwd)/my-drivers:/opt/ojp/ojp-libs \
   rrobetti/ojp:0.3.1-beta
 
-# Step 4: Verify only your drivers loaded
+# Step 4: Verify your drivers loaded
 docker logs ojp-server | grep "driver"
-# Expected: Only postgresql-42.6.0 and mysql-connector-j-8.0.33 loaded
+# Expected: Only your specified drivers appear
 ```
 
-**Important notes**:
-- This replaces ALL bundled drivers with only your mounted drivers
-- Useful when you need precise version control or want to minimize loaded drivers
-- The container uses your host directory, so driver updates don't require rebuilding the image
-- Make sure your custom driver versions are compatible with your database
+**Key benefits**:
+- Full control over which drivers are loaded
+- Easy driver version updates without rebuilding images
+- Standard method for adding proprietary database drivers
+- Reduces memory footprint by loading only required drivers
+- Maintains consistent driver versions across environments
 
-**Use cases**:
-- Testing new driver versions before committing to a rebuild
-- Using older driver versions for compatibility with legacy databases
-- Reducing memory footprint by loading only required drivers
-- Maintaining consistent driver versions across environments
+**Common use cases**:
+- **Proprietary databases**: Add Oracle, SQL Server, or DB2 drivers
+- **Version control**: Use specific driver versions for compatibility
+- **Legacy support**: Deploy older driver versions for legacy databases
+- **Optimization**: Load only the drivers you actually use
+- **Testing**: Try new driver versions before committing to production
 
 **Alternative: Build Custom Image**:
 
-For permanent custom driver configurations, create a custom Dockerfile:
+For production deployments where you want to bake drivers into your container image permanently:
 
 ```dockerfile
 FROM rrobetti/ojp:0.3.1-beta
 
-# Remove all bundled drivers
+# Remove bundled drivers
 RUN rm -rf /opt/ojp/ojp-libs/*.jar
 
-# Add only your specific driver versions
-COPY custom-drivers/*.jar /opt/ojp/ojp-libs/
+# Add your specific drivers (open-source or proprietary)
+COPY drivers/*.jar /opt/ojp/ojp-libs/
 ```
 
 ```bash
 # Build your custom image
 docker build -t my-company/ojp:custom-drivers .
 
-# Run with your drivers only
+# Deploy with your driver configuration locked in
 docker run -d -p 1059:1059 my-company/ojp:custom-drivers
 ```
 
-This approach is better for production deployments where you want to lock down exact driver versions in your container registry.
+This approach is ideal when you want to version and distribute a standardized OJP configuration with specific driver versions through your container registry.
 
 ### Automatic Driver Download (Runnable JAR)
 
