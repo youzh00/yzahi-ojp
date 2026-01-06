@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 public class PostgresXATransactionIsolationResetTest {
 
     private static boolean isTestEnabled;
+    private OjpXADataSource xaDataSource;  // Reuse same datasource to share XA pool
     private XAConnection xaConnection1;
     private XAConnection xaConnection2;
     private XAConnection xaConnection3;
@@ -45,13 +46,16 @@ public class PostgresXATransactionIsolationResetTest {
 
     public void setUp(String driverClass, String url, String user, String password) throws SQLException {
         assumeFalse(!isTestEnabled, "Postgres XA isolation tests are disabled. Enable with -DenablePostgresTests=true");
-    }
-
-    private XAConnection createXAConnection(String url, String user, String password) throws SQLException {
-        OjpXADataSource xaDataSource = new OjpXADataSource();
+        
+        // Create shared XA DataSource - this ensures all connections share the same XA session pool
+        xaDataSource = new OjpXADataSource();
         xaDataSource.setUrl(url);
         xaDataSource.setUser(user);
         xaDataSource.setPassword(password);
+    }
+
+    private XAConnection createXAConnection(String url, String user, String password) throws SQLException {
+        // Reuse the shared datasource instance so connections share the XA pool
         return xaDataSource.getXAConnection(user, password);
     }
 
