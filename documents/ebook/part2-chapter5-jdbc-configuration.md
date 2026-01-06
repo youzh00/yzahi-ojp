@@ -303,6 +303,13 @@ Use charts and calculations
 Professional capacity planning guide
 
 **Sizing Formula** (General Guidance):
+
+The most well-known pool sizing guidance comes from Brett Wooldridge (creator of HikariCP) and the PostgreSQL wiki:
+```
+Pool Size = (number of CPU cores × 2) + effective spindle count
+```
+
+For application-centric sizing based on concurrent thread load, an alternative formula is:
 ```
 Pool Size = (Tn × (Cm - 1)) + 1
 
@@ -311,7 +318,7 @@ Tn = Number of threads making requests
 Cm = Connection multiplier (1.5-2.0 for most workloads)
 ```
 
-**Important**: This formula is provided as general guidance only. Real-world pool sizing depends heavily on your specific workload characteristics, query execution times, transaction patterns, and database capabilities. Start with these recommendations, then adjust based on monitoring data, connection wait times, and actual usage patterns. Always load test with your specific workload before deploying to production.
+**Important**: These formulas are provided as general guidance only. Real-world pool sizing depends heavily on your specific workload characteristics, query execution times, transaction patterns, database capabilities, and hardware resources. Start with these recommendations, then adjust based on monitoring data, connection wait times, and actual usage patterns. Always load test with your specific workload before deploying to production.
 
 **Recommendations by Workload**:
 
