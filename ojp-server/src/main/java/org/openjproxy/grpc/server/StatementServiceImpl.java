@@ -133,7 +133,7 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
     // Unpooled connection details (for passthrough mode when pooling is disabled)
     @Builder
     @Getter
-    private static class UnpooledConnectionDetails {
+    public static class UnpooledConnectionDetails {
         private final String url;
         private final String username;
         private final String password;
