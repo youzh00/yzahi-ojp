@@ -36,6 +36,7 @@ public class BackendSessionImpl implements XABackendSession {
     
     private final XAConnection xaConnection;
     private final String sessionId;
+    private final Integer defaultTransactionIsolation;
     private XAResource xaResource;
     private Connection connection;
     private volatile boolean closed = false;
@@ -46,10 +47,21 @@ public class BackendSessionImpl implements XABackendSession {
      * @param xaConnection the XA connection to wrap
      */
     public BackendSessionImpl(XAConnection xaConnection) {
+        this(xaConnection, null);
+    }
+    
+    /**
+     * Creates a new backend session wrapping an XAConnection with transaction isolation reset support.
+     *
+     * @param xaConnection the XA connection to wrap
+     * @param defaultTransactionIsolation the default transaction isolation level to reset to, or null to not reset
+     */
+    public BackendSessionImpl(XAConnection xaConnection, Integer defaultTransactionIsolation) {
         if (xaConnection == null) {
             throw new IllegalArgumentException("xaConnection cannot be null");
         }
         this.xaConnection = xaConnection;
+        this.defaultTransactionIsolation = defaultTransactionIsolation;
         this.sessionId = "session-" + System.currentTimeMillis() + "-" + 
                          Integer.toHexString(System.identityHashCode(this));
     }
@@ -153,6 +165,22 @@ public class BackendSessionImpl implements XABackendSession {
             } catch (SQLException e) {
                 log.error("Error restoring auto-commit during reset", e);
                 throw e;
+            }
+            
+            // Reset transaction isolation level if configured
+            // Only reset if it was changed from the default
+            if (defaultTransactionIsolation != null) {
+                try {
+                    int currentIsolation = connection.getTransactionIsolation();
+                    if (currentIsolation != defaultTransactionIsolation) {
+                        log.debug("Resetting transaction isolation from {} to default {}", 
+                                currentIsolation, defaultTransactionIsolation);
+                        connection.setTransactionIsolation(defaultTransactionIsolation);
+                    }
+                } catch (SQLException e) {
+                    log.warn("Error resetting transaction isolation during reset", e);
+                    // Don't throw - continue with reset even if isolation reset fails
+                }
             }
             
             log.debug("Backend session reset completed");

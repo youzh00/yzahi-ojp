@@ -661,6 +661,13 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
                 xaPoolConfig.put("xa.numTestsPerEvictionRun", String.valueOf(xaConfig.getNumTestsPerEvictionRun()));
                 xaPoolConfig.put("xa.softMinEvictableIdleTimeMs", String.valueOf(xaConfig.getSoftMinEvictableIdleTime()));
                 
+                // Transaction isolation configuration
+                Integer configuredTransactionIsolation = xaConfig.getDefaultTransactionIsolation();
+                if (configuredTransactionIsolation != null) {
+                    xaPoolConfig.put("xa.defaultTransactionIsolation", String.valueOf(configuredTransactionIsolation));
+                    log.info("Using configured transaction isolation for XA pool {}: {}", connHash, configuredTransactionIsolation);
+                }
+                
                 // Create pooled XA DataSource via provider
                 log.info("[XA-POOL-CREATE] Creating XA pool for connHash={}, serverEndpointsHash={}, config=(max={}, min={})",
                         connHash, currentEndpointsHash, maxPoolSize, minIdle);
