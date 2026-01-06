@@ -195,7 +195,7 @@ sequenceDiagram
     App->>Panache: findByEmail(email)
     Panache->>Hibernate: Generate SQL
     Hibernate->>Driver: getConnection()
-    Driver->>Server: gRPC Request (getConnection)
+    Driver->>Server: gRPC Request (connect)
     Server-->>Driver: Virtual Connection
     Driver-->>Hibernate: JDBC Connection
     Hibernate->>Driver: Execute Query
