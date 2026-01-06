@@ -179,12 +179,12 @@ String orOpts = "jdbc:ojp[localhost:1059]_oracle:thin:@localhost:1521/XEPDB1?" +
 
 ## 5.2 Connection Pool Settings
 
-OJP supports multiple connection pool implementations on the client side:
+OJP Server supports multiple connection pool implementations:
 - **HikariCP** (default for non-XA connections) - High-performance JDBC connection pool
 - **Apache DBCP** (alternative for non-XA connections) - Traditional pooling implementation  
 - **Custom XA Implementation** (for XA transactions) - Uses Apache Commons Pool 2 for backend session pooling (see Chapter 10 for details)
 
-The client-side pool configuration is managed via `ojp.properties` file. For XA-specific pooling architecture, refer to Chapter 10 which explains the dual-condition lifecycle and backend session management.
+These pools run on the OJP Server side, but you configure them from the client side via the `ojp.properties` file in your application. This allows you to tune the server-side connection pool behavior without modifying server configuration files. For XA-specific pooling architecture, refer to Chapter 10 which explains the dual-condition lifecycle and backend session management.
 
 ### Configuration File Location
 
