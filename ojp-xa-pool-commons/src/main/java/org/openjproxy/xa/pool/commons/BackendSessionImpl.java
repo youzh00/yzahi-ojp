@@ -203,46 +203,39 @@ public class BackendSessionImpl implements XABackendSession {
         log.debug("Sanitizing backend session after transaction: {}", sessionId);
         
         try {
-            // CRITICAL: Reset transaction isolation BEFORE getting fresh connection
-            // We must reset isolation on the CURRENT connection (which reflects the physical connection state)
-            // BEFORE we replace it with a fresh connection from getConnection().
-            // After getConnection() is called, we lose the ability to modify the physical connection's
-            // isolation level because the old connection handle is invalidated.
+            // Reset transaction isolation on the current connection
+            // IMPORTANT: We do NOT call xaConnection.getConnection() here because:
+            // 1. The client (OJP Session) already has a reference to the Connection from open()
+            // 2. Calling getConnection() would create a NEW Connection object, but the client still has the old reference
+            // 3. If the client changed isolation on their Connection, we need to reset it on THE SAME Connection object
+            //    that the client has, otherwise we're resetting a different Connection object and the physical
+            //    connection still has the wrong isolation level
+            // 4. Both Connection objects point to the same physical connection, so we just need to ensure
+            //    isolation is reset before the session is reused
             if (defaultTransactionIsolation != null && connection != null) {
                 try {
                     int currentIsolation = connection.getTransactionIsolation();
                     if (currentIsolation != defaultTransactionIsolation) {
-                        log.debug("Resetting transaction isolation from {} to default {} BEFORE getting fresh connection", 
+                        log.debug("Resetting transaction isolation from {} to default {} after transaction", 
                                 currentIsolation, defaultTransactionIsolation);
                         connection.setTransactionIsolation(defaultTransactionIsolation);
                     } else {
-                        log.debug("Transaction isolation already at default {} before getting fresh connection", defaultTransactionIsolation);
+                        log.debug("Transaction isolation already at default {} after transaction", defaultTransactionIsolation);
                     }
                 } catch (SQLException e) {
-                    log.warn("Error resetting transaction isolation before sanitization: {}", e.getMessage());
-                    // Don't throw - continue with sanitization
+                    log.warn("Error resetting transaction isolation after transaction: {}", e.getMessage());
+                    // Don't throw - session can still be used
                 }
             }
             
-            // Get a fresh logical connection from the XAConnection
-            // According to JDBC spec, calling getConnection() on an XAConnection
-            // automatically closes the previous logical connection and returns a new one.
-            // This resets the XA state to IDLE in most XA drivers (PostgreSQL, MySQL, Oracle, etc.)
-            // We do NOT explicitly close the old connection first - the XAConnection handles that.
-            // IMPORTANT: The physical connection's state (including isolation) is preserved.
-            this.connection = xaConnection.getConnection();
-            
-            // The XAResource should remain the same (from the XAConnection)
-            // No need to re-obtain it - it's tied to the XAConnection, not the logical connection
-            
-            // Clear warnings on the new connection
+            // Clear warnings on the connection
             try {
                 connection.clearWarnings();
             } catch (SQLException e) {
                 log.warn("Error clearing warnings after sanitization: {}", e.getMessage());
             }
             
-            log.debug("Backend session sanitized successfully, fresh logical connection obtained");
+            log.debug("Backend session sanitized successfully");
             
         } catch (SQLException e) {
             log.error("Failed to sanitize session: {}", e.getMessage(), e);
