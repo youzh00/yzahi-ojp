@@ -202,45 +202,39 @@ public class BackendSessionImpl implements XABackendSession {
         
         log.debug("Sanitizing backend session after transaction: {}", sessionId);
         
-        try {
-            // Reset transaction isolation on the current connection
-            // IMPORTANT: We do NOT call xaConnection.getConnection() here because:
-            // 1. The client (OJP Session) already has a reference to the Connection from open()
-            // 2. Calling getConnection() would create a NEW Connection object, but the client still has the old reference
-            // 3. If the client changed isolation on their Connection, we need to reset it on THE SAME Connection object
-            //    that the client has, otherwise we're resetting a different Connection object and the physical
-            //    connection still has the wrong isolation level
-            // 4. Both Connection objects point to the same physical connection, so we just need to ensure
-            //    isolation is reset before the session is reused
-            if (defaultTransactionIsolation != null && connection != null) {
-                try {
-                    int currentIsolation = connection.getTransactionIsolation();
-                    if (currentIsolation != defaultTransactionIsolation) {
-                        log.debug("Resetting transaction isolation from {} to default {} after transaction", 
-                                currentIsolation, defaultTransactionIsolation);
-                        connection.setTransactionIsolation(defaultTransactionIsolation);
-                    } else {
-                        log.debug("Transaction isolation already at default {} after transaction", defaultTransactionIsolation);
-                    }
-                } catch (SQLException e) {
-                    log.warn("Error resetting transaction isolation after transaction: {}", e.getMessage());
-                    // Don't throw - session can still be used
-                }
-            }
-            
-            // Clear warnings on the connection
+        // Reset transaction isolation on the current connection
+        // IMPORTANT: We do NOT call xaConnection.getConnection() here because:
+        // 1. The client (OJP Session) already has a reference to the Connection from open()
+        // 2. Calling getConnection() would create a NEW Connection object, but the client still has the old reference
+        // 3. If the client changed isolation on their Connection, we need to reset it on THE SAME Connection object
+        //    that the client has, otherwise we're resetting a different Connection object and the physical
+        //    connection still has the wrong isolation level
+        // 4. Both Connection objects point to the same physical connection, so we just need to ensure
+        //    isolation is reset before the session is reused
+        if (defaultTransactionIsolation != null && connection != null) {
             try {
-                connection.clearWarnings();
+                int currentIsolation = connection.getTransactionIsolation();
+                if (currentIsolation != defaultTransactionIsolation) {
+                    log.debug("Resetting transaction isolation from {} to default {} after transaction", 
+                            currentIsolation, defaultTransactionIsolation);
+                    connection.setTransactionIsolation(defaultTransactionIsolation);
+                } else {
+                    log.debug("Transaction isolation already at default {} after transaction", defaultTransactionIsolation);
+                }
             } catch (SQLException e) {
-                log.warn("Error clearing warnings after sanitization: {}", e.getMessage());
+                log.warn("Error resetting transaction isolation after transaction: {}", e.getMessage());
+                // Don't throw - session can still be used
             }
-            
-            log.debug("Backend session sanitized successfully");
-            
-        } catch (SQLException e) {
-            log.error("Failed to sanitize session: {}", e.getMessage(), e);
-            throw e;
         }
+        
+        // Clear warnings on the connection
+        try {
+            connection.clearWarnings();
+        } catch (SQLException e) {
+            log.warn("Error clearing warnings after sanitization: {}", e.getMessage());
+        }
+        
+        log.debug("Backend session sanitized successfully");
     }
     
     @Override
