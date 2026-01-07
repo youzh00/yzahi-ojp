@@ -76,22 +76,6 @@ public class BackendSessionImpl implements XABackendSession {
         this.connection = xaConnection.getConnection();
         this.xaResource = xaConnection.getXAResource();
         
-        // Set default transaction isolation level if configured
-        // This is called when session is first created, establishing the initial state
-        if (defaultTransactionIsolation != null) {
-            try {
-                int currentIsolation = connection.getTransactionIsolation();
-                if (currentIsolation != defaultTransactionIsolation) {
-                    log.debug("Setting initial transaction isolation to default {} (was {})", 
-                            defaultTransactionIsolation, currentIsolation);
-                    connection.setTransactionIsolation(defaultTransactionIsolation);
-                }
-            } catch (SQLException e) {
-                log.warn("Error setting default transaction isolation in open(): {}", e.getMessage());
-                // Don't throw - session is still usable even if isolation set fails
-            }
-        }
-        
         log.debug("Backend session opened");
     }
     
@@ -156,13 +140,6 @@ public class BackendSessionImpl implements XABackendSession {
         }
         
         try {
-            // CRITICAL: Get a fresh connection handle before resetting state
-            // The previous logical connection may have been closed by the client,
-            // and we need an active handle to properly reset the physical connection state.
-            // xaConnection.getConnection() automatically closes the previous logical connection
-            // and returns a new handle to the SAME physical connection.
-            this.connection = xaConnection.getConnection();
-            
             // Roll back any uncommitted local transaction
             // (should not happen in XA mode, but defensive programming)
             if (!connection.getAutoCommit()) {
@@ -191,17 +168,20 @@ public class BackendSessionImpl implements XABackendSession {
             }
             
             // Reset transaction isolation level if configured
-            // NOW this will work because we have a fresh, active connection handle
+            // This handles cases where the client changed isolation but didn't commit an XA transaction
+            // (so sanitizeAfterTransaction() wasn't called)
             if (defaultTransactionIsolation != null) {
                 try {
                     int currentIsolation = connection.getTransactionIsolation();
                     if (currentIsolation != defaultTransactionIsolation) {
-                        log.debug("Resetting transaction isolation from {} to default {}", 
+                        log.debug("Resetting transaction isolation from {} to default {} in reset()", 
                                 currentIsolation, defaultTransactionIsolation);
                         connection.setTransactionIsolation(defaultTransactionIsolation);
+                    } else {
+                        log.debug("Transaction isolation already at default {} in reset()", defaultTransactionIsolation);
                     }
                 } catch (SQLException e) {
-                    log.warn("Error resetting transaction isolation during reset", e);
+                    log.warn("Error resetting transaction isolation during reset(): {}", e.getMessage());
                     // Don't throw - continue with reset even if isolation reset fails
                 }
             }
@@ -225,8 +205,9 @@ public class BackendSessionImpl implements XABackendSession {
         try {
             // Get a fresh logical connection from the XAConnection
             // According to JDBC spec, calling getConnection() on an XAConnection
-            // automatically closes the previous logical connection and returns a new handle
-            // to the SAME physical connection. This resets the XA state to IDLE in most drivers.
+            // automatically closes the previous logical connection and returns a new one.
+            // This resets the XA state to IDLE in most XA drivers (PostgreSQL, MySQL, Oracle, etc.)
+            // We do NOT explicitly close the old connection first - the XAConnection handles that.
             this.connection = xaConnection.getConnection();
             
             // The XAResource should remain the same (from the XAConnection)
@@ -239,10 +220,22 @@ public class BackendSessionImpl implements XABackendSession {
                 log.warn("Error clearing warnings after sanitization: {}", e.getMessage());
             }
             
-            // NOTE: Transaction isolation will be reset in reset() method during passivation
-            // when the connection is returned to the pool. We don't reset it here because
-            // the client may continue using this connection for more XA transactions before
-            // calling close().
+            // CRITICAL: Reset transaction isolation on the NEW connection handle
+            // The fresh connection from getConnection() may have database default isolation
+            // (which varies by DB), not the configured default. We must set it here.
+            if (defaultTransactionIsolation != null) {
+                try {
+                    int currentIsolation = connection.getTransactionIsolation();
+                    if (currentIsolation != defaultTransactionIsolation) {
+                        log.debug("Setting transaction isolation to default {} on fresh connection (was {})", 
+                                defaultTransactionIsolation, currentIsolation);
+                        connection.setTransactionIsolation(defaultTransactionIsolation);
+                    }
+                } catch (SQLException e) {
+                    log.warn("Error setting transaction isolation after sanitization: {}", e.getMessage());
+                    // Don't throw - session is still usable
+                }
+            }
             
             log.debug("Backend session sanitized successfully, fresh logical connection obtained");
             
