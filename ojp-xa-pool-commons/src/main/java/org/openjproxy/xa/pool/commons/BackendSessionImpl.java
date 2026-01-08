@@ -41,6 +41,13 @@ public class BackendSessionImpl implements XABackendSession {
     private Connection connection;
     private volatile boolean closed = false;
     
+    // Housekeeping state tracking
+    private volatile long creationTime;
+    private volatile long lastBorrowTime;
+    private volatile long lastReturnTime;
+    private volatile Thread borrowingThread;
+    private volatile StackTraceElement[] borrowStackTrace;
+    
     /**
      * Creates a new backend session wrapping an XAConnection.
      *
@@ -64,6 +71,9 @@ public class BackendSessionImpl implements XABackendSession {
         this.defaultTransactionIsolation = defaultTransactionIsolation;
         this.sessionId = "session-" + System.currentTimeMillis() + "-" + 
                          Integer.toHexString(System.identityHashCode(this));
+        this.creationTime = System.nanoTime();
+        this.lastBorrowTime = 0;
+        this.lastReturnTime = 0;
     }
     
     @Override
@@ -313,5 +323,119 @@ public class BackendSessionImpl implements XABackendSession {
      */
     public boolean isClosed() {
         return closed;
+    }
+    
+    // ========== Housekeeping Methods ==========
+    
+    /**
+     * Called when the session is borrowed from the pool.
+     * Updates tracking information for leak detection.
+     *
+     * @param captureStackTrace whether to capture the current stack trace for enhanced leak reporting
+     */
+    public void onBorrow(boolean captureStackTrace) {
+        this.lastBorrowTime = System.nanoTime();
+        this.borrowingThread = Thread.currentThread();
+        if (captureStackTrace) {
+            this.borrowStackTrace = Thread.currentThread().getStackTrace();
+        } else {
+            this.borrowStackTrace = null;
+        }
+    }
+    
+    /**
+     * Called when the session is returned to the pool.
+     * Clears tracking information and updates timestamps.
+     */
+    public void onReturn() {
+        this.lastReturnTime = System.nanoTime();
+        this.borrowingThread = null;
+        this.borrowStackTrace = null;
+    }
+    
+    /**
+     * Checks if the session has been idle for longer than the specified threshold.
+     *
+     * @param thresholdMs the idle threshold in milliseconds
+     * @return true if the session has been idle longer than the threshold
+     */
+    public boolean isIdle(long thresholdMs) {
+        if (lastReturnTime == 0) {
+            return false; // Never returned, so not idle
+        }
+        long idleNanos = System.nanoTime() - lastReturnTime;
+        return idleNanos > (thresholdMs * 1_000_000L);
+    }
+    
+    /**
+     * Checks if the session has exceeded its maximum lifetime.
+     * Also checks if the session has been idle for the required minimum time.
+     *
+     * @param maxLifetimeMs the maximum lifetime in milliseconds (0 = disabled)
+     * @param idleBeforeRecycleMs the minimum idle time required before recycling
+     * @return true if the session should be recycled
+     */
+    public boolean isExpired(long maxLifetimeMs, long idleBeforeRecycleMs) {
+        if (maxLifetimeMs <= 0) {
+            return false; // Max lifetime disabled
+        }
+        
+        long ageNanos = System.nanoTime() - creationTime;
+        long ageMs = ageNanos / 1_000_000L;
+        
+        if (ageMs <= maxLifetimeMs) {
+            return false; // Not old enough yet
+        }
+        
+        // Connection is old enough, check if it's been idle long enough
+        return isIdle(idleBeforeRecycleMs);
+    }
+    
+    /**
+     * Gets the age of the session in nanoseconds.
+     *
+     * @return the age in nanoseconds since creation
+     */
+    public long getAge() {
+        return System.nanoTime() - creationTime;
+    }
+    
+    /**
+     * Gets the idle time of the session in nanoseconds.
+     *
+     * @return the idle time in nanoseconds since last return (0 if never returned or currently borrowed)
+     */
+    public long getIdleTime() {
+        if (lastReturnTime == 0) {
+            return 0;
+        }
+        return System.nanoTime() - lastReturnTime;
+    }
+    
+    /**
+     * Gets the thread that currently has this session borrowed.
+     *
+     * @return the borrowing thread, or null if not borrowed
+     */
+    public Thread getBorrowingThread() {
+        return borrowingThread;
+    }
+    
+    /**
+     * Gets the stack trace from when the session was borrowed.
+     *
+     * @return the stack trace, or null if not captured or not borrowed
+     */
+    public StackTraceElement[] getBorrowStackTrace() {
+        return borrowStackTrace;
+    }
+    
+    /**
+     * Gets the timestamp when the session was last borrowed.
+     *
+     * @return the borrow timestamp in nanoseconds, or 0 if never borrowed
+     */
+    public long getLastBorrowTime() {
+        return lastBorrowTime;
     }
 }

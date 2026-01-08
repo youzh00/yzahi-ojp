@@ -3,6 +3,7 @@ package org.openjproxy.xa.pool.commons;
 import org.apache.commons.pool2.impl.GenericObjectPool;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.openjproxy.xa.pool.XABackendSession;
+import org.openjproxy.xa.pool.commons.housekeeping.HousekeepingConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +56,7 @@ public class CommonsPool2XADataSource implements XADataSource {
     private final XADataSource vendorXADataSource;
     private final GenericObjectPool<XABackendSession> pool;
     private final Map<String, String> config;
+    private final HousekeepingConfig housekeepingConfig;
     
     /**
      * Creates a new pooled XADataSource.
@@ -73,6 +75,9 @@ public class CommonsPool2XADataSource implements XADataSource {
         this.vendorXADataSource = vendorXADataSource;
         this.config = config;
         
+        // Parse housekeeping configuration
+        this.housekeepingConfig = HousekeepingConfig.parseFromProperties(config);
+        
         // Get default transaction isolation from config
         Integer defaultTransactionIsolation = getTransactionIsolationFromConfig(config);
         
@@ -85,8 +90,9 @@ public class CommonsPool2XADataSource implements XADataSource {
         // Create the pool
         this.pool = new GenericObjectPool<>(factory, poolConfig);
         
-        log.info("CommonsPool2XADataSource created with maxTotal={}, minIdle={}, maxWaitMs={}, defaultTransactionIsolation={}",
-                poolConfig.getMaxTotal(), poolConfig.getMinIdle(), poolConfig.getMaxWaitDuration().toMillis(), defaultTransactionIsolation);
+        log.info("CommonsPool2XADataSource created with maxTotal={}, minIdle={}, maxWaitMs={}, defaultTransactionIsolation={}, housekeeping=enabled(leak={}, maxLifetime={}ms)",
+                poolConfig.getMaxTotal(), poolConfig.getMinIdle(), poolConfig.getMaxWaitDuration().toMillis(), 
+                defaultTransactionIsolation, housekeepingConfig.isLeakDetectionEnabled(), housekeepingConfig.getMaxLifetimeMs());
     }
     
     /**
@@ -641,5 +647,14 @@ public class CommonsPool2XADataSource implements XADataSource {
                         "Using default: READ_COMMITTED", value);
                 return java.sql.Connection.TRANSACTION_READ_COMMITTED;
         }
+    }
+    
+    /**
+     * Gets the housekeeping configuration.
+     *
+     * @return the housekeeping configuration
+     */
+    public HousekeepingConfig getHousekeepingConfig() {
+        return housekeepingConfig;
     }
 }
