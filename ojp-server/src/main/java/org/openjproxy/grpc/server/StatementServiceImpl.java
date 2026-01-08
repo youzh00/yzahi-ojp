@@ -1089,15 +1089,22 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
     private void executeQueryInternal(StatementRequest request, StreamObserver<OpResult> responseObserver) throws SQLException {
         ConnectionSessionDTO dto = this.sessionConnection(request.getSession(), true);
 
-        // Phase 1: SQL Enhancement - parse SQL if enhancer is enabled
+        // Phase 2: SQL Enhancement with timing
         String sql = request.getSql();
+        long enhancementStartTime = System.currentTimeMillis();
+        
         if (sqlEnhancerEngine.isEnabled()) {
             org.openjproxy.grpc.server.sql.SqlEnhancementResult result = sqlEnhancerEngine.enhance(sql);
             sql = result.getEnhancedSql();
             
+            long enhancementDuration = System.currentTimeMillis() - enhancementStartTime;
+            
             if (result.isModified()) {
-                log.debug("SQL was enhanced: {} -> {}", request.getSql().substring(0, Math.min(request.getSql().length(), 50)), 
+                log.debug("SQL was enhanced in {}ms: {} -> {}", enhancementDuration,
+                         request.getSql().substring(0, Math.min(request.getSql().length(), 50)), 
                          sql.substring(0, Math.min(sql.length(), 50)));
+            } else if (enhancementDuration > 10) {
+                log.debug("SQL enhancement took {}ms (no modifications)", enhancementDuration);
             }
         }
 
