@@ -100,8 +100,13 @@ public class CommonsPool2XADataSource implements XADataSource {
         // Get default transaction isolation from config
         Integer defaultTransactionIsolation = getTransactionIsolationFromConfig(config);
         
-        // Create the session factory with transaction isolation support
-        BackendSessionFactory factory = new BackendSessionFactory(vendorXADataSource, defaultTransactionIsolation);
+        // Create the session factory with transaction isolation and housekeeping support
+        BackendSessionFactory factory = new BackendSessionFactory(
+            vendorXADataSource, 
+            defaultTransactionIsolation, 
+            housekeepingConfig, 
+            housekeepingListener
+        );
         
         // Configure the pool
         GenericObjectPoolConfig<XABackendSession> poolConfig = createPoolConfig(config);
