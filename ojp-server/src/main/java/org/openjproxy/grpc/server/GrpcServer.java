@@ -47,7 +47,9 @@ public class GrpcServer {
 
         // Build server with configuration
         SessionManagerImpl sessionManager = new SessionManagerImpl();
-        
+
+        CircuitBreakerMetrics cbMetrics = new CircuitBreakerMetrics();
+
         ServerBuilder<?> serverBuilder = NettyServerBuilder
                 .forPort(config.getServerPort())
                 .executor(Executors.newFixedThreadPool(config.getThreadPoolSize()))
@@ -55,7 +57,7 @@ public class GrpcServer {
                 .keepAliveTime(config.getConnectionIdleTimeout(), TimeUnit.MILLISECONDS)
                 .addService(new StatementServiceImpl(
                         sessionManager,
-                        new CircuitBreaker(config.getCircuitBreakerTimeout(), config.getCircuitBreakerThreshold()),
+                        new CircuitBreaker(config.getCircuitBreakerTimeout(), config.getCircuitBreakerThreshold(), cbMetrics),
                         config
                 ))
                 .addService(OjpHealthManager.getHealthStatusManager().getHealthService())

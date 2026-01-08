@@ -62,10 +62,12 @@ public class CircuitBreaker {
     private final ConcurrentHashMap<String, FailureRecord> state = new ConcurrentHashMap<>();
     private final long openMs;
     private final int failureThreashold;
+    private final CircuitBreakerMetrics metrics;
 
-    public CircuitBreaker(long openMs, int failureThreashold) {
+    public CircuitBreaker(long openMs, int failureThreashold, CircuitBreakerMetrics metrics) {
         this.openMs = openMs;
         this.failureThreashold = failureThreashold;
+        this.metrics = metrics;
     }
 
     /**
@@ -75,10 +77,22 @@ public class CircuitBreaker {
      */
     public void preCheck(String sql) throws SQLException {
         FailureRecord rec = state.get(sql);
-        if (rec == null) return;
+        if (rec == null) {
+            metrics.updateState(sql, CircuitBreakerMetrics.State.CLOSED);
+            return;
+        }
+
         if (rec.isOpen()) {
+            metrics.updateState(sql, CircuitBreakerMetrics.State.OPEN);
             throw rec.getLastError();
         }
+
+        if (rec.getFailureCount() >= this.failureThreashold ) {
+            metrics.updateState(sql, CircuitBreakerMetrics.State.HALF_OPEN);
+        } else {
+            metrics.updateState(sql, CircuitBreakerMetrics.State.CLOSED);
+        }
+
         rec.tryReset();
     }
 
@@ -92,6 +106,8 @@ public class CircuitBreaker {
             rec.reset();
             state.remove(sql, rec);
         }
+
+        metrics.updateState(sql, CircuitBreakerMetrics.State.CLOSED);
     }
 
     /**
@@ -105,6 +121,12 @@ public class CircuitBreaker {
         FailureRecord rec = state.computeIfAbsent(sql, s -> new FailureRecord(this.failureThreashold));
         if (!rec.isOpen()) {
             rec.recordFailure(error, openMs);
+        }
+
+        if (rec.isOpen()) {
+            metrics.updateState(sql, CircuitBreakerMetrics.State.OPEN);
+        } else {
+            metrics.updateState(sql, CircuitBreakerMetrics.State.CLOSED);
         }
     }
 }
