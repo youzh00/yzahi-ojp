@@ -41,6 +41,13 @@ public class BackendSessionImpl implements XABackendSession {
     private Connection connection;
     private volatile boolean closed = false;
     
+    // Housekeeping state tracking
+    private volatile long creationTime;
+    private volatile long lastBorrowTime;
+    private volatile long lastReturnTime;
+    private volatile Thread borrowingThread;
+    private volatile StackTraceElement[] borrowStackTrace;
+    
     /**
      * Creates a new backend session wrapping an XAConnection.
      *
@@ -64,6 +71,9 @@ public class BackendSessionImpl implements XABackendSession {
         this.defaultTransactionIsolation = defaultTransactionIsolation;
         this.sessionId = "session-" + System.currentTimeMillis() + "-" + 
                          Integer.toHexString(System.identityHashCode(this));
+        this.creationTime = System.nanoTime();
+        this.lastBorrowTime = 0;
+        this.lastReturnTime = 0;
     }
     
     @Override
@@ -82,23 +92,25 @@ public class BackendSessionImpl implements XABackendSession {
         // Set default transaction isolation
         // This is critical because xaConnection.getConnection() may return a Connection object
         // whose isolation level needs to be explicitly set to the configured default
-        try {
-            int currentIsolation = connection.getTransactionIsolation();
-            log.debug("[{}] open() - Current isolation: {}, Default isolation: {}", 
-                    sessionId, currentIsolation, defaultTransactionIsolation);
-            if (currentIsolation != defaultTransactionIsolation) {
-                log.debug("[{}] open() - Setting transaction isolation from {} to default {}", 
+        if (defaultTransactionIsolation != null) {
+            try {
+                int currentIsolation = connection.getTransactionIsolation();
+                log.debug("[{}] open() - Current isolation: {}, Default isolation: {}", 
                         sessionId, currentIsolation, defaultTransactionIsolation);
-                connection.setTransactionIsolation(defaultTransactionIsolation);
-                int afterSet = connection.getTransactionIsolation();
-                log.debug("[{}] open() - After setTransactionIsolation, isolation is now: {}", 
-                        sessionId, afterSet);
-            } else {
-                log.debug("[{}] open() - Transaction isolation already at default {}", sessionId, defaultTransactionIsolation);
+                if (currentIsolation != defaultTransactionIsolation) {
+                    log.debug("[{}] open() - Setting transaction isolation from {} to default {}", 
+                            sessionId, currentIsolation, defaultTransactionIsolation);
+                    connection.setTransactionIsolation(defaultTransactionIsolation);
+                    int afterSet = connection.getTransactionIsolation();
+                    log.debug("[{}] open() - After setTransactionIsolation, isolation is now: {}", 
+                            sessionId, afterSet);
+                } else {
+                    log.debug("[{}] open() - Transaction isolation already at default {}", sessionId, defaultTransactionIsolation);
+                }
+            } catch (SQLException e) {
+                log.error("[{}] open() - Error setting default transaction isolation: {}", sessionId, e.getMessage());
+                throw e;
             }
-        } catch (SQLException e) {
-            log.error("[{}] open() - Error setting default transaction isolation: {}", sessionId, e.getMessage());
-            throw e;
         }
         
         log.debug("Backend session opened");
@@ -198,23 +210,25 @@ public class BackendSessionImpl implements XABackendSession {
             // Reset transaction isolation level
             // This handles cases where the client changed isolation but didn't commit an XA transaction
             // (so sanitizeAfterTransaction() wasn't called)
-            try {
-                int currentIsolation = connection.getTransactionIsolation();
-                log.debug("[{}] reset() - Current isolation: {}, Default isolation: {}", 
-                        sessionId, currentIsolation, defaultTransactionIsolation);
-                if (currentIsolation != defaultTransactionIsolation) {
-                    log.debug("[{}] reset() - Resetting transaction isolation from {} to default {}", 
+            if (defaultTransactionIsolation != null) {
+                try {
+                    int currentIsolation = connection.getTransactionIsolation();
+                    log.debug("[{}] reset() - Current isolation: {}, Default isolation: {}", 
                             sessionId, currentIsolation, defaultTransactionIsolation);
-                    connection.setTransactionIsolation(defaultTransactionIsolation);
-                    int afterSet = connection.getTransactionIsolation();
-                    log.debug("[{}] reset() - After setTransactionIsolation, isolation is now: {}", 
-                            sessionId, afterSet);
-                } else {
-                    log.debug("[{}] reset() - Transaction isolation already at default {}", sessionId, defaultTransactionIsolation);
+                    if (currentIsolation != defaultTransactionIsolation) {
+                        log.debug("[{}] reset() - Resetting transaction isolation from {} to default {}", 
+                                sessionId, currentIsolation, defaultTransactionIsolation);
+                        connection.setTransactionIsolation(defaultTransactionIsolation);
+                        int afterSet = connection.getTransactionIsolation();
+                        log.debug("[{}] reset() - After setTransactionIsolation, isolation is now: {}", 
+                                sessionId, afterSet);
+                    } else {
+                        log.debug("[{}] reset() - Transaction isolation already at default {}", sessionId, defaultTransactionIsolation);
+                    }
+                } catch (SQLException e) {
+                    log.warn("[{}] reset() - Error resetting transaction isolation: {}", sessionId, e.getMessage());
+                    // Don't throw - continue with reset even if isolation reset fails
                 }
-            } catch (SQLException e) {
-                log.warn("[{}] reset() - Error resetting transaction isolation: {}", sessionId, e.getMessage());
-                // Don't throw - continue with reset even if isolation reset fails
             }
             
             log.debug("Backend session reset completed");
@@ -243,25 +257,27 @@ public class BackendSessionImpl implements XABackendSession {
         //    connection still has the wrong isolation level
         // 4. Both Connection objects point to the same physical connection, so we just need to ensure
         //    isolation is reset before the session is reused
-        try {
-            int currentIsolation = connection.getTransactionIsolation();
-            log.debug("[{}] sanitizeAfterTransaction() - Current isolation: {}, Default isolation: {}", 
-                    sessionId, currentIsolation, defaultTransactionIsolation);
-            if (currentIsolation != defaultTransactionIsolation) {
-                log.debug("[{}] sanitizeAfterTransaction() - Resetting transaction isolation from {} to default {}", 
+        if (defaultTransactionIsolation != null) {
+            try {
+                int currentIsolation = connection.getTransactionIsolation();
+                log.debug("[{}] sanitizeAfterTransaction() - Current isolation: {}, Default isolation: {}", 
                         sessionId, currentIsolation, defaultTransactionIsolation);
-                connection.setTransactionIsolation(defaultTransactionIsolation);
-                int afterSet = connection.getTransactionIsolation();
-                log.debug("[{}] sanitizeAfterTransaction() - After setTransactionIsolation, isolation is now: {}", 
-                        sessionId, afterSet);
-            } else {
-                log.debug("[{}] sanitizeAfterTransaction() - Transaction isolation already at default {}", 
-                        sessionId, defaultTransactionIsolation);
+                if (currentIsolation != defaultTransactionIsolation) {
+                    log.debug("[{}] sanitizeAfterTransaction() - Resetting transaction isolation from {} to default {}", 
+                            sessionId, currentIsolation, defaultTransactionIsolation);
+                    connection.setTransactionIsolation(defaultTransactionIsolation);
+                    int afterSet = connection.getTransactionIsolation();
+                    log.debug("[{}] sanitizeAfterTransaction() - After setTransactionIsolation, isolation is now: {}", 
+                            sessionId, afterSet);
+                } else {
+                    log.debug("[{}] sanitizeAfterTransaction() - Transaction isolation already at default {}", 
+                            sessionId, defaultTransactionIsolation);
+                }
+            } catch (SQLException e) {
+                log.warn("[{}] sanitizeAfterTransaction() - Error resetting transaction isolation: {}", 
+                        sessionId, e.getMessage());
+                // Don't throw - session can still be used
             }
-        } catch (SQLException e) {
-            log.warn("[{}] sanitizeAfterTransaction() - Error resetting transaction isolation: {}", 
-                    sessionId, e.getMessage());
-            // Don't throw - session can still be used
         }
         
         // Clear warnings on the connection
@@ -307,5 +323,119 @@ public class BackendSessionImpl implements XABackendSession {
      */
     public boolean isClosed() {
         return closed;
+    }
+    
+    // ========== Housekeeping Methods ==========
+    
+    /**
+     * Called when the session is borrowed from the pool.
+     * Updates tracking information for leak detection.
+     *
+     * @param captureStackTrace whether to capture the current stack trace for enhanced leak reporting
+     */
+    public void onBorrow(boolean captureStackTrace) {
+        this.lastBorrowTime = System.nanoTime();
+        this.borrowingThread = Thread.currentThread();
+        if (captureStackTrace) {
+            this.borrowStackTrace = Thread.currentThread().getStackTrace();
+        } else {
+            this.borrowStackTrace = null;
+        }
+    }
+    
+    /**
+     * Called when the session is returned to the pool.
+     * Clears tracking information and updates timestamps.
+     */
+    public void onReturn() {
+        this.lastReturnTime = System.nanoTime();
+        this.borrowingThread = null;
+        this.borrowStackTrace = null;
+    }
+    
+    /**
+     * Checks if the session has been idle for longer than the specified threshold.
+     *
+     * @param thresholdMs the idle threshold in milliseconds
+     * @return true if the session has been idle longer than the threshold
+     */
+    public boolean isIdle(long thresholdMs) {
+        if (lastReturnTime == 0) {
+            return false; // Never returned, so not idle
+        }
+        long idleNanos = System.nanoTime() - lastReturnTime;
+        return idleNanos > (thresholdMs * 1_000_000L);
+    }
+    
+    /**
+     * Checks if the session has exceeded its maximum lifetime.
+     * Also checks if the session has been idle for the required minimum time.
+     *
+     * @param maxLifetimeMs the maximum lifetime in milliseconds (0 = disabled)
+     * @param idleBeforeRecycleMs the minimum idle time required before recycling
+     * @return true if the session should be recycled
+     */
+    public boolean isExpired(long maxLifetimeMs, long idleBeforeRecycleMs) {
+        if (maxLifetimeMs <= 0) {
+            return false; // Max lifetime disabled
+        }
+        
+        long ageNanos = System.nanoTime() - creationTime;
+        long ageMs = ageNanos / 1_000_000L;
+        
+        if (ageMs <= maxLifetimeMs) {
+            return false; // Not old enough yet
+        }
+        
+        // Connection is old enough, check if it's been idle long enough
+        return isIdle(idleBeforeRecycleMs);
+    }
+    
+    /**
+     * Gets the age of the session in nanoseconds.
+     *
+     * @return the age in nanoseconds since creation
+     */
+    public long getAge() {
+        return System.nanoTime() - creationTime;
+    }
+    
+    /**
+     * Gets the idle time of the session in nanoseconds.
+     *
+     * @return the idle time in nanoseconds since last return (0 if never returned or currently borrowed)
+     */
+    public long getIdleTime() {
+        if (lastReturnTime == 0) {
+            return 0;
+        }
+        return System.nanoTime() - lastReturnTime;
+    }
+    
+    /**
+     * Gets the thread that currently has this session borrowed.
+     *
+     * @return the borrowing thread, or null if not borrowed
+     */
+    public Thread getBorrowingThread() {
+        return borrowingThread;
+    }
+    
+    /**
+     * Gets the stack trace from when the session was borrowed.
+     *
+     * @return the stack trace, or null if not captured or not borrowed
+     */
+    public StackTraceElement[] getBorrowStackTrace() {
+        return borrowStackTrace;
+    }
+    
+    /**
+     * Gets the timestamp when the session was last borrowed.
+     *
+     * @return the borrow timestamp in nanoseconds, or 0 if never borrowed
+     */
+    public long getLastBorrowTime() {
+        return lastBorrowTime;
     }
 }
