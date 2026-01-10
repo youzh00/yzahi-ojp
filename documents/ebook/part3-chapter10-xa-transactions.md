@@ -611,6 +611,364 @@ XA transactions work great in the happy path, but the real value comes from reli
 
 Use OJP's built-in health checking to simulate server failures in your test environment. Kill an OJP server during an XA transaction and verify that transactions properly fail over to surviving servers and that prepared transactions eventually complete or roll back cleanly.
 
+## XA Pool Housekeeping
+
+Modern production environments demand more than just connection pooling—they require visibility, leak detection, and proactive connection management. OJP's XA connection pool includes three housekeeping features designed to prevent common production issues before they become critical problems.
+
+These features are built on top of Apache Commons Pool 2's solid foundation, filling gaps rather than duplicating functionality. You get leak detection to catch forgotten connections, max lifetime enforcement to prevent stale connections, and enhanced diagnostics for operational visibility—all with minimal overhead (less than 1% CPU impact).
+
+### The Three Pillars of Housekeeping
+
+**Leak Detection** runs continuously in the background, tracking every borrowed connection and warning you when one is held too long. This is enabled by default because connection leaks are one of the most common causes of production outages. A leaked connection reduces your available pool capacity, and enough leaks will eventually exhaust the pool entirely, bringing your application to a halt.
+
+**Max Lifetime** enforcement automatically recycles connections after they've been alive for a configured duration (default 30 minutes). This prevents stale connections from causing mysterious database errors. But here's the critical detail: active connections are never recycled, regardless of their age. Only idle connections in the pool are candidates for recycling, and even then, they must be idle for a minimum duration (default 5 minutes) before recycling occurs. This protects long-running transactions while still ensuring eventual connection refresh.
+
+**Enhanced Diagnostics** provides periodic visibility into pool health through comprehensive log messages. Unlike the other two features, diagnostics are disabled by default—you enable them when you need insight into pool behavior during troubleshooting or when monitoring critical production pools.
+
+### Architecture and Resource Usage
+
+Each XA pool instance that has housekeeping features enabled creates a single daemon thread. This thread is shared by both leak detection and diagnostics tasks, keeping resource usage minimal. If you have three database pools (say, PostgreSQL, MySQL, and Oracle), you get three independent threads, each monitoring only its own pool.
+
+The thread lifecycle is simple: created during pool construction if any feature is enabled, runs scheduled tasks at configured intervals, and shuts down gracefully when the pool closes. Because it's a daemon thread, it won't prevent JVM shutdown if your application needs to terminate.
+
+Here's what this means for resource usage:
+
+- **No features enabled**: Zero threads, zero memory overhead
+- **Leak detection only**: One daemon thread, approximately 1 MB memory
+- **Leak detection + diagnostics**: Same one thread (shared), approximately 1 MB memory
+
+The memory overhead per connection is minimal—about 200 bytes for tracking timestamps and thread information, plus an additional 2-5 KB per connection if you enable enhanced leak detection with stack traces.
+
+### Leak Detection in Action
+
+When your application borrows a connection from the pool, leak detection records the current timestamp, the borrowing thread, and optionally a stack trace showing exactly where in your code the connection was obtained. Every minute (configurable), the leak detection task scans all currently borrowed connections, comparing their hold time against the configured timeout (default 5 minutes).
+
+If a connection has been held longer than the timeout, leak detection logs a warning message identifying the thread that borrowed it. If enhanced mode is enabled, the warning includes the full stack trace showing where the borrow occurred, making it trivial to locate the leak in your codebase.
+
+Here's an example of what you'll see:
+
+```
+[ojp-xa-housekeeping] WARN - [LEAK DETECTED] Connection 
+org.openjproxy.xa.pool.commons.BackendSessionImpl@5812f68b 
+held for too long (320000ms > 300000ms timeout) by thread: worker-thread-5
+```
+
+With enhanced mode enabled (`xa.leakDetection.enhanced=true`), you get the acquisition stack trace:
+
+```
+Stack trace:
+  at org.openjproxy.xa.pool.commons.CommonsPool2XADataSource.borrowSession(...)
+  at com.myapp.DatabaseService.executeQuery(DatabaseService.java:45)
+  at com.myapp.OrderController.createOrder(OrderController.java:123)
+  ...
+```
+
+This level of detail makes leak detection incredibly valuable during development and testing. But even in production with enhanced mode disabled, knowing which thread is holding a leaked connection often provides enough information to narrow down the problem.
+
+Configuration is straightforward:
+
+```properties
+# Leak Detection (enabled by default)
+xa.leakDetection.enabled=true
+xa.leakDetection.timeoutMs=300000          # 5 minutes
+xa.leakDetection.intervalMs=60000          # Check every 1 minute
+xa.leakDetection.enhanced=false            # Stack traces disabled by default
+```
+
+For development environments, consider more aggressive settings:
+
+```properties
+xa.leakDetection.timeoutMs=60000           # 1 minute (faster feedback)
+xa.leakDetection.enhanced=true             # Enable stack traces
+xa.leakDetection.intervalMs=30000          # Check every 30 seconds
+```
+
+### Max Lifetime Protection
+
+Connection max lifetime addresses a different class of problems: stale connections and database resource issues. Some databases have connection limits or resource quotas, and long-lived connections can cause unexpected behavior. MySQL might close connections after 8 hours of inactivity. PostgreSQL's connection limits might be exhausted by applications that never recycle connections. Oracle might accumulate session-level resources that aren't released until the connection closes.
+
+Max lifetime enforcement solves this by passively checking connection age during validation. When Apache Commons Pool 2 validates an idle connection (either during eviction runs or when it's about to be borrowed), OJP's validation logic checks two conditions:
+
+1. Is the connection older than the configured max lifetime? (default 30 minutes)
+2. Has the connection been idle in the pool for at least the minimum idle time? (default 5 minutes)
+
+If both conditions are met, the connection is considered expired and is destroyed. The pool then creates a fresh connection to maintain pool size.
+
+The critical requirement is that idle time check. It ensures that active connections—those currently borrowed and in use—are never recycled, regardless of age. This prevents interrupting long-running queries or transactions. A connection that's been alive for an hour but is actively executing a query will not be recycled. Only when it returns to the pool and sits idle for the configured duration does it become eligible for recycling.
+
+Here's the typical sequence:
+
+```mermaid
+sequenceDiagram
+    participant Pool as Apache Commons Pool 2
+    participant Factory as BackendSessionFactory
+    participant Session as XA Connection
+    
+    Note over Pool: Eviction run or borrow operation
+    Pool->>Factory: validateObject(connection)
+    Factory->>Session: getAge()
+    Session->>Factory: 35 minutes
+    Factory->>Session: getIdleTime()
+    Session->>Factory: 7 minutes
+    
+    alt Age > 30 min AND Idle > 5 min
+        Factory->>Factory: Connection expired
+        Factory->>Pool: return false
+        Pool->>Factory: destroyObject(connection)
+        Note over Pool: Create new connection
+    else Still valid
+        Factory->>Pool: return true
+        Note over Pool: Reuse connection
+    end
+```
+
+When a connection expires, you'll see a log message like this:
+
+```
+[main] INFO BackendSessionFactory - Backend session expired after 1850000ms 
+(max: 1800000ms, idle requirement: 300000ms)
+
+[main] INFO LoggingHousekeepingListener - [MAX LIFETIME] Connection 
+org.openjproxy.xa.pool.commons.BackendSessionImpl@71c27ee8 
+expired after 1850000ms, will be recycled
+```
+
+Configuration allows you to tune both the lifetime and the idle requirement:
+
+```properties
+# Max Lifetime (enabled by default with 30-minute lifetime)
+xa.maxLifetimeMs=1800000                   # 30 minutes
+xa.idleBeforeRecycleMs=300000              # 5 minutes idle required
+```
+
+For high-volume OLTP systems where connections cycle quickly, you might use a shorter lifetime:
+
+```properties
+xa.maxLifetimeMs=900000                    # 15 minutes
+xa.idleBeforeRecycleMs=180000              # 3 minutes idle
+```
+
+For batch processing systems with long-running queries, you might extend it:
+
+```properties
+xa.maxLifetimeMs=3600000                   # 1 hour
+xa.idleBeforeRecycleMs=600000              # 10 minutes idle
+```
+
+To disable max lifetime entirely (not recommended), set it to zero:
+
+```properties
+xa.maxLifetimeMs=0
+```
+
+### Enhanced Diagnostics for Visibility
+
+While leak detection and max lifetime are defensive features that prevent problems, enhanced diagnostics are about visibility. When enabled, diagnostics periodically log comprehensive pool statistics, giving you a clear picture of pool health and utilization.
+
+Every 5 minutes (configurable), the diagnostics task collects metrics from Apache Commons Pool 2 and formats them into a human-readable log message:
+
+```
+[ojp-xa-housekeeping] INFO DiagnosticsTask - [XA-POOL-DIAGNOSTICS] Pool State: 
+active=3, idle=7, waiters=0, total=10/20 (50.0% utilized), 
+minIdle=5, maxIdle=20, 
+lifetime: created=15, destroyed=5, borrowed=42, returned=39
+```
+
+Let's decode what these metrics mean:
+
+- **active=3**: Three connections are currently borrowed and in use
+- **idle=7**: Seven connections are available in the pool, ready to be borrowed
+- **waiters=0**: No threads are blocked waiting for a connection (good sign!)
+- **total=10/20**: Ten connections exist (active + idle), maximum allowed is 20
+- **50.0% utilized**: Half of the pool capacity is in use
+- **minIdle=5, maxIdle=20**: Pool sizing constraints
+- **created=15**: Fifteen connections have been created since pool start
+- **destroyed=5**: Five connections have been destroyed (expired, validation failed, etc.)
+- **borrowed=42**: Forty-two borrow operations have occurred
+- **returned=39**: Thirty-nine return operations have occurred
+
+The difference between borrowed and returned (42 - 39 = 3) matches the active count, which is exactly what you'd expect—those three connections are currently in use.
+
+This level of visibility is invaluable when troubleshooting pool exhaustion, understanding connection churn, or right-sizing your pool. If you see consistent 80%+ utilization with a non-zero waiter count, your pool is too small. If you see <20% utilization, you might be able to reduce min idle to save resources.
+
+Diagnostics are disabled by default to avoid log noise, but you can enable them selectively:
+
+```properties
+# Enhanced Diagnostics (disabled by default)
+xa.diagnostics.enabled=false
+xa.diagnostics.intervalMs=300000           # 5 minutes
+```
+
+For troubleshooting, reduce the interval:
+
+```properties
+xa.diagnostics.enabled=true
+xa.diagnostics.intervalMs=60000            # Every minute
+```
+
+### Configuration Presets for Different Environments
+
+**Development Configuration** emphasizes fast feedback and detailed diagnostics:
+
+```properties
+# Aggressive leak detection for early bug detection
+xa.leakDetection.enabled=true
+xa.leakDetection.timeoutMs=60000           # 1 minute (catch leaks quickly)
+xa.leakDetection.enhanced=true             # Stack traces for debugging
+xa.leakDetection.intervalMs=30000          # Check every 30 seconds
+
+# Shorter lifetime for faster recycling
+xa.maxLifetimeMs=600000                    # 10 minutes
+xa.idleBeforeRecycleMs=60000               # 1 minute idle
+
+# Diagnostics for visibility
+xa.diagnostics.enabled=true
+xa.diagnostics.intervalMs=60000            # Every minute
+```
+
+**Production Configuration** balances safety with performance:
+
+```properties
+# Standard leak detection
+xa.leakDetection.enabled=true
+xa.leakDetection.timeoutMs=300000          # 5 minutes (default)
+xa.leakDetection.enhanced=false            # No stack traces (less overhead)
+xa.leakDetection.intervalMs=60000          # Check every minute
+
+# Standard lifetime
+xa.maxLifetimeMs=1800000                   # 30 minutes (default)
+xa.idleBeforeRecycleMs=300000              # 5 minutes idle (default)
+
+# Diagnostics disabled (enable when troubleshooting)
+xa.diagnostics.enabled=false
+```
+
+**Batch Processing Configuration** accommodates long-running queries:
+
+```properties
+# Lenient leak detection for long-running jobs
+xa.leakDetection.enabled=true
+xa.leakDetection.timeoutMs=1800000         # 30 minutes (batch jobs can run long)
+xa.leakDetection.intervalMs=300000         # Check every 5 minutes
+
+# Shorter lifetime for high connection turnover
+xa.maxLifetimeMs=900000                    # 15 minutes
+xa.idleBeforeRecycleMs=180000              # 3 minutes idle
+
+# Diagnostics for monitoring batch operations
+xa.diagnostics.enabled=true
+xa.diagnostics.intervalMs=300000           # Every 5 minutes
+```
+
+### Performance Impact and Overhead
+
+The housekeeping features are designed for production use with minimal performance impact. Leak detection has less than 0.5% CPU overhead, using volatile fields and concurrent data structures that avoid locks. Max lifetime has zero overhead because it's passive—the check happens during existing validation calls that Apache Commons Pool 2 already performs.
+
+Diagnostics, when enabled, add less than 0.1% CPU overhead. The task runs for less than 100 milliseconds every 5 minutes, simply collecting statistics from thread-safe atomic counters.
+
+Memory overhead is similarly minimal. Basic tracking requires about 200 bytes per connection for timestamps and thread references. Enhanced leak detection adds 2-5 KB per connection for stack traces, which is why it's disabled by default in production.
+
+For a typical production pool of 50 connections:
+- **Basic tracking**: 10 KB memory overhead
+- **Enhanced tracking**: 100-250 KB memory overhead
+- **One daemon thread**: 1 MB memory (Java thread stack)
+- **Total CPU impact**: Less than 1% across all features
+
+### Monitoring and Troubleshooting
+
+**Monitoring leak warnings** is critical. A single leak warning might be a one-time bug, but repeated warnings indicate a systemic problem. Set up alerts for leak warnings and investigate immediately:
+
+```
+[LEAK DETECTED] Connection held for too long by thread: worker-5
+```
+
+Actions to take:
+1. Check thread dumps for the identified thread
+2. Review recent code changes in the relevant code paths
+3. Enable enhanced mode temporarily to get stack traces
+4. Verify that all code paths properly close connections in finally blocks
+
+**Monitoring max lifetime** helps you understand connection recycling patterns:
+
+```
+[MAX LIFETIME] Connection expired after 1850000ms, will be recycled
+```
+
+Frequent recycling isn't necessarily bad—it means the feature is working as designed. But if connections are recycling so frequently that it impacts performance, consider increasing the lifetime or investigating why connections are staying idle for so long.
+
+**Monitoring diagnostics** requires looking at trends rather than individual snapshots. Track utilization over time. A pool that consistently runs at 90% utilization is one server failure away from exhaustion. A pool with frequent waiter counts needs more capacity.
+
+**[IMAGE PROMPT: XA Pool Housekeeping Dashboard]**
+Create a monitoring dashboard visualization showing three panels. Top panel shows leak detection with a timeline of connections (some marked in red as "leaked" after 5min threshold), middle panel shows max lifetime with a connection lifecycle diagram (creation → active use → idle time → expiration after 30min), bottom panel shows diagnostics metrics (bar chart showing active/idle/waiters over time, line graph showing utilization percentage). Use green for healthy states, yellow for warning thresholds, red for critical states. Include timestamps and actual metric values. Style: Modern monitoring dashboard with dark background, bright colored metrics, clear visual hierarchy.
+
+### Troubleshooting Common Issues
+
+**Problem: False positive leak warnings for legitimate long-running queries.**
+
+Your batch reports take 10 minutes to run, but leak detection warns after 5 minutes. Solution: Increase the timeout to accommodate your workload:
+
+```properties
+xa.leakDetection.timeoutMs=900000          # 15 minutes
+```
+
+Document known long-running operations so future developers understand why the timeout is set high.
+
+**Problem: Connections not recycling despite max lifetime configuration.**
+
+You've set a 30-minute max lifetime, but connections live for hours. Possible causes:
+
+1. Connections are continuously active (never idle long enough)
+2. Idle requirement is too high
+3. Pool validation is disabled
+
+Check the diagnostics to see active vs. idle ratio. If connections are always active, that's normal—max lifetime protects transactions. If connections are idle but not recycling, lower the idle requirement:
+
+```properties
+xa.idleBeforeRecycleMs=60000               # 1 minute idle (down from 5 minutes)
+```
+
+**Problem: Pool exhaustion with many waiters.**
+
+Diagnostics show `active=50, idle=0, waiters=10, total=50/50 (100.0% utilized)`. Your pool is too small for the workload. Solutions:
+
+1. Check for connection leaks first (review leak warnings in logs)
+2. If no leaks, increase pool size: `xa.maxPoolSize=100`
+3. Consider whether queries can be optimized to reduce hold time
+4. Review whether all connections are truly needed concurrently
+
+**Problem: High memory usage with many connections.**
+
+If you have hundreds of connections and enhanced leak detection enabled, stack traces consume significant memory (2-5 KB per connection). Disable enhanced mode in production:
+
+```properties
+xa.leakDetection.enhanced=false
+```
+
+You can enable it temporarily when debugging specific issues.
+
+### Best Practices
+
+Always enable leak detection in all environments—development, testing, and production. Connection leaks are one of the most common causes of outages, and detection is your early warning system. The tiny overhead (less than 0.5% CPU) is negligible compared to the value of catching leaks before they cause production failures.
+
+Tune timeouts to match your workload. Fast APIs with millisecond response times can use aggressive 1-2 minute timeouts. Batch systems with long-running queries need lenient 15-30 minute timeouts. Don't disable leak detection just because you have long-running queries—instead, set an appropriate timeout that accommodates legitimate usage while still catching real leaks.
+
+Set max lifetime based on your database's characteristics and your deployment patterns. High-volume OLTP systems benefit from aggressive 15-30 minute lifetimes that ensure rapid connection turnover. Lower-volume applications can use longer 30-60 minute lifetimes. The key is balancing connection recycling with the overhead of creating new connections.
+
+Use diagnostics selectively. Enable them for critical pools in production or when troubleshooting issues. Disable them otherwise to reduce log volume. When enabled, monitor the metrics to understand pool utilization patterns and right-size your pool.
+
+Always protect transactions. Remember that max lifetime never recycles active connections. The idle requirement ensures that long-running transactions complete safely. Don't reduce the idle requirement below 1-2 minutes—active transactions need that protection.
+
+Integrate with your monitoring systems. Parse log messages and track leak detection counts, max lifetime recycling frequency, and pool utilization over time. Set up alerts for repeated leak warnings (more than 5 per hour) and sustained high utilization (above 80% for extended periods).
+
+**[IMAGE PROMPT: Housekeeping Features Comparison Matrix]**
+Create a comparison table visualization with three rows (Leak Detection, Max Lifetime, Enhanced Diagnostics) and six columns (Purpose, Default State, CPU Overhead, Memory Overhead, Thread Requirement, When to Enable). Use icons for visual clarity: checkmark for "Enabled", X for "Disabled", speedometer for performance metrics, memory chip for memory, thread icon for threading. Color-code the overhead cells: green for <0.5%, yellow for 0.5-1%, red for >1%. Bottom shows summary: "Combined Impact: <1% overhead for production-grade connection health monitoring." Style: Professional comparison matrix with clear grid lines, icon-based visual language, color coding for quick scanning.
+
+### Integration with Apache Commons Pool 2
+
+The housekeeping features build on Apache Commons Pool 2's existing capabilities rather than replacing them. Commons Pool 2 already provides connection validation (`testOnBorrow`, `testWhileIdle`), idle connection eviction (`timeBetweenEvictionRuns`), and pool sizing controls (`minIdle`, `maxTotal`). What it doesn't provide are leak detection, lifecycle-based max lifetime enforcement with active connection protection, and comprehensive diagnostics logging.
+
+This selective enhancement approach means you get the benefits of both worlds: Commons Pool 2's battle-tested pooling logic plus OJP's production-focused housekeeping. The result is a robust XA connection pool that prevents common production issues while maintaining excellent performance characteristics.
+
 ## Real-World Use Cases
 
 XA transactions excel in specific scenarios where atomic updates across multiple resources are essential.
