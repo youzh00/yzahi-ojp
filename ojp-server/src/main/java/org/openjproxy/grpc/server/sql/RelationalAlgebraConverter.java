@@ -80,9 +80,13 @@ public class RelationalAlgebraConverter {
             builder.add("product_id", SqlTypeName.INTEGER);
             builder.add("customer_id", SqlTypeName.INTEGER);
             builder.add("name", SqlTypeName.VARCHAR);
+            builder.add("product_name", SqlTypeName.VARCHAR);
+            builder.add("category", SqlTypeName.VARCHAR);
             builder.add("value", SqlTypeName.VARCHAR);
             builder.add("status", SqlTypeName.VARCHAR);
             builder.add("email", SqlTypeName.VARCHAR);
+            builder.add("phone", SqlTypeName.VARCHAR);
+            builder.add("address", SqlTypeName.VARCHAR);
             builder.add("amount", SqlTypeName.DECIMAL);
             builder.add("quantity", SqlTypeName.INTEGER);
             builder.add("created_at", SqlTypeName.TIMESTAMP);
