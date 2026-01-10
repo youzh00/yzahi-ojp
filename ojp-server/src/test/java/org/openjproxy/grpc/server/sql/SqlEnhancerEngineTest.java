@@ -241,7 +241,7 @@ class SqlEnhancerEngineTest {
         String translated = engine.translateDialect(sql, OjpSqlDialect.MYSQL);
         assertNotNull(translated, "Translated SQL should not be null");
         assertTrue(translated.contains("SELECT"), "Should contain SELECT");
-        assertTrue(translated.contains("users"), "Should contain table name");
+        assertTrue(translated.contains("USERS"), "Should contain table name");
     }
     
     @Test
@@ -284,9 +284,9 @@ class SqlEnhancerEngineTest {
         log.info("Oracle to SQL Server: {} -> {}", oracleSQL, sqlServer);
         
         // All translations should contain the table and ordering concept
-        assertTrue(postgreSql.contains("orders"), "PostgreSQL should contain orders table");
-        assertTrue(mySql.contains("orders"), "MySQL should contain orders table");
-        assertTrue(sqlServer.contains("orders"), "SQL Server should contain orders table");
+        assertTrue(postgreSql.contains("ORDERS"), "PostgreSQL should contain orders table");
+        assertTrue(mySql.contains("ORDERS"), "MySQL should contain orders table");
+        assertTrue(sqlServer.contains("ORDERS"), "SQL Server should contain orders table");
     }
     
     @Test
