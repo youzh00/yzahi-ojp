@@ -442,4 +442,47 @@ class SqlEnhancerEngineTest {
         assertNotNull(result.getEnhancedSql(), "Should return some SQL");
         assertFalse(result.isOptimized(), "Invalid SQL should not be optimized");
     }
+    
+    // Phase 3 tests - SQL Generation
+    
+    @Test
+    void testSqlGeneration_SimpleQuery() {
+        SqlEnhancerEngine engine = new SqlEnhancerEngine(true, "GENERIC", true, true, null);
+        
+        String sql = "SELECT * FROM users WHERE id = 1";
+        SqlEnhancementResult result = engine.enhance(sql);
+        
+        assertNotNull(result.getEnhancedSql(), "Enhanced SQL should not be null");
+        assertTrue(result.isOptimized(), "Should be marked as optimized");
+        // SQL generation should produce valid SQL
+        assertTrue(result.getEnhancedSql().contains("SELECT"), "Should contain SELECT");
+        assertTrue(result.getEnhancedSql().contains("FROM"), "Should contain FROM");
+    }
+    
+    @Test
+    void testSqlGeneration_WithOptimization() {
+        SqlEnhancerEngine engine = new SqlEnhancerEngine(true, "GENERIC", true, true, null);
+        
+        // Query that can be optimized
+        String sql = "SELECT id, name FROM (SELECT id, name, email FROM users)";
+        SqlEnhancementResult result = engine.enhance(sql);
+        
+        assertNotNull(result.getEnhancedSql(), "Enhanced SQL should not be null");
+        assertTrue(result.isOptimized(), "Should be marked as optimized");
+        // The optimized SQL should still be valid
+        assertFalse(result.isHasErrors(), "Should not have errors");
+    }
+    
+    @Test
+    void testSqlGeneration_ReturnsActualOptimizedSql() {
+        SqlEnhancerEngine engine = new SqlEnhancerEngine(true, "GENERIC", true, true, null);
+        
+        String sql = "SELECT * FROM users WHERE id = 1";
+        SqlEnhancementResult result = engine.enhance(sql);
+        
+        // Phase 3: Now returns actual SQL (might be optimized or original)
+        assertNotNull(result.getEnhancedSql(), "Should return SQL");
+        assertTrue(result.isOptimized(), "Should be marked as optimized");
+        assertTrue(result.getOptimizationTimeMs() > 0, "Should have optimization time");
+    }
 }

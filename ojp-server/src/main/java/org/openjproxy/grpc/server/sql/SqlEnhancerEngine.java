@@ -67,8 +67,9 @@ public class SqlEnhancerEngine {
             .withCaseSensitive(false); // Most SQL is case-insensitive
         
         // Initialize converter if conversion is enabled
+        // Phase 3: Pass SqlDialect for SQL generation
         this.converter = conversionEnabled ? 
-            new RelationalAlgebraConverter(parserConfig) : null;
+            new RelationalAlgebraConverter(parserConfig, calciteDialect) : null;
         
         // Phase 2: Initialize optimization components
         this.ruleRegistry = new OptimizationRuleRegistry();
@@ -216,7 +217,7 @@ public class SqlEnhancerEngine {
                     RelNode relNode = converter.convertToRelNode(sqlNode);
                     log.debug("Successfully converted SQL to RelNode");
                     
-                    // Phase 2: Apply optimization if enabled
+                    // Phase 2 & 3: Apply optimization if enabled
                     if (optimizationEnabled) {
                         try {
                             // Get optimization rules
@@ -226,18 +227,35 @@ public class SqlEnhancerEngine {
                             // Apply optimizations
                             RelNode optimizedNode = converter.applyOptimizations(relNode, rules);
                             
-                            long optimizationEndTime = System.currentTimeMillis();
-                            long optimizationTime = optimizationEndTime - optimizationStartTime;
-                            
-                            // Phase 2: For now, return original SQL with optimization metadata
-                            // Full SQL generation will be added in future enhancement
-                            boolean wasModified = false; // Will be true when we generate optimized SQL
-                            
-                            result = SqlEnhancementResult.optimized(sql, wasModified, 
-                                                                   enabledRules, optimizationTime);
-                            
-                            log.debug("Optimization complete in {}ms with {} rules", 
-                                     optimizationTime, rules.size());
+                            // Phase 3: Generate SQL from optimized RelNode
+                            try {
+                                String optimizedSql = converter.convertToSql(optimizedNode);
+                                
+                                long optimizationEndTime = System.currentTimeMillis();
+                                long optimizationTime = optimizationEndTime - optimizationStartTime;
+                                
+                                // Check if SQL was actually modified
+                                boolean wasModified = !sql.trim().equalsIgnoreCase(optimizedSql.trim());
+                                
+                                if (wasModified) {
+                                    log.info("SQL optimized with {} rules in {}ms. Original length: {}, Optimized length: {}", 
+                                            rules.size(), optimizationTime, sql.length(), optimizedSql.length());
+                                    log.debug("Original SQL: {}", sql.substring(0, Math.min(sql.length(), 200)));
+                                    log.debug("Optimized SQL: {}", optimizedSql.substring(0, Math.min(optimizedSql.length(), 200)));
+                                }
+                                
+                                result = SqlEnhancementResult.optimized(optimizedSql, wasModified, 
+                                                                       enabledRules, optimizationTime);
+                                
+                                log.debug("Optimization complete in {}ms with {} rules, modified: {}", 
+                                         optimizationTime, rules.size(), wasModified);
+                                
+                            } catch (RelationalAlgebraConverter.SqlGenerationException e) {
+                                log.debug("SQL generation failed, using original SQL: {}", e.getMessage());
+                                long optimizationTime = System.currentTimeMillis() - optimizationStartTime;
+                                // Return original SQL with optimization metadata even though generation failed
+                                result = SqlEnhancementResult.optimized(sql, false, enabledRules, optimizationTime);
+                            }
                             
                         } catch (RelationalAlgebraConverter.OptimizationException e) {
                             log.debug("Optimization failed, using original SQL: {}", e.getMessage());

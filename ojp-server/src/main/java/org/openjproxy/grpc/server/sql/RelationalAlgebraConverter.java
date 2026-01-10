@@ -7,7 +7,9 @@ import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelRoot;
+import org.apache.calcite.rel.rel2sql.RelToSqlConverter;
 import org.apache.calcite.schema.SchemaPlus;
+import org.apache.calcite.sql.SqlDialect;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.tools.Frameworks;
@@ -21,21 +23,25 @@ import java.util.List;
  * 
  * Phase 1: Basic conversion pipeline - SQL → RelNode → validate round-trip works
  * Phase 2: Add optimization using HepPlanner and rule-based transformations
+ * Phase 3: Add SQL generation from optimized RelNode
  * 
- * This class handles the conversion and optimization for Phase 2.
+ * This class handles the conversion, optimization, and SQL generation.
  */
 @Slf4j
 public class RelationalAlgebraConverter {
     
     private final SqlParser.Config parserConfig;
+    private final SqlDialect sqlDialect;
     
     /**
-     * Creates a new converter with the specified parser configuration.
+     * Creates a new converter with the specified parser configuration and SQL dialect.
      * 
      * @param parserConfig The parser configuration
+     * @param sqlDialect The SQL dialect for generating SQL
      */
-    public RelationalAlgebraConverter(SqlParser.Config parserConfig) {
+    public RelationalAlgebraConverter(SqlParser.Config parserConfig, SqlDialect sqlDialect) {
         this.parserConfig = parserConfig;
+        this.sqlDialect = sqlDialect;
     }
     
     /**
@@ -122,6 +128,34 @@ public class RelationalAlgebraConverter {
     }
     
     /**
+     * Converts an optimized RelNode back to SQL string.
+     * Phase 3: Implements SQL generation from relational algebra.
+     * 
+     * @param relNode The relational algebra node to convert
+     * @return SQL string representation
+     * @throws SqlGenerationException if SQL generation fails
+     */
+    public String convertToSql(RelNode relNode) throws SqlGenerationException {
+        log.debug("Converting RelNode to SQL");
+        
+        try {
+            // Use RelToSqlConverter to generate SQL from RelNode
+            RelToSqlConverter converter = new RelToSqlConverter(sqlDialect);
+            SqlNode sqlNode = converter.visitRoot(relNode).asStatement();
+            
+            // Convert SqlNode to SQL string
+            String sql = sqlNode.toSqlString(sqlDialect).getSql();
+            
+            log.debug("Successfully converted RelNode to SQL: {} chars", sql.length());
+            return sql;
+            
+        } catch (Exception e) {
+            log.warn("Failed to convert RelNode to SQL: {}", e.getMessage());
+            throw new SqlGenerationException("Failed to generate SQL from relational algebra", e);
+        }
+    }
+    
+    /**
      * Exception thrown when conversion fails.
      */
     public static class ConversionException extends Exception {
@@ -135,6 +169,15 @@ public class RelationalAlgebraConverter {
      */
     public static class OptimizationException extends Exception {
         public OptimizationException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+    
+    /**
+     * Exception thrown when SQL generation fails.
+     */
+    public static class SqlGenerationException extends Exception {
+        public SqlGenerationException(String message, Throwable cause) {
             super(message, cause);
         }
     }
