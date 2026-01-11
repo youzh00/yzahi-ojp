@@ -39,6 +39,14 @@ public class SqlEnhancerEngine {
     private final OptimizationRuleRegistry ruleRegistry;
     private final List<String> enabledRules;
     
+    // Schema management
+    private final SchemaCache schemaCache;
+    private final SchemaLoader schemaLoader;
+    private final javax.sql.DataSource dataSource;
+    private final String catalogName;
+    private final String schemaName;
+    private final long schemaRefreshIntervalMillis;
+    
     // Metrics tracking - using AtomicLong for thread-safe updates without synchronization
     private final AtomicLong totalQueriesProcessed = new AtomicLong(0);
     private final AtomicLong totalQueriesOptimized = new AtomicLong(0);
@@ -47,22 +55,37 @@ public class SqlEnhancerEngine {
     
     
     /**
-     * Creates a new SqlEnhancerEngine with full configuration options.
+     * Creates a new SqlEnhancerEngine with full configuration options including schema refresh.
      * 
      * @param enabled Whether the SQL enhancer is enabled
      * @param dialectName The SQL dialect to use
      * @param conversionEnabled Whether to enable SQL-to-RelNode conversion
      * @param optimizationEnabled Whether to enable query optimization
      * @param enabledRules List of rule names to enable (null = use safe rules)
+     * @param schemaCache Optional schema cache for real schema metadata (can be null)
+     * @param schemaLoader Optional schema loader for periodic refresh (can be null)
+     * @param dataSource Optional data source for schema refresh (can be null)
+     * @param catalogName Catalog name for schema refresh (can be null)
+     * @param schemaName Schema name for schema refresh (can be null)
+     * @param schemaRefreshIntervalHours Hours between schema refreshes (0 = disabled)
      */
     public SqlEnhancerEngine(boolean enabled, String dialectName, boolean conversionEnabled,
-                             boolean optimizationEnabled, List<String> enabledRules) {
+                             boolean optimizationEnabled, List<String> enabledRules,
+                             SchemaCache schemaCache, SchemaLoader schemaLoader,
+                             javax.sql.DataSource dataSource, String catalogName, String schemaName,
+                             long schemaRefreshIntervalHours) {
         this.enabled = enabled;
         this.conversionEnabled = conversionEnabled;
         this.optimizationEnabled = optimizationEnabled;
         this.cache = new ConcurrentHashMap<>();
         this.dialect = OjpSqlDialect.fromString(dialectName);
         this.calciteDialect = dialect.getCalciteDialect();
+        this.schemaCache = schemaCache;
+        this.schemaLoader = schemaLoader;
+        this.dataSource = dataSource;
+        this.catalogName = catalogName;
+        this.schemaName = schemaName;
+        this.schemaRefreshIntervalMillis = schemaRefreshIntervalHours * 60 * 60 * 1000; // Convert hours to milliseconds
         
         // Configure parser with dialect-specific settings
         SqlParser.Config baseConfig = SqlParser.config();
@@ -75,9 +98,9 @@ public class SqlEnhancerEngine {
             .withCaseSensitive(false); // Most SQL is case-insensitive
         
         // Initialize converter if conversion is enabled
-        // Pass SqlDialect for SQL generation
+        // Pass SqlDialect for SQL generation and SchemaCache for real schema
         this.converter = conversionEnabled ? 
-            new RelationalAlgebraConverter(parserConfig, calciteDialect) : null;
+            new RelationalAlgebraConverter(parserConfig, calciteDialect, schemaCache) : null;
         
         // Initialize optimization components
         this.ruleRegistry = new OptimizationRuleRegistry();
@@ -87,11 +110,46 @@ public class SqlEnhancerEngine {
         if (enabled) {
             String conversionStatus = conversionEnabled ? " with relational algebra conversion" : "";
             String optimizationStatus = optimizationEnabled ? " and optimization" : "";
-            log.info("SQL Enhancer Engine initialized and enabled with dialect: {}{}{}", 
-                    dialectName, conversionStatus, optimizationStatus);
+            String schemaStatus = schemaCache != null ? " and real schema support" : "";
+            String refreshStatus = (schemaLoader != null && dataSource != null && schemaRefreshIntervalHours > 0) ? 
+                " with periodic refresh" : "";
+            log.info("SQL Enhancer Engine initialized and enabled with dialect: {}{}{}{}{}", 
+                    dialectName, conversionStatus, optimizationStatus, schemaStatus, refreshStatus);
         } else {
             log.info("SQL Enhancer Engine initialized but disabled");
         }
+    }
+    
+    /**
+     * Creates a new SqlEnhancerEngine with full configuration options (without schema refresh).
+     * 
+     * @param enabled Whether the SQL enhancer is enabled
+     * @param dialectName The SQL dialect to use
+     * @param conversionEnabled Whether to enable SQL-to-RelNode conversion
+     * @param optimizationEnabled Whether to enable query optimization
+     * @param enabledRules List of rule names to enable (null = use safe rules)
+     * @param schemaCache Optional schema cache for real schema metadata (can be null)
+     * @param schemaRefreshIntervalHours Hours between schema refreshes (0 = disabled)
+     */
+    public SqlEnhancerEngine(boolean enabled, String dialectName, boolean conversionEnabled,
+                             boolean optimizationEnabled, List<String> enabledRules,
+                             SchemaCache schemaCache, long schemaRefreshIntervalHours) {
+        this(enabled, dialectName, conversionEnabled, optimizationEnabled, enabledRules,
+             schemaCache, null, null, null, null, schemaRefreshIntervalHours);
+    }
+    
+    /**
+     * Creates a new SqlEnhancerEngine with full configuration options (no schema cache).
+     * 
+     * @param enabled Whether the SQL enhancer is enabled
+     * @param dialectName The SQL dialect to use
+     * @param conversionEnabled Whether to enable SQL-to-RelNode conversion
+     * @param optimizationEnabled Whether to enable query optimization
+     * @param enabledRules List of rule names to enable (null = use safe rules)
+     */
+    public SqlEnhancerEngine(boolean enabled, String dialectName, boolean conversionEnabled,
+                             boolean optimizationEnabled, List<String> enabledRules) {
+        this(enabled, dialectName, conversionEnabled, optimizationEnabled, enabledRules, null, 0);
     }
     
     /**
@@ -354,6 +412,9 @@ public class SqlEnhancerEngine {
         // If two threads cache the same SQL simultaneously, the last one wins (acceptable - same result)
         cache.put(sql, result);
         
+        // Check if schema refresh is needed (after enhancement to minimize overhead)
+        triggerSchemaRefreshIfNeeded();
+        
         return result;
     }
     
@@ -387,6 +448,40 @@ public class SqlEnhancerEngine {
             log.warn("Failed to translate SQL from {} to {}: {}", 
                     this.dialect, targetDialect, e.getMessage());
             return sql; // Return original on error
+        }
+    }
+    
+    /**
+     * Triggers an asynchronous schema refresh if needed.
+     * Checks if refresh interval has passed and refresh is not already in progress.
+     */
+    private void triggerSchemaRefreshIfNeeded() {
+        // Only refresh if all required components are available
+        if (schemaCache == null || schemaLoader == null || dataSource == null) {
+            return;
+        }
+        
+        // Check if refresh is needed and not already in progress
+        if (schemaCache.needsRefresh(schemaRefreshIntervalMillis)) {
+            if (schemaCache.tryAcquireRefreshLock()) {
+                try {
+                    log.debug("Triggering async schema refresh");
+                    // Trigger async refresh
+                    schemaLoader.loadSchemaAsync(dataSource, catalogName, schemaName)
+                        .thenAccept(schema -> {
+                            schemaCache.updateSchema(schema);
+                            log.info("Schema refreshed successfully with {} tables", schema.getTables().size());
+                        })
+                        .exceptionally(ex -> {
+                            log.warn("Schema refresh failed: {}", ex.getMessage());
+                            return null;
+                        })
+                        .whenComplete((result, ex) -> schemaCache.releaseRefreshLock());
+                } catch (Exception e) {
+                    schemaCache.releaseRefreshLock();
+                    log.warn("Failed to start schema refresh: {}", e.getMessage());
+                }
+            }
         }
     }
 }

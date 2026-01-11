@@ -186,7 +186,7 @@ mvn test -Dtest=SqlEnhancerEngineTest
 
 ## Documentation
 
-- **Technical Analysis:** `/documents/analysis/SQL_ENHANCER_ENGINE_ANALYSIS.md` (comprehensive technical details)
+- **Technical Analysis:** `/documents/analysis/sql_enhancer/SQL_ENHANCER_ENGINE_ANALYSIS.md` (comprehensive technical details)
 - **GitHub:** https://github.com/Open-J-Proxy/ojp
 - **Discord:** https://discord.gg/J5DdHpaUzu
 
