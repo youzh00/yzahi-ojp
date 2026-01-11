@@ -164,6 +164,12 @@ For schema loading to work, the database user needs read access to metadata tabl
   ALTER ROLE db_datareader ADD MEMBER user;
   ```
 
+- **DB2:**
+  ```sql
+  GRANT SELECT ON SYSCAT.TABLES TO user;
+  GRANT SELECT ON SYSCAT.COLUMNS TO user;
+  ```
+
 **Troubleshooting Schema Loading:**
 
 If schema loading fails, check the following:

@@ -264,9 +264,9 @@ String query = "SELECT age FROM users WHERE age > '25'";
 
 ## Related Documentation
 
-- [OJP Server Configuration](ojp-server-configuration.md) - Complete server configuration reference
-- [Connection Pool Configuration](ojp-jdbc-configuration.md) - JDBC driver and pool settings
-- [Schema Loader Implementation Plan](../implementation_plans/SCHEMA_LOADER_IMPLEMENTATION_PLAN.md) - Technical implementation details
+- [OJP Server Configuration](../../configuration/ojp-server-configuration.md) - Complete server configuration reference
+- [Connection Pool Configuration](../../configuration/ojp-jdbc-configuration.md) - JDBC driver and pool settings
+- [Schema Loader Implementation Plan](../../implementation_plans/SCHEMA_LOADER_IMPLEMENTATION_PLAN.md) - Technical implementation details
 
 ## Support
 
