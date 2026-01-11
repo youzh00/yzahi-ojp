@@ -156,3 +156,6 @@ Welcome to OJP! We appreciate your interest in contributing. This guide will hel
 <a href="https://javachallengers.com/career-diagnosis" target="_blank" rel="noopener">
 <img width="150px" src="/documents/images/java_challengers_logo.jpeg" alt="Java Challengers" />
 </a>
+<a href="https://omnifish.ee/piranha/" target="_blank" rel="noopener">
+<img width="150px" src="/documents/images/omnifish-logo.png" alt="OmniFish" />
+</a>
