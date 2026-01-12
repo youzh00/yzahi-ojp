@@ -21,6 +21,11 @@ Database Layer:   PostgreSQL/Oracle/MySQL/SQL Server
                    ↓ (persists transaction state durably via WAL)
 ```
 
+**Architectural Clarity**:
+- **OJP is NOT the Transaction Manager (TM)**: The TM sits on the application side. It coordinates distributed transactions, maintains durable logs, and drives recovery.
+- **OJP is NOT the Resource Manager (RM)**: The databases are the RMs. They execute prepare/commit/rollback and persist state in their WAL. OJP simply delegates RM operations to the databases.
+- **XA Session Stickiness**: XA sessions are sticky to a single OJP node for the duration of the XA session to guarantee XA integrity. This is distinct from connection stickiness—OJP client connections can load balance across multiple OJP servers for different transactions.
+
 **What OJP Provides**:
 - **Connection pooling with 80% XA overhead reduction** - Reuses prepared connections instead of creating new ones per transaction
 - **High availability and load balancing** - Multiple OJP instances for resilience
@@ -28,7 +33,7 @@ Database Layer:   PostgreSQL/Oracle/MySQL/SQL Server
 - **Session stickiness** - Maintains session affinity so XA transactions stay with the same OJP instance
 - **Standard XA interface compliance** - Implements `XAConnection`, `XAResource` correctly
 
-**What OJP Does NOT Need** (contrary to initial misunderstanding):
+**What OJP Does NOT Need** (OJP is a proxy, not a coordinator):
 - ❌ Persistent transaction log - databases have WAL for durable state
 - ❌ Stable coordinator identity - TM (in application) is the coordinator, not OJP
 - ❌ Raft/Paxos consensus - sessions are sticky; no state sharing between OJP instances needed
@@ -38,6 +43,9 @@ Database Layer:   PostgreSQL/Oracle/MySQL/SQL Server
 - In-doubt transactions after network/process failures (exists in ANY XA system)
 - Network partition ambiguity (distributed systems reality)
 - Session stickiness requirements for correctness
+
+**Impact on Recovery Procedures**:
+While this does not change XA correctness or recovery behavior, using OJP may increase the likelihood that standard XA recovery paths are exercised during failures (for example, due to transient network or process interruptions). This is expected behavior for any distributed XA deployment when using any database proxy and should be accounted for in production monitoring and testing.
 
 ---
 

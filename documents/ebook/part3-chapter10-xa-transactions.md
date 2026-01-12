@@ -973,41 +973,81 @@ This selective enhancement approach means you get the benefits of both worlds: C
 
 Let's have an honest, technically precise conversation about what OJP's XA implementation guarantees—and critically, what it cannot guarantee. This transparency is essential for making informed architectural decisions, especially for systems where transaction correctness under failure is non-negotiable.
 
+### Understanding OJP's Role in XA Architecture
+
+Before discussing guarantees and limitations, it's critical to understand what OJP actually is in the XA architecture stack. This clarity prevents common misconceptions that can lead to incorrect expectations.
+
+**OJP is a connection proxy, NOT a transaction coordinator.** The transaction manager (TM)—such as Atomikos, Narayana, or Spring JTA—lives in your application and coordinates distributed transactions. OJP sits between the TM and your databases, providing connection pooling, high availability, and transparent JDBC/XA call proxying.
+
+**OJP is not a resource manager.** The databases (PostgreSQL, Oracle, MySQL, SQL Server) are the resource managers. They execute prepare/commit/rollback operations and persist transaction state durably in their write-ahead logs (WAL). OJP simply delegates these operations to the databases through native JDBC drivers.
+
+**XA sessions are sticky to a single OJP node** for the duration of the transaction to guarantee XA integrity. This is not the same as connection stickiness—OJP client connections can load balance across multiple OJP servers for different transactions, but once an XA transaction starts, all operations for that specific transaction stick to the same OJP instance.
+
+The architecture stack looks like this:
+```
+Application Layer: Spring Boot + Transaction Manager (Atomikos/Narayana)  ← COORDINATOR
+                   ↓ (coordinates transactions)
+Proxy Layer:       OJP Server(s)  ← PROXY (pools connections, proxies calls)
+                   ↓ (delegates XA operations)
+Database Layer:    PostgreSQL/Oracle/MySQL/SQL Server  ← RESOURCE MANAGER
+                   ↓ (persists state in WAL)
+```
+
 ### The Two Meanings of "XA Support"
 
 When teams evaluate XA support, they often conflate two very different requirements that need to be clearly distinguished.
 
-**XA API Support** refers to implementing the JDBC XA interfaces—`XADataSource`, `XAConnection`, `XAResource`—and making them work in normal and common failure scenarios. This includes starting transactions, preparing them, committing or rolling them back, and integrating with transaction managers. It means XA transactions work reliably in happy paths and handle typical failures gracefully.
+**XA API Support** refers to implementing the JDBC XA interfaces—`XADataSource`, `XAConnection`, `XAResource`—and correctly proxying XA calls to databases. This includes starting transactions, preparing them, committing or rolling them back, and integrating with transaction managers. It means XA transactions work reliably in happy paths and handle typical failures gracefully.
 
-OJP provides comprehensive XA API support. The implementation is JDBC-compliant, integrates with standard transaction managers like Narayana and Bitronix, and handles common operational scenarios including server failures, network issues, and connection problems. For the vast majority of enterprise XA usage—coordinating updates across databases for data consistency, managing microservice transactions, and ensuring atomic multi-resource operations—OJP's XA support is production-ready and battle-tested.
+OJP provides comprehensive XA API support. The implementation is JDBC-compliant, integrates with standard transaction managers like Narayana and Atomikos, and handles common operational scenarios including server failures, network issues, and connection problems. For the vast majority of enterprise XA usage—coordinating updates across databases for data consistency, managing microservice transactions, and ensuring atomic multi-resource operations—OJP's XA support is production-ready and battle-tested.
 
-**Strict XA Correctness** is fundamentally different and significantly more demanding. It requires **exactly-once commit semantics** where transactions commit once and only once under all possible failure modes—no duplicates, no lost commits, no ambiguity ever. It demands **crash consistency** with correct behavior if any participant crashes at any point (client, OJP server, database, or network), including crashes between prepare and commit phases. It requires **deterministic recovery** where in-doubt transactions are always discoverable, recovery is automatic or precisely documented, and there are no silent heuristics. Finally, it needs **stable coordinator identity** where the transaction coordinator is persistent and uniquely identifiable, with recovery logs that survive restarts and allow participants to rejoin after failures.
+**Strict XA Correctness** is fundamentally different and significantly more demanding. It requires **exactly-once commit semantics** where transactions commit once and only once under all possible failure modes—no duplicates, no lost commits, no ambiguity ever. It demands **crash consistency** with correct behavior if any participant crashes at any point (client, OJP server, database, or network), including crashes between prepare and commit phases. It requires **deterministic recovery** where in-doubt transactions are always discoverable, recovery is automatic or precisely documented, and there are no silent heuristics.
 
-This is what financial systems, payment rails, mission-critical ledgers, and regulatory-compliant platforms mean when they require "strict XA." This level of guarantee requires infrastructure that OJP, by design, does not provide.
+This is what financial systems, payment rails, mission-critical ledgers, and regulatory-compliant platforms mean when they require "strict XA." Achieving this level of guarantee requires that the transaction coordinator (TM) have durable logs and robust recovery infrastructure—which is the TM's responsibility, not OJP's.
 
-### Why OJP Cannot Guarantee Strict XA Correctness
+### What OJP Actually Provides for XA
 
-This limitation isn't a bug or an oversight—it's an intentional architectural tradeoff that prioritizes availability, performance, and operational simplicity over absolute transaction guarantees under catastrophic failures.
+Understanding OJP's actual capabilities prevents misconceptions:
 
-**OJP is not a durable transaction coordinator.** OJP acts as a proxy and execution broker, not a hardened XA coordinator with write-ahead logs and persistent transaction state. There is no durable transaction log that records prepare decisions, no write-ahead logging for transaction state, and no stable coordinator identity that persists across node restarts. Without these elements, OJP cannot guarantee exactly-once semantics after crashes occur during critical phases.
+1. **Connection Pooling (80% Overhead Reduction)**: OJP maintains a warm pool of XA-capable connections, dramatically reducing the 50-200ms overhead of creating new XA connections for each transaction.
 
-Consider what happens if an OJP server crashes between receiving a successful prepare response from a database and sending the commit command. The database is now in a prepared state, waiting for commit or rollback. When the OJP server restarts, it has no durable record of this prepared transaction. The database might wait indefinitely for a commit that will never arrive, or it might timeout and heuristically roll back a transaction that other participants committed. This creates transaction inconsistency that requires manual intervention to resolve.
+2. **High Availability and Load Balancing**: Multiple OJP instances provide resilience. New transactions can start on any healthy instance. Session stickiness ensures transaction integrity.
 
-**Multinode high availability breaks strict XA assumptions.** In strict XA, the coordinator must survive crashes, recover prepared transactions, and deterministically decide commit versus rollback. The coordinator identity must be stable and recognized by all participants. With OJP multinode deployments, transactions may be pinned to a specific node, node loss can orphan prepared transaction branches, and failover to a different node doesn't imply coordinator continuity.
+3. **Transparent XA Proxy**: OJP correctly implements `XADataSource`, `XAConnection`, and `XAResource` interfaces, proxying all XA calls (start, end, prepare, commit, rollback, recover) to native database drivers.
 
-OJP cannot guarantee that a different node can safely complete a prepared transaction started on a failed node, or that recovery state is shared durably across the cluster. This means "in-doubt forever" scenarios are possible—prepared transactions that no coordinator can definitively resolve because the original coordinator is gone and no other node has the authority or information to complete them.
+4. **Session Stickiness for XA Consistency**: Once an XA transaction starts, all operations for that transaction route through the same OJP instance, maintaining session integrity.
 
-**Network partitions create ambiguity OJP cannot resolve.** Strict XA correctness assumes that if the coordinator says "commit," all participants eventually commit even under network partitions. In a proxy-based system like OJP, the client↔OJP↔database architecture introduces multiple independent failure points. Network partitions can create scenarios where the client thinks the commit failed, the database successfully committed, and OJP doesn't know which outcome actually occurred.
+### Standard XA Challenges (Not OJP-Specific)
 
-At this point, the only options are heuristic commit (guess that it worked), heuristic rollback (guess that it failed), or manual operator intervention (stop and investigate). All three violate strict XA correctness, which requires deterministic, automatic resolution.
+It's important to understand that certain XA challenges exist in ANY distributed XA system, whether OJP is present or not:
 
-**Retry behavior can violate exactly-once semantics.** OJP is explicitly designed to retry operations under transient failures and smooth over temporary network issues. This design choice prioritizes availability and user experience—applications don't fail unnecessarily when problems are temporary. However, this creates risk for XA correctness.
+**In-doubt transactions**: When prepare succeeds but the commit/rollback acknowledgment is lost (network failure, process crash), the database has a prepared transaction but the TM doesn't know the outcome. The standard XA recovery protocol handles this—the TM queries databases for in-doubt transactions and resolves them based on its own transaction log.
 
-If a commit operation is retried without absolute certainty of the prior outcome, there's risk of double-committing (committing a transaction that already committed) or committing something that was already heuristically rolled back (committing a transaction that other resources already rolled back). Strict XA systems go to extreme lengths to avoid this by maintaining durable state about every operation outcome. OJP does not maintain this level of state durability.
+Consider two identical scenarios:
 
-**JDBC + proxy + XA is a leaky abstraction.** Even without OJP in the mix, the XA landscape is already challenging. JDBC XA drivers vary wildly in correctness and completeness. Database vendors implement XA differently with different quirks, edge cases, and failure behaviors. Recovery tooling is inconsistent across platforms.
+**Scenario A - Direct JDBC (no OJP)**:
+```
+Application TM → prepare(xid) → Database
+Database: Transaction prepared and recorded in WAL
+Network fails before response reaches TM
+TM: Doesn't know if prepare succeeded
+```
 
-Adding a proxy layer necessarily increases the number of states that must be coordinated and the number of places where state can be lost. Each additional layer—client to proxy, proxy to database—is another place where information can be lost, timeouts can occur, and ambiguity can emerge.
+**Scenario B - With OJP**:
+```
+Application TM → prepare(xid) → OJP → Database
+Database: Transaction prepared and recorded in WAL
+OJP crashes before response reaches TM
+TM: Doesn't know if prepare succeeded
+```
+
+These are IDENTICAL situations. In both cases, the database has the transaction state durably recorded, and the TM must use standard XA recovery (`xa_recover()`) to query the database for in-doubt transactions and resolve them. OJP doesn't add new failure modes here—it's just another hop in the network path, like any proxy or network infrastructure.
+
+**Network partitions**: Distributed systems reality where network segments become unreachable. This affects direct JDBC connections and proxied connections equally. The TM must handle timeout/retry logic regardless.
+
+**Heuristic outcomes**: Databases can make unilateral decisions to commit or rollback prepared transactions (due to timeouts or manual DBA intervention). This is a database-level behavior that exists with or without OJP.
+
+While this does not change XA correctness or recovery behavior, using OJP may increase the likelihood that standard XA recovery paths are exercised during failures (for example, due to transient network or process interruptions). This is expected behavior for any distributed XA deployment when using any database proxy and should be accounted for in production monitoring and testing.
 
 ### When XA with OJP Is Appropriate
 
