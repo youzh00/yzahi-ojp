@@ -653,7 +653,585 @@ Structured logs enable powerful queries like "show all errors for connection con
 
 **[AI Image Prompt: Create a visual guide to OJP log levels and their use cases. Display 5 log levels as horizontal bars with increasing verbosity: 1) ERROR (red) - production, critical issues only, 2) WARN (orange) - production, includes recoverable issues, 3) INFO (blue) - production, operational events, 4) DEBUG (yellow) - troubleshooting, detailed operation flow, 5) TRACE (purple) - development only, extremely verbose. For each level, show example log messages, appropriate use case, and performance impact indicator. Include a "severity meter" showing which levels to use when. Style: Educational infographic, color-coded severity, clear information hierarchy, code samples in monospace font.]**
 
-## 15.8 When to Escalate Issues
+## 15.8 Failure Scenarios and Recovery Procedures
+
+Production systems must handle failures gracefully. This section examines critical failure scenarios you'll encounter with OJP and provides systematic recovery procedures. Understanding these failure modes helps you build resilient architectures and respond effectively when things go wrong.
+
+### Network Partition Scenarios
+
+Network partitions—where network connectivity fails between components—represent one of the most challenging failure scenarios in distributed systems. OJP deployments are particularly vulnerable because they sit between applications and databases with network hops in both directions.
+
+#### Application-to-OJP Partition
+
+When network connectivity fails between your application and OJP Server, applications immediately experience connection failures. The JDBC driver attempts reconnection with exponential backoff, but prolonged partitions exhaust retry limits and propagate errors to your application code.
+
+**Impact**: Applications see `java.net.ConnectException` or `io.grpc.StatusRuntimeException` with `UNAVAILABLE` status. Database connections in OJP Server's pool remain healthy but unused—the server can't reach clients to serve them.
+
+**Detection**:
+- Application logs show repeated connection failures
+- OJP metrics show healthy pools but zero query throughput
+- Network monitoring indicates packet loss or connectivity issues between application and OJP
+
+**Recovery procedure**:
+1. **Diagnose the partition**: Use `ping` and `traceroute` between application and OJP hosts to verify network connectivity
+2. **Check network infrastructure**: Verify firewall rules, security groups, load balancers, and switches
+3. **Engage network team**: If basic connectivity tools fail, escalate to network engineering
+4. **Implement application circuit breaker**: Prevent connection attempts during known outages to reduce log noise
+5. **Monitor automatic recovery**: Once network restores, JDBC drivers reconnect automatically within 30-60 seconds
+
+**Prevention strategies**:
+- Deploy applications and OJP in the same network segment or availability zone
+- Use redundant network paths when possible
+- Implement health checks that detect network issues early
+- Configure aggressive TCP keepalive settings to detect dead connections quickly
+
+#### OJP-to-Database Partition
+
+When network connectivity fails between OJP Server and the database, the impact differs from application-to-OJP partitions. Existing connections may remain alive briefly due to TCP keepalive settings, but new connection attempts fail immediately.
+
+**Impact**: Applications receive `SQLException` indicating connection timeout or refused connections. HikariCP connection pool health checks fail, marking connections as invalid. The pool attempts to establish new connections, which also fail, eventually exhausting the pool.
+
+**Detection**:
+- OJP logs show database connection failures: `Connection refused`, `Connection timed out`, or `Communications link failure`
+- HikariCP metrics show connection creation failures and pool utilization at 100%
+- Database server logs show no connection attempts (packets never arrive)
+
+**Recovery procedure**:
+1. **Verify database reachability**: From the OJP host, test database connectivity: `telnet database.host 5432`
+2. **Check database server status**: Ensure the database process runs and accepts connections
+3. **Examine network path**: Use `traceroute` to identify where packets fail between OJP and database
+4. **Review recent changes**: Network equipment firmware updates, firewall rule changes, and routing table modifications often cause partitions
+5. **Restart OJP Server**: If connectivity restores but pools don't recover, restart OJP to rebuild connection pools
+6. **Monitor pool recovery**: Watch HikariCP metrics for successful connection creation and health checks passing
+
+**Prevention strategies**:
+- Enable HikariCP's connection test query: `hikariCP.connectionTestQuery=SELECT 1`
+- Set aggressive connection timeouts to fail fast: `hikariCP.connectionTimeout=5000`
+- Deploy monitoring that alerts on database connectivity before pools exhaust
+- Use database high-availability solutions (replication, clustering) for automatic failover
+
+#### Multi-Segment Partitions
+
+In multinode OJP deployments, network partitions can isolate different server subsets, creating split-brain scenarios where servers can't see each other but applications can reach all servers.
+
+**Impact**: Applications distributed across the partition reach different OJP servers. Each server thinks other servers are down and attempts to serve all traffic itself. Connection pools on isolated servers can become overloaded while other servers sit idle.
+
+**Detection**:
+- Multinode cluster membership metrics disagree across servers
+- Some applications report healthy connections while others experience overload
+- OJP logs show servers repeatedly failing to discover each other
+
+**Recovery procedure**:
+1. **Identify partition boundaries**: Query each server's view of cluster membership
+2. **Assess server health**: Verify which servers remain healthy and accessible
+3. **Force cluster refresh**: Restart all OJP servers simultaneously to re-establish cluster state
+4. **Verify cluster convergence**: Confirm all servers agree on membership before restoring application traffic
+5. **Investigate root cause**: Work with network team to identify why cluster discovery failed
+
+**Prevention strategies**:
+- Deploy OJP servers in the same network segment with reliable connectivity
+- Use dedicated networks or VLANs for OJP cluster communication
+- Implement external health monitoring that can detect split-brain conditions
+- Consider deploying OJP in fewer, larger instances rather than many small instances
+
+**[AI Image Prompt: Create a comprehensive network partition troubleshooting flowchart. Display three partition types as separate swim lanes: 1) App-to-OJP Partition (show application servers unable to reach OJP, with symptoms, detection methods, and recovery steps), 2) OJP-to-Database Partition (show OJP unable to reach database, with connection pool exhaustion, HikariCP failures, and recovery procedures), 3) Multi-Segment Partition (show split cluster with servers isolated from each other but not from applications). Use color-coded severity (red=critical, yellow=degraded), diagnostic commands in code blocks, and recovery procedure checklists. Style: Technical flowchart with decision trees, command examples, architectural diagrams showing network topology.]**
+
+### Cascading Failure Scenarios
+
+Cascading failures occur when one component's failure triggers failures in dependent components, creating a domino effect. OJP deployments are susceptible because they centralize database connectivity—when OJP struggles, all applications struggle.
+
+#### Database Slowdown Cascade
+
+When databases experience performance degradation, the effects ripple through OJP to all connected applications. Slow queries hold connections longer, exhausting connection pools and forcing applications to wait for available connections.
+
+**Failure progression**:
+1. Database query execution slows (disk contention, lock waits, resource saturation)
+2. OJP's connection pools fill with connections executing slow queries
+3. New queries queue waiting for available connections
+4. Application request threads block waiting for database connections
+5. Application thread pools exhaust, rejecting new requests
+6. Load balancer health checks fail, removing application instances
+7. Remaining instances receive more traffic, accelerating their failure
+
+**Impact**: Complete application outage despite database remaining technically operational. Recovery requires addressing the root cause (slow queries) rather than just restarting components.
+
+**Detection signals**:
+- Database query latency spikes (p95, p99)
+- OJP connection pool utilization reaches 100%
+- Application response times increase dramatically
+- Application thread pool saturation metrics
+
+**Recovery procedure**:
+1. **Identify slow queries**: Check database slow query logs and OJP query performance metrics
+2. **Kill problematic queries**: Use database-specific commands to terminate long-running queries
+   ```sql
+   -- PostgreSQL
+   SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE state = 'active' AND query_start < now() - interval '5 minutes';
+   
+   -- MySQL
+   SHOW FULL PROCESSLIST;
+   KILL <process_id>;
+   ```
+3. **Increase connection timeouts temporarily**: Give legitimate queries more time to complete
+4. **Scale connection pools**: Temporarily increase pool sizes if database can handle more connections
+5. **Implement query circuit breakers**: Block problematic query patterns from reaching the database
+6. **Monitor recovery**: Watch for connection pool utilization decreasing and query latency returning to normal
+
+**Prevention strategies**:
+- Implement query timeout limits: `hikariCP.connectionTimeout`, `hikariCP.validationTimeout`
+- Enable slow query segregation (Chapter 8) to isolate problematic queries
+- Set application-level timeouts shorter than database timeouts
+- Implement circuit breakers in applications to fail fast
+- Monitor query performance and alert on degradation before pools exhaust
+
+#### Connection Pool Exhaustion Cascade
+
+When one pool exhausts its connections, it can trigger exhaustion in other pools through retry and failover logic, eventually bringing down the entire system.
+
+**Failure progression**:
+1. One OJP server's connection pool exhausts (slow queries, database issues)
+2. Applications timeout waiting for connections from that server
+3. JDBC driver failover logic redirects requests to other servers
+4. Other servers receive sudden traffic spike
+5. Their connection pools also exhaust under increased load
+6. Applications experience widespread connection failures
+
+**Impact**: What starts as a single-server problem cascades to all servers, causing complete outage.
+
+**Recovery procedure**:
+1. **Identify the initial failure**: Examine metrics to determine which server exhausted first
+2. **Address root cause**: Fix the issue causing initial exhaustion (slow queries, database connectivity)
+3. **Restart affected servers**: Clear hung connections and reset pool state
+4. **Gradually restore traffic**: Use connection limits to prevent immediate re-exhaustion
+5. **Monitor for stability**: Ensure pools remain healthy before fully restoring traffic
+
+**Prevention strategies**:
+- Configure appropriate maximum pool sizes: `hikariCP.maximumPoolSize`
+- Implement connection acquisition timeouts: `hikariCP.connectionTimeout=30000`
+- Use HikariCP's leak detection: `hikariCP.leakDetectionThreshold=300000`
+- Deploy sufficient OJP server capacity with headroom for traffic spikes
+- Implement application-level retry limits to prevent request amplification
+
+#### OJP Server Overload Cascade
+
+When OJP servers become overloaded (CPU saturation, memory pressure), they slow down or crash, redistributing load to surviving servers and potentially causing their failure too.
+
+**Failure progression**:
+1. One OJP server experiences high CPU or memory usage
+2. Server becomes unresponsive or crashes
+3. Health checks fail, removing server from load balancer rotation
+4. Traffic redistributes to remaining servers
+5. Remaining servers receive more load than they can handle
+6. Additional servers fail, creating a cascade
+
+**Recovery procedure**:
+1. **Stop the cascade**: Reduce application traffic immediately (rate limiting, traffic shedding)
+2. **Restart failed servers**: Clear any hung states and restore capacity
+3. **Gradually increase traffic**: Slowly ramp up load while monitoring server health
+4. **Identify overload cause**: Examine what triggered initial overload (traffic spike, memory leak, inefficient query patterns)
+5. **Implement mitigation**: Address root cause before fully restoring traffic
+
+**Prevention strategies**:
+- Deploy sufficient OJP server capacity (N+2 redundancy minimum)
+- Implement autoscaling for OJP servers based on CPU and memory metrics
+- Configure JVM heap sizes appropriately (Chapter 6)
+- Enable GC logging to identify memory issues early
+- Use connection limits and rate limiting to prevent overload
+
+**[AI Image Prompt: Create a cascading failure sequence diagram showing three failure types. Display as timeline diagrams: 1) Database Slowdown Cascade - show 5-stage progression from slow DB queries to complete app outage with time markers and component state (healthy→degraded→failed), 2) Connection Pool Exhaustion Cascade - show domino effect of pool exhaustion across 4 OJP servers with metrics graphs, 3) Server Overload Cascade - show CPU/memory overload triggering health check failures and traffic redistribution causing secondary failures. Use red arrows showing failure propagation, metrics graphs showing degradation, and recovery steps as green action boxes. Style: Technical sequence diagram with timeline, state transitions, metrics visualization, clear cause-effect relationships.]**
+
+### Server Restart and Upgrade Procedures
+
+Restarting or upgrading OJP servers requires careful coordination to minimize application impact. Improper procedures can cause widespread connection failures and data inconsistency.
+
+#### Graceful Server Shutdown
+
+Shutting down an OJP server while applications actively use it requires draining connections gracefully rather than abrupt termination.
+
+**Standard shutdown procedure**:
+1. **Remove from load balancer**: Stop sending new connections to the server
+2. **Wait for connection drain**: Monitor active connection count decreasing
+   ```bash
+   # Watch active connections
+   curl http://server:9159/metrics | grep hikari_active_connections
+   ```
+3. **Send shutdown signal**: Use `SIGTERM` (not `SIGKILL`) to allow graceful shutdown
+   ```bash
+   kill -TERM <ojp-server-pid>
+   ```
+4. **Wait for complete shutdown**: OJP attempts to close pools and release resources (30-60 seconds)
+5. **Verify shutdown**: Confirm process terminated and ports released
+
+**Forced shutdown** (when graceful fails):
+```bash
+# If SIGTERM doesn't work after 60 seconds
+kill -KILL <ojp-server-pid>
+```
+
+Force-killing leaves connections in undefined states. Applications may experience connection errors and need to reconnect.
+
+#### Rolling Upgrades
+
+Upgrading OJP servers without downtime requires rolling upgrades—updating servers one at a time while others handle traffic.
+
+**Rolling upgrade procedure**:
+1. **Pre-upgrade validation**:
+   - Test new version in non-production environment
+   - Review release notes for breaking changes
+   - Backup current configuration
+   - Verify rollback plan
+
+2. **Upgrade first server**:
+   - Remove server from load balancer
+   - Wait for connection drain (2-5 minutes)
+   - Stop OJP Server process
+   - Deploy new version
+   - Start new version with same configuration
+   - Verify startup (check logs for errors)
+   - Verify health checks pass
+   - Monitor for 5-10 minutes before proceeding
+
+3. **Verify before continuing**:
+   - Check metrics for any anomalies
+   - Test connectivity from applications
+   - Ensure no error rate increase
+
+4. **Upgrade remaining servers**:
+   - Repeat process for each server
+   - Leave sufficient time between upgrades (10-15 minutes)
+   - Keep at least 50% of servers on old version until confident
+
+5. **Complete upgrade**:
+   - Update all servers to new version
+   - Update JDBC driver version if needed
+   - Monitor for 24 hours after completion
+
+**Rollback procedure** (if issues detected):
+1. **Stop upgrade immediately**: Don't upgrade additional servers
+2. **Revert upgraded servers**: Redeploy previous version
+3. **Verify stability**: Ensure original version operates normally
+4. **Investigate issues**: Determine what caused upgrade failure
+
+#### Multinode Cluster Restarts
+
+Restarting all servers in a multinode cluster requires special consideration because cluster membership discovery happens during startup.
+
+**Cluster restart procedure**:
+1. **Plan maintenance window**: Brief application outage unavoidable during full cluster restart
+2. **Notify applications**: Inform application teams of maintenance window
+3. **Stop all servers simultaneously**: Prevents split-brain scenarios
+4. **Verify all stopped**: Confirm no servers remain running
+5. **Start servers with delay**: Start first server, wait for full startup (30-60 seconds), start next
+6. **Verify cluster formation**: Check that all servers discover each other
+   ```bash
+   curl http://server1:9159/metrics | grep multinode_cluster_size
+   curl http://server2:9159/metrics | grep multinode_cluster_size
+   ```
+7. **Restore traffic gradually**: Don't send full load immediately after restart
+
+**Common restart failures**:
+- **Split-brain**: Servers form separate clusters. Solution: Restart all servers simultaneously.
+- **Discovery timeout**: Servers don't find each other. Solution: Verify multicast/unicast configuration, check network connectivity.
+- **Port conflicts**: New servers can't bind to ports. Solution: Verify old processes fully terminated, check for orphaned processes.
+
+**[AI Image Prompt: Create a visual guide for OJP server restart and upgrade procedures. Display 4 panels: 1) Graceful Shutdown - show step-by-step workflow with load balancer removal, connection draining graph (decreasing from 100 to 0 over time), SIGTERM signal, and verification steps, 2) Rolling Upgrade - show 4-server cluster with sequential upgrade (server states: running→draining→upgrading→verifying→complete), time markers between steps, 3) Rollback Decision Tree - show decision points for continue vs. rollback, 4) Cluster Restart - show synchronized shutdown of all servers, startup sequence with delays, cluster discovery verification. Include command examples, timing guidance, and state indicators. Style: Technical procedure guide with diagrams, timelines, command blocks, clear decision points.]**
+
+### Database Failover Handling
+
+When databases fail over to replicas or DR sites, OJP must handle the transition gracefully. Different database architectures require different handling approaches.
+
+#### PostgreSQL Replication Failover
+
+PostgreSQL commonly uses streaming replication with automatic failover tools like Patroni or repmgr. When the primary fails, a replica promotes to primary.
+
+**Failover behavior**:
+- Connections to old primary fail immediately
+- HikariCP detects failures through connection validation
+- New connections route to new primary (if JDBC URL updated)
+- Connection pool must rebuild with connections to new primary
+
+**Handling with OJP**:
+1. **Use DNS for database addressing**: Point JDBC URLs to DNS names that update during failover
+2. **Configure read-write split**: Use separate JDBC URLs for read replicas vs. primary
+3. **Set aggressive connection validation**: `hikariCP.connectionTestQuery=SELECT 1`, `hikariCP.validationTimeout=3000`
+4. **Implement application retry logic**: Applications should retry failed transactions
+5. **Monitor failover metrics**: Track connection creation failures during failover
+
+**Recovery timeline**:
+- Failover detection: 5-15 seconds (depends on connection validation interval)
+- Connection pool rebuild: 10-30 seconds (depends on pool size)
+- Full recovery: 30-60 seconds total
+
+#### MySQL/MariaDB Replication Failover
+
+MySQL replication with MHA or ProxySQL provides automatic failover. The process is similar to PostgreSQL but with different failure characteristics.
+
+**Handling with OJP**:
+1. **Use ProxySQL for routing**: ProxySQL handles primary detection and routing automatically
+2. **Configure semi-synchronous replication**: Reduces data loss risk during failover
+3. **Set connection timeouts appropriately**: `hikariCP.connectionTimeout=10000`
+4. **Test failover procedures**: Regular failover drills ensure smooth operation
+
+#### Oracle RAC Failover
+
+Oracle RAC provides transparent application failover (TAF) at the database layer. OJP's connection pooling interacts with RAC's native failover mechanisms.
+
+**Configuration**:
+```properties
+# JDBC URL with RAC configuration
+jdbc:ojp://localhost:9090/orcl?oracle.net.tns_admin=/path/to/tnsnames
+
+# RAC-specific properties
+oracle.net.tns_admin=/path/to/tnsnames
+oracle.jdbc.implicitStatementCacheSize=50
+```
+
+**Handling RAC failover**:
+- Let Oracle RAC handle instance failures automatically
+- OJP connection pooling works alongside RAC services
+- Configure SCAN addresses in tnsnames.ora
+- Use RAC connection load balancing with OJP's server load balancing
+
+#### SQL Server Always On Availability Groups
+
+SQL Server's Always On provides automatic failover with ApplicationIntent routing for read-only workloads.
+
+**Configuration**:
+```properties
+# Connection string with multisubnetfailover
+jdbc:ojp://localhost:9090/mydb?multiSubnetFailover=true&applicationIntent=ReadWrite
+```
+
+**Handling failover**:
+1. **Enable multiSubnetFailover**: Speeds failover detection in multi-subnet deployments
+2. **Set failover partner**: `failoverPartner=secondary.server` in JDBC URL
+3. **Configure connection retry logic**: SQL Server driver has built-in retry logic
+4. **Monitor replica lag**: Ensure secondary replicas stay synchronized
+
+**[AI Image Prompt: Create a database failover handling guide showing 4 database systems. Display as a comparison matrix: 1) PostgreSQL Replication - show primary/replica architecture, Patroni failover workflow, DNS update, OJP connection pool rebuild sequence, 2) MySQL/MariaDB - show MHA or ProxySQL routing, failover detection, connection recreation, 3) Oracle RAC - show RAC cluster with SCAN listeners, TAF working with OJP, service routing, 4) SQL Server Always On - show availability group, automatic failover, multiSubnetFailover flag effect. For each, include configuration examples, failover timeline (seconds to recovery), and OJP-specific handling. Style: Technical comparison chart with architecture diagrams, configuration snippets, timeline graphs, clear visual separation between database systems.]**
+
+### Resource Exhaustion and Recovery
+
+Resource exhaustion—running out of memory, threads, or connections—can cripple OJP deployments. Understanding exhaustion patterns and recovery procedures is critical.
+
+#### Memory Exhaustion
+
+OJP Server can exhaust heap memory through connection pool growth, query result buffering, or memory leaks. When heap exhausts, the JVM triggers full GC cycles that pause all threads, making the server unresponsive.
+
+**Symptoms**:
+- Server becomes unresponsive or very slow
+- GC logs show frequent full GC cycles consuming most CPU time
+- Eventually: `OutOfMemoryError: Java heap space` crashes the server
+
+**Detection**:
+```bash
+# Monitor heap usage
+jstat -gcutil <pid> 1000 10
+
+# Heap dump for analysis
+jmap -dump:live,format=b,file=heap.hprof <pid>
+
+# Analyze with tools like Eclipse MAT or VisualVM
+```
+
+**Immediate recovery**:
+1. **Restart server**: Only way to recover from OOME
+2. **Increase heap size temporarily**: Add more RAM if available
+3. **Reduce connection pool sizes**: Lower `hikariCP.maximumPoolSize` to reduce memory footprint
+4. **Limit concurrent queries**: Reduce application load while investigating
+
+**Root cause analysis**:
+1. **Analyze heap dump**: Identify what objects consume memory
+2. **Check for memory leaks**: Look for growing collections or unreleased resources
+3. **Review query patterns**: Large result sets or inefficient queries cause memory pressure
+4. **Examine GC logs**: Identify memory allocation patterns
+
+**Long-term prevention**:
+- Size heap appropriately for workload: typically 2-8GB for OJP Server
+- Configure JVM flags: `-Xmx4g -XX:+UseG1GC -XX:MaxGCPauseMillis=200`
+- Enable GC logging: `-Xlog:gc*:file=gc.log:time,uptime`
+- Implement connection pool size limits based on available memory
+- Monitor heap usage and alert before exhaustion
+
+#### Thread Exhaustion
+
+gRPC servers use thread pools to handle concurrent requests. When all threads execute long-running operations, new requests queue and eventually time out.
+
+**Symptoms**:
+- Applications experience connection timeouts
+- OJP server remains running but unresponsive
+- Thread dumps show all threads blocked on database operations
+- Metrics show maximal thread utilization
+
+**Detection**:
+```bash
+# Get thread dump
+jstack <pid> > threads.txt
+
+# Count threads by state
+jstack <pid> | grep "java.lang.Thread.State" | sort | uniq -c
+
+# Check for blocked threads
+jstack <pid> | grep -A 5 "State: BLOCKED"
+```
+
+**Immediate recovery**:
+1. **Identify blocking operations**: Thread dump reveals what threads are doing
+2. **Kill problematic database queries**: Use database commands to terminate long-running queries
+3. **Restart server if necessary**: If threads remain hung after query termination
+4. **Reduce concurrent load**: Limit application traffic while investigating
+
+**Prevention**:
+- Configure appropriate thread pool sizes
+- Implement query timeouts at application and database levels
+- Use connection timeouts to fail fast: `hikariCP.connectionTimeout=30000`
+- Monitor thread utilization and alert on high usage
+- Implement request rate limiting at application level
+
+#### Connection Leak Exhaustion
+
+Applications that don't close connections exhaust connection pools, causing new requests to timeout waiting for available connections.
+
+**Symptoms**:
+- Connection pool utilization remains at 100%
+- Applications experience connection timeout errors
+- HikariCP leak detection logs show leaked connections
+- Pool metrics show connections never return to pool
+
+**Detection**:
+```properties
+# Enable HikariCP leak detection
+hikariCP.leakDetectionThreshold=60000  # 60 seconds
+```
+
+Leaked connections appear in logs:
+```
+WARN HikariPool - Connection leak detection triggered for conn123, stack trace follows
+```
+
+**Immediate recovery**:
+1. **Identify leaking code**: Stack traces reveal where connections are acquired but not closed
+2. **Fix resource management**: Ensure try-with-resources or finally blocks close connections
+3. **Increase pool size temporarily**: Provide more connections while fixing leaks
+4. **Enable max lifetime**: `hikariCP.maxLifetime=1800000` (30 minutes) forces connection recycling
+
+**Code pattern fix**:
+```java
+// BAD: Connection leak
+Connection conn = DriverManager.getConnection(url);
+// ... operations ...
+// Connection never closed!
+
+// GOOD: Try-with-resources ensures closure
+try (Connection conn = DriverManager.getConnection(url)) {
+    // ... operations ...
+} // Automatically closed
+```
+
+**Prevention**:
+- Always use try-with-resources for JDBC objects
+- Enable leak detection in development and testing
+- Perform code reviews focusing on resource management
+- Use static analysis tools (FindBugs, SpotBugs) to detect resource leaks
+- Monitor connection pool utilization and alert on sustained high usage
+
+**[AI Image Prompt: Create a resource exhaustion troubleshooting guide showing 3 exhaustion types. Display as diagnosis and recovery workflow: 1) Memory Exhaustion - show heap usage graph growing to 100%, GC time increasing, heap dump analysis workflow, recovery steps (restart, resize heap, reduce pools), prevention configurations, 2) Thread Exhaustion - show thread pool saturation graph, thread dump analysis showing blocked threads, query termination commands, thread pool sizing recommendations, 3) Connection Leak - show connection pool usage stuck at 100%, leak detection stack trace example, try-with-resources pattern fix, HikariCP configuration. Include command examples, code snippets, metrics graphs, and step-by-step recovery procedures. Style: Technical troubleshooting guide with graphs, code examples, command blocks, clear visual hierarchy.]**
+
+### Poison Query Handling
+
+Poison queries—queries that consistently cause failures or performance problems—can bring down entire systems if not handled properly. Unlike one-time problematic queries, poison queries repeat and accumulate impact.
+
+#### Identifying Poison Queries
+
+Poison queries exhibit consistent patterns: they always run slowly, consume excessive resources, or trigger database errors. Identifying them requires monitoring and analysis.
+
+**Characteristics**:
+- Execution time consistently exceeds thresholds (e.g., always >30 seconds)
+- High CPU or memory consumption on database server
+- Trigger database-specific errors (lock timeouts, temp space exhaustion)
+- Cause cascading failures by holding connections
+
+**Detection methods**:
+1. **Query performance monitoring**: Chapter 13's telemetry identifies slow queries
+2. **Database slow query logs**: Most databases log queries exceeding thresholds
+3. **Pattern analysis**: Look for query templates that always perform poorly
+4. **Resource monitoring**: Correlate resource spikes with specific query patterns
+
+**Example detection query**:
+```sql
+-- PostgreSQL: Find consistently slow queries
+SELECT
+    calls,
+    mean_exec_time,
+    max_exec_time,
+    query
+FROM pg_stat_statements
+WHERE mean_exec_time > 10000  -- 10 seconds
+ORDER BY mean_exec_time DESC
+LIMIT 20;
+```
+
+#### Mitigation Strategies
+
+Once identified, poison queries require immediate mitigation to prevent system impact.
+
+**Short-term mitigation**:
+1. **Query blocking**: Block the exact query pattern at application or OJP level
+2. **Client blocking**: If queries come from specific clients, block those clients
+3. **Connection limits**: Limit concurrent executions of the query pattern
+4. **Timeout reduction**: Lower query timeout specifically for problem patterns
+
+**Medium-term fixes**:
+1. **Query optimization**: Add indexes, rewrite query, update statistics
+2. **Data partitioning**: Break large tables into partitions for better performance
+3. **Caching layer**: Cache results for expensive queries
+4. **Application changes**: Modify application to avoid problematic query patterns
+
+**Long-term prevention**:
+1. **Query validation**: Implement slow query segregation (Chapter 8)
+2. **Performance testing**: Test query performance before production deployment
+3. **Monitoring and alerting**: Alert on query performance degradation
+4. **Regular optimization**: Maintain database indexes, update statistics, vacuum tables
+
+#### Implementing Query Governors
+
+Query governors limit impact of problematic queries by enforcing execution constraints.
+
+**Statement timeout governor**:
+```properties
+# Set maximum query execution time
+hikariCP.connectionInitSql=SET statement_timeout = '30s'
+```
+
+**Resource governor** (database-specific):
+```sql
+-- PostgreSQL: Limit query resources
+ALTER ROLE application_user SET statement_timeout = '30s';
+ALTER ROLE application_user SET temp_buffers = '100MB';
+
+-- SQL Server: Use Resource Governor
+CREATE RESOURCE POOL limited_pool WITH (MAX_CPU_PERCENT = 50);
+CREATE WORKLOAD GROUP limited_group USING limited_pool;
+```
+
+**Circuit breaker pattern** (application-level):
+```java
+// Circuit breaker for problematic queries
+if (circuitBreaker.isOpen("expensive_query")) {
+    throw new ServiceUnavailableException("Circuit breaker open for this query");
+}
+
+try {
+    // Execute query
+    result = executeExpensiveQuery();
+    circuitBreaker.recordSuccess("expensive_query");
+} catch (SlowQueryException e) {
+    circuitBreaker.recordFailure("expensive_query");
+    throw e;
+}
+```
+
+## 15.9 When to Escalate Issues
 
 Sometimes you'll encounter problems beyond your ability to resolve. Knowing when and how to escalate ensures you get help effectively.
 
@@ -717,8 +1295,12 @@ When asking for help, provide context and diagnostic information upfront. "My qu
 
 For production issues requiring immediate response, consider commercial support if available from the project maintainers or consulting firms specializing in database infrastructure.
 
+**[AI Image Prompt: Create a poison query identification and mitigation workflow. Display as a 4-stage process: 1) Detection - show query performance monitoring dashboard with slow queries highlighted, database slow query log example, pattern analysis showing repeated problematic query, 2) Analysis - show query execution plan, resource consumption graph (CPU/memory over time), impact assessment (connections held, throughput degraded), 3) Mitigation Options - show decision tree for immediate actions (block query, reduce timeout, limit connections) vs. medium-term fixes (optimize query, add indexes, partition data), 4) Prevention - show monitoring setup, alerting configuration, SQL review checklist, query validation in CI/CD. Include SQL examples, configuration snippets, and metrics visualizations. Style: Technical workflow diagram with decision trees, code samples, graph visualizations, clear action steps.]**
+
 ---
 
-This chapter provided comprehensive troubleshooting guidance for Open J Proxy. You learned systematic diagnostic approaches, solutions for common problems across installation, connectivity, performance, and multinode deployments, and how to leverage logging effectively. You also understand when and how to escalate issues for additional help.
+This chapter provided comprehensive troubleshooting guidance for Open J Proxy. You learned systematic diagnostic approaches, solutions for common problems across installation, connectivity, performance, and multinode deployments, detailed failure scenario analysis and recovery procedures, and how to leverage logging effectively. You understand how to handle network partitions, cascading failures, database failovers, resource exhaustion, and poison queries. You also know when and how to escalate issues for additional help.
+
+The addition of failure scenarios and recovery procedures in Section 15.8 provides the operational resilience knowledge needed for production deployments. Understanding these failure modes, their detection signatures, and systematic recovery procedures enables you to build robust, self-healing systems and respond effectively when problems occur.
 
 We've completed the Operations section (Part IV) of the e-book. The next section will cover Development and Contribution, teaching you how to set up a development environment, contribute code, and understand OJP's architecture decisions. Whether you want to extend OJP with custom features or contribute back to the project, Part V provides the foundation you need.
