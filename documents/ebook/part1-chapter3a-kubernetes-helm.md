@@ -2,7 +2,7 @@
 
 > **Chapter Overview**: Deploy OJP Server to Kubernetes using Helm charts. This chapter covers everything from prerequisites and basic installation to advanced Kubernetes patterns and production best practices for cloud-native environments.
 
-> **⚠️ Important Note**: The guidance in this chapter recommends using StatefulSet with individual per-pod services for production HA deployments. The current ojp-helm charts may need updates to align with this approach. The default chart should create a StatefulSet (not Deployment) with per-pod LoadBalancer or NodePort services to make each OJP instance individually addressable for client-side load balancing.
+> **✅ Production-Ready Architecture**: The official OJP Helm charts use a **StatefulSet** deployment model with individual per-pod LoadBalancer services. Each OJP instance gets its own stable network identity and external IP address, enabling direct client access and connection affinity. This architecture is production-ready and aligns with best practices for stateful proxies requiring persistent network identities.
 
 ---
 
@@ -220,11 +220,12 @@ helm search repo ojp
 
 **[IMAGE PROMPT 4]**: Create a Kubernetes deployment visualization showing:
 - Helm chart being deployed
-- Kubernetes resources being created (Deployment, Service, ConfigMap)
-- Pod starting up with OJP Server
-- Service exposing the pod
+- Kubernetes resources being created (StatefulSet, Services, ConfigMap)
+- Pods starting up with stable identities (ojp-server-0, ojp-server-1, ojp-server-2)
+- Individual per-pod LoadBalancer services exposing each pod
+- Headless service for StatefulSet DNS discovery
 Use Kubernetes architecture diagram style with resource icons
-Professional cloud-native deployment guide
+Professional cloud-native deployment guide showing StatefulSet architecture
 
 Install OJP Server with default configuration:
 
@@ -595,15 +596,17 @@ image:
   pullPolicy: IfNotPresent
 ```
 
-#### Deployment Configuration
+#### StatefulSet Deployment Configuration
+
+The OJP Helm chart uses a **StatefulSet** deployment model, providing stable network identities and ordered deployment:
 
 ```yaml
-replicaCount: 1                     # Number of pod replicas
+replicaCount: 3                     # Number of StatefulSet replicas (default: 3)
 
 # Pod annotations (for monitoring, service mesh, etc.)
 podAnnotations:
   prometheus.io/scrape: "true"
-  prometheus.io/port: "9090"
+  prometheus.io/port: "9159"       # OJP uses port 9159 for Prometheus metrics
   prometheus.io/path: "/metrics"
 
 # Security contexts
@@ -619,42 +622,82 @@ securityContext:
   runAsUser: 1000
 ```
 
+**Why StatefulSet?**
+
+StatefulSets provide several advantages for OJP deployments:
+- **Stable network identities**: Each pod gets a predictable DNS name (e.g., `ojp-server-0`, `ojp-server-1`, `ojp-server-2`)
+- **Ordered deployment**: Pods are created sequentially, ensuring controlled rollout
+- **Persistent pod names**: Pod names remain stable across restarts and rescheduling
+- **Per-pod services**: Each pod can be individually addressed via its own LoadBalancer service
+
+This architecture is essential for OJP's XA transaction support, where XA sessions must remain sticky to a single OJP instance for the duration of the transaction.
+
 #### Service Configuration
 
-**[IMAGE PROMPT 8]**: Create a diagram showing different service types:
-- ClusterIP (internal only)
-- NodePort (exposed on node ports)
-- LoadBalancer (cloud load balancer)
-Show access patterns for each type
-Use Kubernetes service architecture style
-Professional K8s networking guide
+The Helm chart creates two types of services:
+
+1. **Headless Service**: For StatefulSet pod discovery and internal DNS
+2. **Per-Pod LoadBalancer Services**: For individual pod access with external IPs
+
+**[IMAGE PROMPT 8]**: Create a diagram showing OJP StatefulSet service architecture:
+- Headless service (ClusterIP: None) for StatefulSet DNS
+- Individual per-pod LoadBalancer services (ojp-server-0, ojp-server-1, ojp-server-2)
+- Each pod with its own external IP
+- Clients connecting directly to specific pods
+Use Kubernetes service architecture style with StatefulSet networking patterns
+Professional K8s networking guide showing per-pod service model
 
 ```yaml
 service:
-  type: ClusterIP                   # Service type: ClusterIP, NodePort, LoadBalancer
-  port: 1059                        # Service port
+  # Main headless service for StatefulSet (always clusterIP: None)
+  type: ClusterIP
+  port: 1059                        # Main OJP server port for client connections
+  
+  # Per-pod services allow individual addressability for each StatefulSet pod
+  perPodService:
+    enabled: true                   # Enable individual per-pod services
+    type: LoadBalancer              # LoadBalancer (cloud) or NodePort (on-premise)
 ```
+
+**Service Architecture Explained**:
+
+1. **Headless Service (`ojp-server`)**: 
+   - Type: `ClusterIP` with `clusterIP: None`
+   - Enables StatefulSet DNS: `ojp-server-0.ojp-server.namespace.svc.cluster.local`
+   - Used for internal pod discovery
+
+2. **Per-Pod Services** (`ojp-server-0`, `ojp-server-1`, `ojp-server-2`):
+   - Type: `LoadBalancer` (default for cloud environments)
+   - Each pod gets its own external IP address
+   - Enables direct client access to specific OJP instances
+   - Required for XA session stickiness
 
 **Service type examples**:
 
 ```yaml
-# ClusterIP - Internal access only (default)
+# For cloud environments (AWS, GCP, Azure) - Default
 service:
-  type: ClusterIP
-  port: 1059
+  perPodService:
+    enabled: true
+    type: LoadBalancer           # Each pod gets its own external IP
 
-# NodePort - Access via node IP:nodePort
+# For on-premise clusters - Use NodePort instead
 service:
-  type: NodePort
-  port: 1059
-  nodePort: 31059  # Optional: specify node port (30000-32767)
+  perPodService:
+    enabled: true
+    type: NodePort               # Each pod accessible via node IP:nodePort
 
-# LoadBalancer - Cloud provider load balancer
+# Disable per-pod services (use headless service only)
 service:
-  type: LoadBalancer
-  port: 1059
-  # annotations for cloud-specific settings
+  perPodService:
+    enabled: false               # Only headless service for internal access
 ```
+
+**Important Notes**:
+- **LoadBalancer** is recommended for cloud deployments where each pod needs its own external IP
+- **NodePort** is suitable for on-premise deployments where external load balancers aren't available
+- Per-pod services are **automatically disabled** when autoscaling is enabled (to prevent service/pod mismatches)
+- When using XA transactions, per-pod services should remain **enabled** to support session stickiness
 
 #### Resource Limits
 
@@ -1380,24 +1423,42 @@ podAnnotations:
 ### Multi-Replica Deployments for High Availability
 
 **[IMAGE PROMPT 17]**: Create a high-availability deployment diagram showing:
-- 3 OJP replicas (StatefulSet pods) with individual Services/endpoints
-- JDBC driver connecting to all three endpoints simultaneously
+- 3 OJP StatefulSet pods (ojp-server-0, ojp-server-1, ojp-server-2) with individual LoadBalancer services
+- Each pod with its own stable network identity and external IP
+- JDBC driver connecting to all three endpoints simultaneously via multi-host connection string
 - Client-side load balancing and failover arrows
 - Node failure scenario with automatic failover to remaining pods
 - Each replica connecting to the same database backend
-Use HA architecture diagram style emphasizing client-side intelligence
+Use HA architecture diagram style emphasizing StatefulSet and per-pod services
 Professional high-availability guide with OJP multinode focus
 
 #### Understanding OJP HA Architecture in Kubernetes
 
-**Key Principle**: OJP achieves high availability through **client-side load balancing** rather than traditional server-side load balancers. This requires exposing each pod individually so JDBC drivers can connect to all instances.
+**Key Principle**: OJP achieves high availability through **client-side load balancing** with the **OJP JDBC driver**. The official Helm chart uses a StatefulSet with per-pod LoadBalancer services, making each OJP instance individually addressable for direct client connections.
 
-**Recommended HA Setup**:
+**Production HA Architecture** (using official Helm chart):
 
-For high availability, deploy multiple replicas using **StatefulSet** with individual pod services:
+The official OJP Helm chart is **production-ready** and implements best practices:
 
 ```yaml
-# Use StatefulSet instead of Deployment for stable network identities
+# values.yaml - Default HA configuration
+replicaCount: 3                       # Deploy 3 StatefulSet replicas
+
+service:
+  # Headless service for StatefulSet DNS
+  type: ClusterIP
+  port: 1059
+  
+  # Per-pod LoadBalancer services (enabled by default)
+  perPodService:
+    enabled: true
+    type: LoadBalancer               # Each pod gets external IP
+```
+
+**What the Helm chart creates**:
+
+```yaml
+# StatefulSet with stable pod names
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -1414,49 +1475,43 @@ spec:
       labels:
         app: ojp-server
     spec:
-      # Anti-affinity to spread across nodes
-      affinity:
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              podAffinityTerm:
-                labelSelector:
-                  matchExpressions:
-                    - key: app
-                      operator: In
-                      values:
-                        - ojp-server
-                topologyKey: kubernetes.io/hostname
+      # Anti-affinity to spread pods across nodes (configured via affinity in values.yaml)
       containers:
         - name: ojp-server
-          image: rrobetti/ojp-server:latest
+          image: rrobetti/ojp:latest
           ports:
             - containerPort: 1059
-              name: grpc
-            - containerPort: 9090
+              name: http                  # OJP uses HTTP, not gRPC
+            - containerPort: 9159         # OJP Prometheus port
               name: prometheus
 ```
 
-**Individual Pod Services** (for client-side load balancing):
+**Individual Per-Pod LoadBalancer Services** (created automatically by Helm):
 
 ```yaml
-# Service for pod-0
+# Service for ojp-server-0 (created by Helm)
 apiVersion: v1
 kind: Service
 metadata:
   name: ojp-server-0
   namespace: ojp
+  labels:
+    statefulset.kubernetes.io/pod-name: ojp-server-0
 spec:
-  type: LoadBalancer  # or NodePort
+  type: LoadBalancer
   selector:
     statefulset.kubernetes.io/pod-name: ojp-server-0
   ports:
-    - protocol: TCP
-      port: 1059
-      targetPort: 1059
-      name: grpc
+    - port: 1059
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9159
+      targetPort: prometheus
+      protocol: TCP
+      name: prometheus
 ---
-# Service for pod-1
+# Service for ojp-server-1 (created by Helm)
 apiVersion: v1
 kind: Service
 metadata:
@@ -1467,12 +1522,16 @@ spec:
   selector:
     statefulset.kubernetes.io/pod-name: ojp-server-1
   ports:
-    - protocol: TCP
-      port: 1059
-      targetPort: 1059
-      name: grpc
+    - port: 1059
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9159
+      targetPort: prometheus
+      protocol: TCP
+      name: prometheus
 ---
-# Service for pod-2
+# Service for ojp-server-2 (created by Helm)
 apiVersion: v1
 kind: Service
 metadata:
@@ -1483,10 +1542,14 @@ spec:
   selector:
     statefulset.kubernetes.io/pod-name: ojp-server-2
   ports:
-    - protocol: TCP
-      port: 1059
-      targetPort: 1059
-      name: grpc
+    - port: 1059
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: 9159
+      targetPort: prometheus
+      protocol: TCP
+      name: prometheus
 ```
 
 **JDBC URL Configuration**:
