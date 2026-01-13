@@ -83,7 +83,7 @@ sequenceDiagram
 
 ## 6.3 Security Configuration
 
-Security in OJP includes multiple layers: IP-based access control, TLS/mTLS encryption, and network segregation. This section covers IP whitelisting for basic access control. For comprehensive security guidance including SSL/TLS configuration between OJP Server and databases, mTLS between JDBC driver and OJP Server, and network architecture patterns, see **Chapter 11: Security** (to be written).
+Security in OJP includes multiple layers: IP-based access control, TLS/mTLS encryption, and network segregation. This section covers IP whitelisting for basic access control. For comprehensive security guidance including SSL/TLS configuration between OJP Server and databases, mTLS between JDBC driver and OJP Server, and network architecture patterns, see **Chapter 11: Security**.
 
 ### IP-Based Access Control
 
