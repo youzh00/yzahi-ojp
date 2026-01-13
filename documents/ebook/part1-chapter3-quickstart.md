@@ -10,7 +10,6 @@ Before starting with OJP, ensure you have the following prerequisites in place.
 
 ### Java Version Requirements
 
-**[IMAGE PROMPT 1]**: Create a simple requirements checklist infographic:
 - OJP Server: Java 21+ (with Java logo)
 - OJP JDBC Driver: Java 11+ (with Java logo)
 - Maven 3.9+ or Gradle (with logos)
@@ -73,7 +72,6 @@ OJP Server can be deployed in three ways: Docker (fastest), Runnable JAR, or bui
 
 ### Option 1: Docker Deployment (Batteries Included) ⭐ Recommended
 
-**[IMAGE PROMPT 2]**: Create a step-by-step visual guide showing:
 Step 1: Docker command in terminal
 Step 2: OJP Server starting up (container icon)
 Step 3: Server ready with ports exposed
@@ -140,7 +138,6 @@ Place your proprietary JDBC driver JARs in `/path/to/drivers` on your host machi
 
 ### Option 2: Runnable JAR Setup
 
-**[IMAGE PROMPT 3]**: Create a visual guide for JAR deployment showing:
 1. Download/build JAR file
 2. Download database drivers
 3. Run Java command
@@ -204,7 +201,6 @@ kill $(ps aux | grep 'ojp-server.*jar' | grep -v grep | awk '{print $2}')
 
 ### Option 3: Building from Source
 
-**[IMAGE PROMPT 4]**: Create a development workflow diagram showing:
 Git clone → Maven build → Run tests → Start server
 Include relevant logos (Git, Maven, Java)
 Developer-focused technical diagram style
@@ -256,7 +252,6 @@ Once OJP Server is running, integrate it into your application with three simple
 
 ### Step 1: Add OJP JDBC Driver Dependency
 
-**[IMAGE PROMPT 5]**: Create a side-by-side comparison showing:
 LEFT: Maven pom.xml with ojp-jdbc-driver dependency
 RIGHT: Gradle build.gradle with ojp-jdbc-driver dependency
 Use code editor style with syntax highlighting
@@ -290,7 +285,6 @@ dependencies {
 
 ### Step 2: Update Your JDBC URL
 
-**[IMAGE PROMPT 6]**: Create a before/after transformation diagram:
 Show traditional JDBC URLs transforming to OJP URLs for different databases
 Use arrows showing the transformation
 Include PostgreSQL, MySQL, Oracle, SQL Server examples
@@ -363,7 +357,6 @@ graph LR
 
 ### Step 3: Execute Your First Query
 
-**[IMAGE PROMPT 7]**: Create a complete code example visualization showing:
 Full Java class with imports, connection setup, query execution, and result processing
 Highlight the OJP-specific parts (URL format, driver class)
 Use IDE/code editor style with line numbers and syntax highlighting
@@ -504,7 +497,6 @@ ojp_connection_pool_active{database="h2"} 0
 
 ## 3.4 Common Gotchas
 
-**[IMAGE PROMPT 8]**: Create a troubleshooting flowchart or FAQ-style infographic:
 Show common problems and their solutions:
 - Connection refused → Check OJP server is running
 - Double pooling → Disable application pool
@@ -666,7 +658,6 @@ docker run --network ojp-network --name ojp-server rrobetti/ojp:0.3.1-beta
 
 ## Testing Your Setup
 
-**[IMAGE PROMPT 9]**: Create a verification checklist infographic:
 - Server is running ✓
 - Port is accessible ✓
 - Driver dependency added ✓

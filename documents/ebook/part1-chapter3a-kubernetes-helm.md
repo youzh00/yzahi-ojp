@@ -12,7 +12,6 @@ Before deploying OJP to Kubernetes, ensure you have the necessary tools and infr
 
 ### Required Tools
 
-**[IMAGE PROMPT 1]**: Create a prerequisites checklist infographic showing:
 - Kubernetes cluster (with K8s logo and version 1.20+)
 - Helm 3.x installed (with Helm logo)
 - kubectl configured (with kubectl logo)
@@ -78,7 +77,6 @@ kubectl get nodes
 
 #### Helm Installation
 
-**[IMAGE PROMPT 2]**: Create a visual guide showing Helm installation on different platforms:
 - macOS (using Homebrew)
 - Linux (using package manager)
 - Windows (using Chocolatey)
@@ -177,7 +175,6 @@ The official OJP Helm chart simplifies deployment and configuration management.
 
 ### Adding the OJP Helm Repository
 
-**[IMAGE PROMPT 3]**: Create a step-by-step visual guide showing:
 Step 1: helm repo add command
 Step 2: helm repo update command
 Step 3: helm search showing ojp-server
@@ -218,7 +215,6 @@ helm search repo ojp
 
 ### Basic Installation
 
-**[IMAGE PROMPT 4]**: Create a Kubernetes deployment visualization showing:
 - Helm chart being deployed
 - Kubernetes resources being created (StatefulSet, Services, ConfigMap)
 - Pods starting up with stable identities (ojp-server-0, ojp-server-1, ojp-server-2)
@@ -339,7 +335,6 @@ kubectl logs -n ojp -l app.kubernetes.io/name=ojp-server
 
 ### Custom Values Installation
 
-**[IMAGE PROMPT 5]**: Create a side-by-side comparison showing:
 LEFT: Default installation with standard values
 RIGHT: Custom installation with custom values file
 Show configuration differences highlighted
@@ -417,7 +412,6 @@ helm install ojp-server ojp/ojp-server \
 
 ### Upgrading OJP Server
 
-**[IMAGE PROMPT 6]**: Create a visual representation of Helm upgrade process:
 Show: Current release → Helm upgrade command → Rolling update → New version deployed
 Include rollback option as a safety net
 Use flowchart style with Kubernetes rolling update visualization
@@ -494,7 +488,6 @@ The OJP Helm chart provides extensive configuration options through the `values.
 
 ### Complete Configuration Reference
 
-**[IMAGE PROMPT 7]**: Create an infographic showing configuration categories:
 - Server Settings (port, thread pool, timeouts)
 - Observability (OpenTelemetry, Prometheus)
 - Advanced Features (slow query segregation, circuit breaker)
@@ -639,7 +632,6 @@ The Helm chart creates two types of services:
 1. **Headless Service**: For StatefulSet pod discovery and internal DNS
 2. **Per-Pod LoadBalancer Services**: For individual pod access with external IPs
 
-**[IMAGE PROMPT 8]**: Create a diagram showing OJP StatefulSet service architecture:
 - Headless service (ClusterIP: None) for StatefulSet DNS
 - Individual per-pod LoadBalancer services (ojp-server-0, ojp-server-1, ojp-server-2)
 - Each pod with its own external IP
@@ -783,7 +775,6 @@ Beyond basic installation, OJP can leverage advanced Kubernetes features for pro
 
 ### ConfigMaps and Secrets
 
-**[IMAGE PROMPT 9]**: Create a diagram showing:
 ConfigMap for non-sensitive configuration
 Secret for sensitive data (passwords, API keys)
 Both being mounted into OJP pods
@@ -827,7 +818,6 @@ env:
 
 #### Using Secrets for Sensitive Data
 
-**[IMAGE PROMPT 10]**: Create a security-focused diagram showing:
 Kubernetes Secret encrypted at rest
 Secret mounted as environment variable or file
 Application accessing secret securely
@@ -883,7 +873,6 @@ env:
 
 ### Persistent Volumes for Logs
 
-**[IMAGE PROMPT 11]**: Create a diagram showing:
 PersistentVolumeClaim → PersistentVolume → Storage Backend
 Pod mounting the PVC for log persistence
 Use Kubernetes storage architecture diagram style
@@ -921,7 +910,6 @@ persistence:
 
 ### Network Policies
 
-**[IMAGE PROMPT 12]**: Create a network security diagram showing:
 Allowed traffic: Applications → OJP (port 1059)
 Allowed traffic: OJP → Database
 Allowed traffic: Monitoring → Metrics (port 9090)
@@ -983,7 +971,6 @@ spec:
 
 ### Exposing OJP Servers with Individual Pod Services
 
-**[IMAGE PROMPT 13]**: Create an architecture diagram showing:
 - Recommended approach: External traffic → Individual OJP Pod Services (StatefulSet) → Client-side load balancing
 - Show: StatefulSet pods (ojp-server-0, ojp-server-1, ojp-server-2) each with dedicated LoadBalancer/NodePort service
 - Illustrate JDBC driver connecting to all three endpoints simultaneously
@@ -1097,7 +1084,6 @@ Production-ready deployments require additional considerations for reliability a
 
 ### Health Checks and Readiness Probes
 
-**[IMAGE PROMPT 14]**: Create a diagram showing Kubernetes health check lifecycle:
 Pod starts → Startup probe → Readiness probe → Liveness probe
 Show when traffic is routed and when pods are restarted
 Use flowchart with health status indicators
@@ -1165,7 +1151,6 @@ stateDiagram-v2
 
 ### Rolling Updates and Rollbacks
 
-**[IMAGE PROMPT 15]**: Create a visual representation of rolling update strategy for OJP StatefulSet:
 Show StatefulSet pods (0,1,2) gradually being replaced by new versions
 Display: Pod termination → Client failover → New pod ready
 Illustrate graceful client failover to remaining pods during update
@@ -1349,7 +1334,6 @@ kubectl rollout undo statefulset ojp-server -n ojp --to-revision=2
 
 ### Monitoring and Logging in Kubernetes
 
-**[IMAGE PROMPT 16]**: Create a comprehensive monitoring stack diagram:
 - Prometheus scraping OJP metrics
 - Grafana dashboards visualizing data
 - Logs flowing to centralized logging (Loki, ELK)
@@ -1422,7 +1406,6 @@ podAnnotations:
 
 ### Multi-Replica Deployments for High Availability
 
-**[IMAGE PROMPT 17]**: Create a high-availability deployment diagram showing:
 - 3 OJP StatefulSet pods (ojp-server-0, ojp-server-1, ojp-server-2) with individual LoadBalancer services
 - Each pod with its own stable network identity and external IP
 - JDBC driver connecting to all three endpoints simultaneously via multi-host connection string
@@ -1636,7 +1619,6 @@ graph TB
 
 ### Production Checklist
 
-**[IMAGE PROMPT 18]**: Create a production readiness checklist infographic:
 - Resource limits configured ✓
 - Health probes configured ✓
 - Multiple replicas ✓

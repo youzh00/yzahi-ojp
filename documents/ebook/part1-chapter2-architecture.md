@@ -47,7 +47,6 @@ graph TB
 
 ### ojp-server: The gRPC Server
 
-**[IMAGE PROMPT 1]**: Create a detailed component diagram of ojp-server showing:
 - gRPC Server endpoint (port 1059)
 - HikariCP Connection Pool Manager
 - Multiple database pools (PostgreSQL, MySQL, Oracle)
@@ -129,7 +128,6 @@ ojp.server.circuitBreakerTimeout=60000
 
 ### ojp-jdbc-driver: The JDBC Implementation
 
-**[IMAGE PROMPT 2]**: Create a layered diagram showing:
 TOP: Standard JDBC interfaces (Connection, Statement, ResultSet, PreparedStatement)
 MIDDLE: OJP implementations (OjpConnection, OjpStatement, OjpResultSet)
 BOTTOM: gRPC Client communicating with OJP Server
@@ -238,7 +236,6 @@ conn.close();
 
 ### ojp-grpc-commons: Shared Contracts
 
-**[IMAGE PROMPT 3]**: Create a diagram showing Protocol Buffers (.proto files) in the center, with arrows pointing to:
 LEFT: Java generated classes for ojp-jdbc-driver
 RIGHT: Java generated classes for ojp-server
 Show the contract acting as a bridge/shared language
@@ -284,7 +281,6 @@ OJP uses **gRPC** (Google Remote Procedure Call) as its communication protocol, 
 
 ### Why gRPC?
 
-**[IMAGE PROMPT 4]**: Create a comparison infographic:
 Traditional REST/JSON vs gRPC/Protocol Buffers
 Show metrics: Latency, Throughput, Payload Size, Connection Efficiency
 Use bar charts or comparison cards
@@ -301,7 +297,6 @@ When comparing REST/JSON to gRPC/Protobuf, the differences are striking. REST ty
 
 ### Request-Response Flow
 
-**[IMAGE PROMPT 5]**: Create a detailed sequence diagram showing:
 1. Application calls executeQuery()
 2. OJP Driver serializes to protobuf
 3. gRPC call over HTTP/2
@@ -355,7 +350,6 @@ sequenceDiagram
 
 ### Session Management
 
-**[IMAGE PROMPT 6]**: Create a diagram showing:
 LEFT: Multiple application threads/requests
 CENTER: Session Manager maintaining session state (sessionId, transaction state, isolation level)
 RIGHT: Server-side resources (connections, prepared statements)
@@ -394,7 +388,6 @@ Each OJP session has several important characteristics that make the system work
 
 ### Connection Multiplexing
 
-**[IMAGE PROMPT 7]**: Create a technical diagram showing:
 Multiple JDBC operations from different threads
 All multiplexed over a single gRPC channel (HTTP/2 connection)
 Show concurrent streams within the single TCP connection
@@ -446,7 +439,6 @@ At the core of OJP's efficiency is its use of **HikariCP**, the fastest JDBC con
 
 ### Why HikariCP?
 
-**[IMAGE PROMPT 8]**: Create a performance comparison chart:
 Show HikariCP vs other connection pools (C3P0, DBCP, Tomcat Pool)
 Metrics: Throughput (ops/sec), Latency (ms), Memory usage
 Bar chart or radar chart showing HikariCP's superiority
@@ -463,7 +455,6 @@ Performance benchmarks tell the story clearly. HikariCP achieves approximately 4
 
 ### Pool Sizing and Configuration
 
-**[IMAGE PROMPT 9]**: Create an infographic showing optimal pool sizing:
 Show relationship between: # of cores, # of concurrent queries, optimal pool size
 Include the formula: connections = ((core_count * 2) + effective_spindle_count)
 Visualize with server icons, CPU cores, and database connections
@@ -557,7 +548,6 @@ connections = core_count * 2
 
 ### Connection Abstraction Layer
 
-**[IMAGE PROMPT 10]**: Create an architecture diagram showing:
 TOP: OJP Server using ConnectionPoolProvider interface
 MIDDLE: Provider SPI layer (abstraction)
 BOTTOM: Multiple implementations (HikariCP, DBCP2, Custom)
@@ -685,7 +675,6 @@ This architecture makes OJP adaptable to specialized requirements while maintain
 
 ### Complete System Architecture
 
-**[IMAGE PROMPT 11]**: Create a comprehensive end-to-end architecture diagram showing:
 - Application layer (multiple instances)
 - OJP JDBC Driver layer
 - Network layer (gRPC/HTTP2)
@@ -788,7 +777,6 @@ graph TB
 
 ### Component Interaction
 
-**[IMAGE PROMPT 12]**: Create a detailed component interaction diagram showing:
 - How components communicate
 - What data flows between them
 - Key interfaces and contracts
@@ -847,7 +835,6 @@ sequenceDiagram
 
 ### Data Flow Diagram
 
-**[IMAGE PROMPT 13]**: Create a data flow diagram (DFD) showing:
 - External entities (Applications, Databases, Monitoring systems)
 - Processes (OJP Driver, OJP Server, Connection Pools)
 - Data stores (Session cache, Prepared statement cache, Metrics)

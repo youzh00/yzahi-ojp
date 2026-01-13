@@ -10,7 +10,6 @@ The OJP JDBC URL follows a specific format that wraps your existing database JDB
 
 ### URL Structure
 
-**[IMAGE PROMPT 1]**: Create a detailed URL anatomy diagram:
 Break down the OJP URL into components with labels and examples:
 - Protocol prefix (jdbc:ojp)
 - Server location [host:port]
@@ -62,7 +61,6 @@ jdbc:ojp[server-host:server-port(datasource-name)]_original-jdbc-url
 
 ### Multi-Database Examples
 
-**[IMAGE PROMPT 2]**: Create a reference card showing URL examples for all major databases:
 PostgreSQL, MySQL, MariaDB, H2, Oracle, SQL Server, DB2
 Show both before and after OJP URL format
 Use database vendor colors and logos
@@ -148,7 +146,6 @@ String opts = "jdbc:ojp[localhost:1059]_h2:~/testdb;AUTO_SERVER=TRUE";
 
 ### Connection Parameters
 
-**[IMAGE PROMPT 3]**: Create an infographic showing how parameters are passed through:
 Application → OJP URL with params → OJP Server → Database with params
 Highlight that database-specific parameters are preserved
 Use data flow diagram style
@@ -188,7 +185,6 @@ These pools run on the OJP Server side, but you configure them from the client s
 
 ### Configuration File Location
 
-**[IMAGE PROMPT 4]**: Create a file location diagram showing:
 - Classpath root (src/main/resources)
 - ojp.properties file
 - Application loading configuration
@@ -212,7 +208,6 @@ src/
 
 ### Basic Configuration
 
-**[IMAGE PROMPT 5]**: Create a configuration example showing:
 Default datasource configuration with common settings
 Side annotations explaining each property
 Use code editor style with syntax highlighting
@@ -248,7 +243,6 @@ ojp.connection.pool.leakDetectionThreshold=60000
 
 ### Configuration Reference
 
-**[IMAGE PROMPT 6]**: Create a comprehensive configuration reference table:
 Show all HikariCP properties with:
 - Property name
 - Default value
@@ -296,7 +290,6 @@ graph TB
 
 ### Pool Sizing Guidelines
 
-**[IMAGE PROMPT 7]**: Create an infographic showing pool sizing recommendations:
 Show relationship between: # of CPU cores, concurrent requests, optimal pool size
 Include formulas and examples for different workloads
 Use charts and calculations
@@ -383,7 +376,6 @@ ojp.connection.retry.backoffMs=1000
 
 ### Programmatic Configuration
 
-**[IMAGE PROMPT 8]**: Create a code example showing:
 Programmatic configuration via Properties object
 Setting properties before getting connection
 Use IDE/code style with syntax highlighting
@@ -428,7 +420,6 @@ public class OjpProgrammaticConfig {
 
 ### Environment-Specific Settings
 
-**[IMAGE PROMPT 9]**: Create a multi-environment configuration diagram:
 Show Development, Testing, Production environments
 Each with different pool sizes and timeouts
 Use environment-specific color coding
@@ -486,7 +477,6 @@ Integrate OJP with popular Java frameworks while avoiding common pitfalls.
 
 ### Disabling Application-Level Pooling
 
-**[IMAGE PROMPT 10]**: Create a "do's and don'ts" infographic:
 DON'T: Application pool + OJP pool (double pooling)
 DO: Direct connection + OJP pool
 Show resource waste in double pooling scenario
@@ -585,7 +575,6 @@ Both Quarkus and Micronaut also require special configuration to avoid double-po
 
 ### Transaction Management
 
-**[IMAGE PROMPT 12]**: Create a transaction flow diagram:
 Show: Application → Transaction Manager → OJP Connection → Database
 Highlight that standard JTA/JDBC transactions work normally
 Use transaction sequence diagram style

@@ -10,7 +10,6 @@ OJP Server includes built-in support for popular open-source databases, making i
 
 ### Included Databases
 
-**[IMAGE PROMPT 1]**: Create an infographic showing the four included open-source databases:
 - H2 (with logo) - Embedded/file-based
 - PostgreSQL (with logo) - Enterprise-grade
 - MySQL (with logo) - Widely-used
@@ -49,7 +48,6 @@ These drivers come pre-installed in Docker images, making deployment instant. Fo
 
 ### Using Docker with Open Source Drivers
 
-**[IMAGE PROMPT 2]**: Create a step-by-step visual guide showing:
 Step 1: Docker pull command
 Step 2: Docker run with included drivers
 Step 3: Instant connection to any of the 4 databases
@@ -158,7 +156,6 @@ This approach is ideal when you want to version and distribute a standardized OJ
 
 ### Automatic Driver Download (Runnable JAR)
 
-**[IMAGE PROMPT 3]**: Create a visual showing the download-drivers.sh script in action:
 Show script downloading from Maven Central
 Progress indicators for each driver
 Files appearing in ojp-libs directory
@@ -201,7 +198,6 @@ java -Dojp.libs.path=/opt/ojp/drivers -jar ojp-server.jar
 
 ### Driver Verification
 
-**[IMAGE PROMPT 4]**: Create a verification checklist infographic showing:
 - Check files exist in ojp-libs
 - Check file sizes match expected
 - Check server logs for driver loading
@@ -251,7 +247,6 @@ For Oracle, SQL Server, DB2, and other proprietary databases, you need to add dr
 
 ### Supported Proprietary Databases
 
-**[IMAGE PROMPT 5]**: Create a database support matrix infographic:
 LEFT: Proprietary databases (Oracle, SQL Server, DB2) with logos
 CENTER: "Add driver" arrow indicating manual step
 RIGHT: OJP Server with support enabled
@@ -297,7 +292,6 @@ graph LR
 
 ### Oracle Database Setup
 
-**[IMAGE PROMPT 6]**: Create a step-by-step Oracle setup guide:
 Step 1: Download ojdbc11.jar from Oracle
 Step 2: Place in ojp-libs directory
 Step 3: (Optional) Add UCP jars for XA support
@@ -347,7 +341,6 @@ docker run -d \
 
 #### Oracle with UCP (Optional - Advanced)
 
-**[IMAGE PROMPT 7]**: Create a diagram showing Oracle UCP integration:
 Show OJP Server → Oracle UCP → Oracle Database
 Highlight XA transaction support
 Include SPI implementation requirement
@@ -389,7 +382,6 @@ String racUrl = "jdbc:ojp[localhost:1059]_oracle:thin:@" +
 
 ### SQL Server Setup
 
-**[IMAGE PROMPT 8]**: Create a SQL Server setup guide:
 Step 1: Download mssql-jdbc jar from Microsoft
 Step 2: Place in ojp-libs directory
 Step 3: Restart OJP Server
@@ -435,7 +427,6 @@ String sslUrl = "jdbc:ojp[localhost:1059]_sqlserver://localhost:1433;" +
 
 ### DB2 Setup
 
-**[IMAGE PROMPT 9]**: Create a DB2 setup guide:
 Step 1: Locate db2jcc*.jar in DB2 installation or download from IBM
 Step 2: Place in ojp-libs directory
 Step 3: Optional license jar for specific features
@@ -472,7 +463,6 @@ String propsUrl = "jdbc:ojp[localhost:1059]_db2://localhost:50000/mydb:" +
 
 ### CockroachDB Setup
 
-**[IMAGE PROMPT 10]**: Create an infographic showing CockroachDB compatibility:
 Show CockroachDB logo with PostgreSQL driver
 Indicate "wire-compatible" connection
 Highlight that no additional driver needed
@@ -503,7 +493,6 @@ OJP provides a flexible mechanism for adding any JAR file to the server classpat
 
 ### How It Works
 
-**[IMAGE PROMPT 11]**: Create an architecture diagram showing:
 - ojp-libs directory on filesystem
 - OJP Server ClassLoader scanning directory
 - All JARs loaded at startup
@@ -569,7 +558,6 @@ ojp-libs/
 
 ### Adding Custom Libraries
 
-**[IMAGE PROMPT 12]**: Create a use case diagram showing different types of libraries:
 - JDBC Drivers (database connectivity)
 - Connection Pools (Oracle UCP, HikariCP variants)
 - Monitoring/Telemetry (custom exporters)
@@ -668,7 +656,6 @@ Verify your database driver configuration with these testing strategies.
 
 ### Local Database Testing
 
-**[IMAGE PROMPT 13]**: Create a testing workflow diagram:
 Step 1: Start local database (Docker/Native)
 Step 2: Start OJP Server with drivers
 Step 3: Test connection from application
@@ -679,7 +666,6 @@ Professional testing guide
 
 #### H2 Database (Embedded)
 
-**[IMAGE PROMPT 14]**: Create a quick H2 testing guide:
 Show H2 in-memory and file-based modes
 Include console access instructions
 Display connection success indicators
@@ -746,7 +732,6 @@ Connection conn = DriverManager.getConnection(url, "root", "mysql");
 
 ### Docker Compose for Multi-Database Testing
 
-**[IMAGE PROMPT 15]**: Create a Docker Compose architecture diagram:
 Show OJP Server container + multiple database containers
 All connected on same network
 Clear port mappings and service names
@@ -815,7 +800,6 @@ String maUrl = "jdbc:ojp[localhost:1059]_mariadb://mariadb:3306/testdb";
 
 ### Testcontainers Integration
 
-**[IMAGE PROMPT 16]**: Create a Testcontainers workflow diagram:
 Show: JUnit test → Testcontainers starts DB → OJP connects → Test runs → Cleanup
 Include code snippets and Docker icons
 Use testing framework style
@@ -888,7 +872,6 @@ cat ojp-server.log | grep -i "driver"
 
 ### Connection Test Utility
 
-**[IMAGE PROMPT 17]**: Create a visual test utility interface mockup:
 Show input fields for database type, host, port, credentials
 Test button
 Success/failure results with connection details
