@@ -471,30 +471,47 @@ Professional technical infographic style
 
 #### Modern Pool Sizing Formula
 
-For modern cloud and SSD-based deployments, the traditional spindle-count formula is outdated. Here's a more practical approach:
+For modern cloud and SSD-based deployments, the traditional spindle-count formula is outdated. Research and production data show that smaller pool sizes often perform better than traditional formulas suggest.
 
 **Modern Formula** (recommended for SSD/cloud databases):
 ```
-pool_size = (target_concurrency * 2) + extra_buffer
+pool_size = T_n × (C_m / T_m) + buffer
 ```
 
 Where:
-- `target_concurrency` = number of queries you expect to run simultaneously
-- `extra_buffer` = 2-5 connections for overhead (monitoring, health checks)
+- `T_n` = Number of threads (concurrent request handlers in your application)
+- `C_m` = Average database query time (milliseconds)
+- `T_m` = Average think time between queries (milliseconds)
+- `buffer` = Small safety margin (typically 2-5 connections)
 
-**Example**: If you expect 20 concurrent queries at peak load, set pool size to `(20 * 2) + 5 = 45 connections`
+**Simplified Rule of Thumb**: For most modern OLTP workloads with sub-10ms queries:
+```
+pool_size ≈ number_of_cpu_cores + 2
+```
+
+**Example 1** (High-frequency OLTP): 
+- 50 application threads
+- 5ms average query time
+- 25ms think time between queries
+- Pool size = 50 × (5/25) + 3 = 13 connections
+
+**Example 2** (Simple rule): 
+- 8-core database server
+- Pool size = 8 + 2 = 10 connections
 
 **Why This Works Better**:
-- SSDs and cloud storage don't have spindle contention
-- Modern databases use connection pooling internally
-- Focuses on actual concurrency needs, not hardware mechanics
-- Simpler to understand and tune
+- **SSDs eliminate I/O wait**: Modern storage doesn't block on disk seeks
+- **Context switching overhead**: Too many connections cause CPU thrashing
+- **Research-backed**: Studies show pools larger than (cores × 2) rarely help and often hurt performance
+- **Real-world validation**: PostgreSQL, MySQL, and Oracle all recommend similar conservative sizing
+
+**Key Insight**: With modern hardware, the bottleneck is rarely I/O—it's CPU scheduling. A connection doing actual work needs a CPU core. Having 100 connections on an 8-core database means 92 connections are just waiting, consuming memory and causing context switch overhead.
 
 **Traditional Formula** (for spinning disk legacy systems):
 ```
 connections = ((core_count * 2) + effective_spindle_count)
 ```
-This formula is still valid for traditional on-premise databases with spinning disks, where disk I/O is the bottleneck.
+This formula made sense when databases were I/O-bound waiting for spinning disks. With mechanical drives, having extra connections meant some could compute while others waited for disk I/O. Modern SSDs with microsecond latencies have eliminated this trade-off.
 
 OJP Server manages separate HikariCP pools for each database:
 
