@@ -89,11 +89,19 @@ public class PerformanceMetrics {
         stats.heapCommittedMb = memoryBean.getHeapMemoryUsage().getCommitted() / (1024.0 * 1024.0);
         
         // Collect CPU usage (if available)
-        OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
-        if (osBean instanceof com.sun.management.OperatingSystemMXBean) {
-            com.sun.management.OperatingSystemMXBean sunOsBean = (com.sun.management.OperatingSystemMXBean) osBean;
-            stats.processCpuLoad = sunOsBean.getProcessCpuLoad() * 100.0; // Convert to percentage
-            stats.systemCpuLoad = sunOsBean.getSystemCpuLoad() * 100.0;
+        // Using reflection to avoid hard dependency on com.sun.management APIs
+        try {
+            OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
+            Class<?> sunOsBeanClass = Class.forName("com.sun.management.OperatingSystemMXBean");
+            if (sunOsBeanClass.isInstance(osBean)) {
+                java.lang.reflect.Method getProcessCpuLoad = sunOsBeanClass.getMethod("getProcessCpuLoad");
+                java.lang.reflect.Method getSystemCpuLoad = sunOsBeanClass.getMethod("getSystemCpuLoad");
+                
+                stats.processCpuLoad = (Double) getProcessCpuLoad.invoke(osBean) * 100.0; // Convert to percentage
+                stats.systemCpuLoad = (Double) getSystemCpuLoad.invoke(osBean) * 100.0;
+            }
+        } catch (Exception e) {
+            // CPU metrics not available on this JVM, leave at -1
         }
         
         return stats;
@@ -103,13 +111,41 @@ public class PerformanceMetrics {
      * Container class for JVM statistics.
      */
     public static class JvmStatistics {
-        public long gcPauseTotalMs;
-        public long gcCount;
-        public double heapUsedMb;
-        public double heapMaxMb;
-        public double heapCommittedMb;
-        public double processCpuLoad;
-        public double systemCpuLoad;
+        private long gcPauseTotalMs;
+        private long gcCount;
+        private double heapUsedMb;
+        private double heapMaxMb;
+        private double heapCommittedMb;
+        private double processCpuLoad;
+        private double systemCpuLoad;
+        
+        public long getGcPauseTotalMs() {
+            return gcPauseTotalMs;
+        }
+        
+        public long getGcCount() {
+            return gcCount;
+        }
+        
+        public double getHeapUsedMb() {
+            return heapUsedMb;
+        }
+        
+        public double getHeapMaxMb() {
+            return heapMaxMb;
+        }
+        
+        public double getHeapCommittedMb() {
+            return heapCommittedMb;
+        }
+        
+        public double getProcessCpuLoad() {
+            return processCpuLoad;
+        }
+        
+        public double getSystemCpuLoad() {
+            return systemCpuLoad;
+        }
         
         @Override
         public String toString() {
