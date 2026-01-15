@@ -1,6 +1,5 @@
 package org.openjproxy.grpc.server;
 
-import com.google.protobuf.ByteString;
 import com.openjproxy.grpc.CallResourceRequest;
 import com.openjproxy.grpc.CallResourceResponse;
 import com.openjproxy.grpc.CallType;
@@ -29,7 +28,6 @@ import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.io.input.ReaderInputStream;
 import org.apache.commons.lang3.StringUtils;
 import org.openjproxy.constants.CommonConstants;
 import org.openjproxy.database.DatabaseUtils;
@@ -57,9 +55,7 @@ import org.openjproxy.xa.pool.spi.XAConnectionPoolProvider;
 import javax.sql.DataSource;
 import javax.sql.XAConnection;
 import javax.sql.XADataSource;
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.io.Reader;
 import java.io.Writer;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -93,7 +89,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.openjproxy.constants.CommonConstants.MAX_LOB_DATA_BLOCK_SIZE;
 import static org.openjproxy.grpc.server.Constants.EMPTY_LIST;
 import static org.openjproxy.grpc.server.Constants.EMPTY_MAP;
 import static org.openjproxy.grpc.server.GrpcExceptionHandler.sendSQLExceptionMetadata;
@@ -1190,197 +1185,18 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
 
     @Override
     public void readLob(ReadLobRequest request, StreamObserver<LobDataBlock> responseObserver) {
-        log.debug("Reading lob {}", request.getLobReference().getUuid());
-        try {
-            LobReference lobRef = request.getLobReference();
-            ReadLobContext readLobContext = this.findLobContext(request);
-            InputStream inputStream = readLobContext.getInputStream();
-            if (inputStream == null) {
-                responseObserver.onNext(LobDataBlock.newBuilder()
-                        .setSession(lobRef.getSession())
-                        .setPosition(-1)
-                        .setData(ByteString.copyFrom(new byte[0]))
-                        .build());
-                responseObserver.onCompleted();
-                return;
-            }
-            //If the lob length is known the exact size of the next block is also known.
-            boolean exactSizeKnown = readLobContext.getLobLength().isPresent() && readLobContext.getAvailableLength().isPresent();
-            int nextByte = inputStream.read();
-            int nextBlockSize = nextByte == -1 ? 1 : this.nextBlockSize(readLobContext, request.getPosition());
-            byte[] nextBlock = new byte[nextBlockSize];
-            int idx = -1;
-            int currentPos = (int) request.getPosition();
-            boolean nextBlockFullyEmpty = false;
-            while (nextByte != -1) {
-                nextBlock[++idx] = (byte) nextByte;
-                nextBlockFullyEmpty = false;
-                if (idx == nextBlockSize - 1) {
-                    currentPos += (idx + 1);
-                    log.info("Sending block of data size {} pos {}", idx + 1, currentPos);
-                    //Send data to client in limited size blocks to safeguard server memory.
-                    responseObserver.onNext(LobDataBlock.newBuilder()
-                            .setSession(lobRef.getSession())
-                            .setPosition(currentPos)
-                            .setData(ByteString.copyFrom(nextBlock))
-                            .build()
-                    );
-                    nextBlockSize = this.nextBlockSize(readLobContext, currentPos - 1);
-                    if (nextBlockSize > 0) {//Might be a single small block then nextBlockSize will return negative.
-                        nextBlock = new byte[nextBlockSize];
-                    } else {
-                        nextBlock = new byte[0];
-                    }
-                    nextBlockFullyEmpty = true;
-                    idx = -1;
-                }
-                nextByte = inputStream.read();
-            }
-
-            //Send leftover bytes
-            if (!nextBlockFullyEmpty && nextBlock.length > 0 && nextBlock[0] != -1) {
-
-                byte[] adjustedSizeArray = (idx % MAX_LOB_DATA_BLOCK_SIZE != 0 && !exactSizeKnown) ?
-                        trim(nextBlock) : nextBlock;
-                if (nextByte == -1 && adjustedSizeArray.length == 1 && adjustedSizeArray[0] != nextByte) {
-                    // For cases where the amount of bytes is a multiple of the block size and last read only reads the end of the stream.
-                    adjustedSizeArray = new byte[0];
-                }
-                currentPos = (int) request.getPosition() + idx;
-                log.info("Sending leftover bytes size {} pos {}", idx, currentPos);
-                responseObserver.onNext(LobDataBlock.newBuilder()
-                        .setSession(lobRef.getSession())
-                        .setPosition(currentPos)
-                        .setData(ByteString.copyFrom(adjustedSizeArray))
-                        .build()
-                );
-            }
-
-            responseObserver.onCompleted();
-
-        } catch (SQLException se) {
-            sendSQLExceptionMetadata(se, responseObserver);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private byte[] trim(byte[] nextBlock) {
-        int lastBytePos = 0;
-        for (int i = nextBlock.length - 1; i >= 0; i--) {
-            int currentByte = nextBlock[i];
-            if (currentByte != 0) {
-                lastBytePos = i;
-                break;
-            }
-        }
-
-        byte[] trimmedArray = new byte[lastBytePos + 1];
-        System.arraycopy(nextBlock, 0, trimmedArray, 0, lastBytePos + 1);
-        return trimmedArray;
+        new org.openjproxy.grpc.server.action.streaming.ReadLobAction(sessionManager)
+                .execute(request, responseObserver);
     }
 
     @Builder
-    static class ReadLobContext {
+    public static class ReadLobContext {
         @Getter
         private InputStream inputStream;
         @Getter
         private Optional<Long> lobLength;
         @Getter
         private Optional<Integer> availableLength;
-    }
-
-    @SneakyThrows
-    private ReadLobContext findLobContext(ReadLobRequest request) throws SQLException {
-        InputStream inputStream = null;
-        LobReference lobReference = request.getLobReference();
-        ReadLobContext.ReadLobContextBuilder readLobContextBuilder = ReadLobContext.builder();
-        switch (request.getLobReference().getLobType()) {
-            case LT_BLOB: {
-                inputStream = this.inputStreamFromBlob(sessionManager, lobReference, request, readLobContextBuilder);
-                break;
-            }
-            case LT_BINARY_STREAM: {
-                readLobContextBuilder.lobLength(Optional.empty());
-                readLobContextBuilder.availableLength(Optional.empty());
-                Object lobObj = sessionManager.getLob(lobReference.getSession(), lobReference.getUuid());
-                if (lobObj instanceof Blob) {
-                    inputStream = this.inputStreamFromBlob(sessionManager, lobReference, request, readLobContextBuilder);
-                } else if (lobObj instanceof InputStream) {
-                    inputStream = sessionManager.getLob(lobReference.getSession(), lobReference.getUuid());
-                    inputStream.reset();//Might be a second read of the same stream, this guarantees that the position is at the start.
-                    if (inputStream instanceof ByteArrayInputStream) {// Only used in SQL Server
-                        ByteArrayInputStream bais = (ByteArrayInputStream) inputStream;
-                        bais.reset();
-                        readLobContextBuilder.lobLength(Optional.of((long) bais.available()));
-                        readLobContextBuilder.availableLength(Optional.of(bais.available()));
-                    }
-                }
-                break;
-            }
-            case LT_CLOB: {
-                inputStream = this.inputStreamFromClob(sessionManager, lobReference, request, readLobContextBuilder);
-                break;
-            }
-        }
-        readLobContextBuilder.inputStream(inputStream);
-
-        return readLobContextBuilder.build();
-    }
-
-    @SneakyThrows
-    private InputStream inputStreamFromClob(SessionManager sessionManager, LobReference lobReference,
-                                            ReadLobRequest request,
-                                            ReadLobContext.ReadLobContextBuilder readLobContextBuilder) {
-        Clob clob = sessionManager.getLob(lobReference.getSession(), lobReference.getUuid());
-        long lobLength = clob.length();
-        readLobContextBuilder.lobLength(Optional.of(lobLength));
-        int availableLength = (request.getPosition() + request.getLength()) < lobLength ? request.getLength() :
-                (int) (lobLength - request.getPosition() + 1);
-        readLobContextBuilder.availableLength(Optional.of(availableLength));
-        Reader reader = clob.getCharacterStream(request.getPosition(), availableLength);
-        return ReaderInputStream.builder()
-                .setReader(reader)
-                .setCharset(StandardCharsets.UTF_8)
-                .getInputStream();
-    }
-
-    @SneakyThrows
-    private InputStream inputStreamFromBlob(SessionManager sessionManager, LobReference lobReference,
-                                            ReadLobRequest request,
-                                            ReadLobContext.ReadLobContextBuilder readLobContextBuilder) {
-        Blob blob = sessionManager.getLob(lobReference.getSession(), lobReference.getUuid());
-        long lobLength = blob.length();
-        readLobContextBuilder.lobLength(Optional.of(lobLength));
-        int availableLength = (request.getPosition() + request.getLength()) < lobLength ? request.getLength() :
-                (int) (lobLength - request.getPosition() + 1);
-        readLobContextBuilder.availableLength(Optional.of(availableLength));
-        return blob.getBinaryStream(request.getPosition(), availableLength);
-    }
-
-    private int nextBlockSize(ReadLobContext readLobContext, long position) {
-
-        //BinaryStreams do not have means to know the size of the lob like Blobs or Clobs.
-        if (readLobContext.getAvailableLength().isEmpty() || readLobContext.getLobLength().isEmpty()) {
-            return MAX_LOB_DATA_BLOCK_SIZE;
-        }
-
-        long lobLength = readLobContext.getLobLength().get();
-        int length = readLobContext.getAvailableLength().get();
-
-        //Single read situations
-        int nextBlockSize = Math.min(MAX_LOB_DATA_BLOCK_SIZE, length);
-        if ((int) lobLength == length && position == 1) {
-            return length;
-        }
-        int nextPos = (int) (position + nextBlockSize);
-        if (nextPos > lobLength) {
-            nextBlockSize = Math.toIntExact(nextBlockSize - (nextPos - lobLength));
-        } else if ((position + 1) % length == 0) {
-            nextBlockSize = 0;
-        }
-
-        return nextBlockSize;
     }
 
     @Override
