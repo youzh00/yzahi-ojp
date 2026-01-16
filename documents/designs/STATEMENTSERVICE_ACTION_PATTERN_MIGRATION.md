@@ -221,8 +221,96 @@ public interface StreamingAction<TRequest, TResponse> {
 }
 ```
 
-#### 3. InitAction & ValueAction
-For initialization and internal helpers.
+**Implementation Pattern:**
+```java
+@Slf4j
+public class CreateLobAction implements StreamingAction<LobDataBlock, LobReference> {
+    private static final CreateLobAction INSTANCE = new CreateLobAction();
+    
+    private CreateLobAction() {
+        // Private constructor prevents external instantiation
+    }
+    
+    public static CreateLobAction getInstance() {
+        return INSTANCE;
+    }
+    
+    @Override
+    public StreamObserver<LobDataBlock> execute(StreamObserver<LobReference> responseObserver) {
+        // Streaming action logic - stateless, returns StreamObserver for client streaming
+        return new StreamObserver<LobDataBlock>() {
+            // Implementation...
+        };
+    }
+}
+```
+
+**Examples**: createLob
+
+#### 3. InitAction
+For initialization operations that don't take request/response parameters.
+
+```java
+public interface InitAction {
+    void execute();
+}
+```
+
+**Implementation Pattern:**
+```java
+@Slf4j
+public class InitializeXAPoolProviderAction implements InitAction {
+    private static final InitializeXAPoolProviderAction INSTANCE = new InitializeXAPoolProviderAction();
+    
+    private InitializeXAPoolProviderAction() {
+        // Private constructor prevents external instantiation
+    }
+    
+    public static InitializeXAPoolProviderAction getInstance() {
+        return INSTANCE;
+    }
+    
+    @Override
+    public void execute() {
+        // Initialization logic - stateless
+    }
+}
+```
+
+**Examples**: initializeXAPoolProvider
+
+#### 4. ValueAction<TRequest, TResult>
+For internal helper operations that return a value directly (not via StreamObserver).
+
+```java
+public interface ValueAction<TRequest, TResult> {
+    TResult execute(TRequest request) throws Exception;
+}
+```
+
+**Implementation Pattern:**
+```java
+@Slf4j
+public class ExecuteUpdateInternalAction implements ValueAction<StatementRequest, OpResult> {
+    private static final ExecuteUpdateInternalAction INSTANCE = new ExecuteUpdateInternalAction();
+    
+    private ExecuteUpdateInternalAction() {
+        // Private constructor prevents external instantiation
+    }
+    
+    public static ExecuteUpdateInternalAction getInstance() {
+        return INSTANCE;
+    }
+    
+    @Override
+    public OpResult execute(StatementRequest request) throws Exception {
+        // Internal action logic - stateless, returns value directly
+        return OpResult.newBuilder().build();
+    }
+}
+```
+
+**Examples**: executeUpdateInternal, findLobContext, sessionConnection
 
 ### ActionContext
 
