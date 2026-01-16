@@ -24,8 +24,6 @@ public class CommitTransactionAction implements Action<SessionInfo, SessionInfo>
 
     private static final CommitTransactionAction INSTANCE = new CommitTransactionAction();
 
-    private final ActionContext context;
-
     /**
      * Realize a commit transaction.
     */

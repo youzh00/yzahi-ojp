@@ -1499,7 +1499,7 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
 
     @Override
     public void commitTransaction(SessionInfo sessionInfo, StreamObserver<SessionInfo> responseObserver) {
-        CommitTransactionAction.getInstance(actionContext).execute(sessionInfo, responseObserver);
+        CommitTransactionAction.getInstance().execute(sessionInfo, responseObserver);
     }
 
     @Override
