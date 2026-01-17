@@ -102,6 +102,7 @@ import org.openjproxy.grpc.server.action.resource.CallResourceAction;
 import org.openjproxy.grpc.server.action.xa.XaPrepareAction;
 import org.openjproxy.grpc.server.action.xa.XaCommitAction;
 import org.openjproxy.grpc.server.action.xa.XaRollbackAction;
+import org.openjproxy.grpc.server.action.xa.XaRecoverAction;
 
 @Slf4j
 public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceImplBase {
@@ -1660,33 +1661,7 @@ public class StatementServiceImpl extends StatementServiceGrpc.StatementServiceI
     @Override
     public void xaRecover(com.openjproxy.grpc.XaRecoverRequest request,
             StreamObserver<com.openjproxy.grpc.XaRecoverResponse> responseObserver) {
-        log.debug("xaRecover: session={}, flag={}",
-                request.getSession().getSessionUUID(), request.getFlag());
-
-        try {
-            Session session = sessionManager.getSession(request.getSession());
-            if (session == null || !session.isXA() || session.getXaResource() == null) {
-                throw new SQLException("Session is not an XA session");
-            }
-
-            javax.transaction.xa.Xid[] xids = session.getXaResource().recover(request.getFlag());
-
-            com.openjproxy.grpc.XaRecoverResponse.Builder responseBuilder = com.openjproxy.grpc.XaRecoverResponse
-                    .newBuilder()
-                    .setSession(session.getSessionInfo());
-
-            for (javax.transaction.xa.Xid xid : xids) {
-                responseBuilder.addXids(convertXidToProto(xid));
-            }
-
-            responseObserver.onNext(responseBuilder.build());
-            responseObserver.onCompleted();
-
-        } catch (Exception e) {
-            log.error("Error in xaRecover", e);
-            SQLException sqlException = (e instanceof SQLException) ? (SQLException) e : new SQLException(e);
-            sendSQLExceptionMetadata(sqlException, responseObserver);
-        }
+        XaRecoverAction.getInstance().execute(actionContext, request, responseObserver);
     }
 
     @Override
