@@ -373,19 +373,21 @@ ojp.loadaware.selection.enabled=true
 
 ### Server-Side Configuration
 
-Servers in a multinode cluster should be configured identically. They share the same database connection details, the same feature flags, and the same operational settings. The only differences might be infrastructure-related like hostnames or ports.
+Servers in a multinode cluster should be configured identically. They share the same operational settings and feature flags. The only differences might be infrastructure-related like server hostnames or ports.
 
-Each server's configuration file should specify:
+**Important Note**: Database connection details (JDBC URL, username, password) are provided by the client in the JDBC connection string and ojp.properties file, not in the OJP Server configuration. The server receives these details from client requests and uses them to establish database connections dynamically.
+
+Each server's configuration file (ojp-server.properties) should specify identical settings for:
 
 ```properties
-# Server connection details (same database for all servers)
-ojp.datasource.url=jdbc:postgresql://db-host:5432/mydb
-ojp.datasource.username=dbuser
-ojp.datasource.password=dbpassword
+# Server settings  
+ojp.server.port=1059
+ojp.server.threadPoolSize=200
+ojp.server.logLevel=ERROR
 
-# HikariCP pool configuration (same for all servers)
-ojp.datasource.hikari.maximumPoolSize=100
-ojp.datasource.hikari.minimumIdle=10
+# Circuit breaker
+ojp.server.circuitBreakerTimeout=60000
+ojp.server.circuitBreakerThreshold=3
 
 # Feature flags (same for all servers)
 ojp.server.slowQuerySegregation.enabled=true
