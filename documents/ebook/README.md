@@ -14,38 +14,19 @@ This comprehensive e-book provides complete documentation for Open-J-Proxy (OJP)
 
 **Last Updated Against Main Branch Commit:**
 ```
-Commit: c0b37ae14915a0e53e66ac34b3afa40c1b844a56
-Date: 2026-01-19 18:57:34 +0000
-Message: Merge pull request #282 from Open-J-Proxy/copilot/resolve-latest-pr-comments
+Commit: 05c75a6333926bda9931d6172900e6905473b927
+Date: 2026-01-19 20:50:25 +0000
+Message: Merge pull request #284 from Open-J-Proxy/copilot/evaluate-abandoned-sessions
 ```
 
 This e-book is fully synchronized with the latest features and implementations in the OJP main branch, including:
-- SQL Enhancer Engine with Apache Calcite integration
-- XA Pool Housekeeping Features (Leak Detection, Max Lifetime, Enhanced Diagnostics)
-- Schema Loader for real database metadata loading
-- Query Optimization with rule-based optimization
-- Technical accuracy improvements and documentation corrections (PR #282)
-
-## Recent Updates
-
-### 2026-01-19 Update (Commit c0b37ae - PR #282)
-
-This update incorporates technical accuracy improvements and documentation corrections from PR #282:
-
-**Chapters Updated:**
-- **Chapter 7 (Framework Integration)**: Clarified connection lifecycle management - updated language to accurately describe how local connection pools break OJP's lifecycle by never closing connections, rather than causing "double-pooling". This correction ensures readers understand the actual technical issue.
-  
-- **Chapter 8 (Slow Query Segregation)**: Enhanced scenario realism by updating from a single slow query example to a concurrent load scenario (25 reporting queries consuming a 30-connection pool), providing a more accurate representation of real-world performance challenges.
-
-- **Chapter 13 (Telemetry and Monitoring)**: Simplified monitoring capability claims to match actual implementation - documentation now accurately reflects log-based monitoring rather than referencing unimplemented Prometheus/OpenTelemetry segregation metrics.
-
-**Content Refinements:**
-- Improved product neutrality by using generic terminology ("connection pool", "maxPoolSize") instead of specific brand names where appropriate
-- Calibrated tone to reflect beta product status ("our experience" vs "production experience")
-- Removed documentation for unsupported time-based configuration features
-- Eliminated inconsistent timing references and orphaned diagram nodes
-
-For detailed technical changes, see [REVISION_NOTE.md](REVISION_NOTE.md).
+- **Core Architecture**: Action Pattern refactoring across StatementService (27+ PRs merged 2026-01-11 to 2026-01-19)
+- **Session Management**: Automatic cleanup for abandoned connections
+- **SQL Enhancer Engine**: Apache Calcite integration with query optimization, dialect translation, and complexity analysis
+- **Testing Infrastructure**: ojp-testcontainers module with Maven Central publishing
+- **XA Transactions**: Enhanced XA operations with singleton pattern and improved resource management
+- **Schema Loader**: Real database metadata loading for query optimization
+- **Community Growth**: Contributor recognition program with badge awards
 
 ## Table of Contents
 
@@ -169,4 +150,4 @@ This documentation follows the same license as the Open-J-Proxy project. See the
 ---
 
 **Last Updated**: 2026-01-19  
-**Version**: Synchronized with OJP main branch commit c0b37ae
+**Version**: Synchronized with OJP main branch commit 05c75a6
