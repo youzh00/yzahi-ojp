@@ -104,7 +104,7 @@ public class Db2SessionAffinityIntegrationTest {
 
             // Create temporary table
             log.debug("Creating complex temp table");
-            stmt.execute("DECLARE GLOBAL TEMPORARY TABLE temp_complex (id INT PRIMARY KEY, name VARCHAR(100), amount DECIMAL(10,2)) ON COMMIT PRESERVE ROWS");
+            stmt.execute("DECLARE GLOBAL TEMPORARY TABLE temp_complex (id INT NOT NULL, name VARCHAR(100), amount DECIMAL(10,2)) ON COMMIT PRESERVE ROWS");
 
             // Insert multiple rows
             log.debug("Inserting multiple rows");
