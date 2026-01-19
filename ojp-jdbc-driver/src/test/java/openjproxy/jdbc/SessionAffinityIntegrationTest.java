@@ -437,7 +437,10 @@ public class SessionAffinityIntegrationTest {
         } else {
             tableName = "temp_complex";
         }
-        return String.format("INSERT INTO %s VALUES (%d, '%s', %.2f)", tableName, id, name, amount);
+        // Note: In a production scenario, use PreparedStatement to avoid SQL injection.
+        // For test purposes with controlled input, string formatting is acceptable.
+        return String.format("INSERT INTO %s VALUES (%d, '%s', %.2f)", 
+                             tableName, id, name.replace("'", "''"), amount);
     }
 
     private String getUpdateComplexSQL(String url) {
