@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Picture this scenario: your application is humming along nicely, processing hundreds of quick database queries per second. Users are getting instant responses, everything feels snappy. Then someone runs a complex analytics query that takes minutes to complete, and suddenly the entire system grinds to a halt. Those fast queries that usually return in milliseconds are now waiting in line behind slow operations, and your users are staring at loading spinners.
+Picture this scenario: your application is humming along nicely, processing hundreds of quick database queries per second. Users are getting instant responses, everything feels snappy. Then end-of-month balance closure begins, launching 25 complex reporting queries simultaneously. With a pool of 30 connections, only 5 remain for everything else. When all 30 connections are consumed by these slow operations, the entire system grinds to a halt. Those fast queries that usually return in milliseconds are now waiting for heavy queries to complete, and your users are staring at loading spinners.
 
 This is the classic problem of resource contention in database systems. When slow operations monopolize connection pool resources, fast operations suffer unnecessarily. Open J Proxy's Slow Query Segregation feature solves this problem elegantly by learning which operations are slow and managing them separately from fast operations.
 
@@ -87,7 +87,7 @@ graph TD
 
 ### Execution Slot Management
 
-Here's where the magic happens. Once operations are classified, OJP manages their execution using a slot system. The total number of available slots is determined by your HikariCP connection pool size. By default, OJP allocates these slots with a 20/80 split: 20% for slow operations and 80% for fast operations.
+Here's where the magic happens. Once operations are classified, OJP manages their execution using a slot system. The total number of available slots is determined by your connection pool configured size. By default, OJP allocates these slots with a 20/80 split: 20% for slow operations and 80% for fast operations.
 
 When a request comes in, it must first acquire an appropriate slot before it can obtain a database connection and execute. A fast query requests a fast slot; a slow query requests a slow slot. If no slots of the appropriate type are available, the request waits (with configurable timeouts).
 
@@ -184,7 +184,7 @@ ojp.server.slowQuerySegregation.fastSlotTimeout=60000
 
 The default slow slot timeout is 120 seconds (2 minutes), reflecting the expectation that slow operations might take a while. The fast slot timeout defaults to 60 seconds (1 minute), which is generous for operations that should complete quickly. If a timeout occurs, the client receives an exception indicating that no slot was available within the timeout period.
 
-You might adjust these based on your SLAs and expected query durations. For example, if your fast queries should always complete within 5 seconds, you could set `fastSlotTimeout=5000` to fail fast when something is wrong.
+You might adjust these based on your SLAs and expected query durations. For example, if your fast queries take around 5 seconds to complete, you probably want a timeout of at least 5 seconds to avoid false positives.
 
 ### Idle Timeout for Borrowing
 
@@ -265,7 +265,7 @@ Understanding what the Slow Query Segregation feature is doing in your productio
 
 The feature exposes status information that shows the current state of the slot management system. This includes how many operations are being tracked, the current overall average execution time, and how slots are currently allocated (how many slow slots are in use, how many fast slots, how many are borrowed).
 
-You can access this information through OJP's management endpoints or via OpenTelemetry metrics if you have telemetry enabled. The information updates in real-time, giving you insight into system behavior under actual load.
+You can access basic status information through OJP's logging output, which includes slot usage and classification statistics. For production monitoring, consider implementing custom JMX beans or logging parsers to extract performance metrics.
 
 ### Per-Operation Classification
 
@@ -280,14 +280,9 @@ Over time, you can track how classification changes. This can reveal patterns li
 ```mermaid
 graph LR
     A[OJP Server] --> B[Performance Tracker]
-    B --> C[Metrics Exporter]
-    C --> D[Prometheus]
-    C --> E[OpenTelemetry Collector]
-    D --> F[Grafana Dashboard]
-    E --> F
-    
-    B --> G[Status Endpoint]
-    G --> H[Health Check]
+    B --> C[Log Output]
+    C --> D[Monitoring Tools]
+```
     G --> I[Admin UI]
 ```
 
@@ -329,15 +324,13 @@ When you enable the feature, it activates smoothly without requiring application
 
 ## Best Practices
 
-Based on production experience, here are some best practices for using Slow Query Segregation effectively.
+Based on our experience, here are some best practices for using Slow Query Segregation effectively.
 
 **Start with defaults**: The default configuration (enabled, 20% slow slots) works well for most applications. Start there and only tune if you observe specific issues or have special requirements.
 
 **Monitor before tuning**: Run with default settings for a few days while collecting metrics. Understand your actual workload before making configuration changes. You might be surprised by which queries are classified as slow.
 
 **Tune conservatively**: When you do adjust settings, make small changes and observe the impact. A 5% change in slot percentage can have significant effects. Going from 20% to 40% slow slots doubles the slow capacity but halves the fast capacity—make sure that trade-off makes sense.
-
-**Consider time-of-day patterns**: If your application has predictable patterns (like reports at night), you might adjust configuration dynamically. Most applications can use static configuration, but highly variable workloads might benefit from time-based adjustment.
 
 **Use timeouts appropriately**: The timeouts are safety nets, not performance tuning parameters. They should be generous enough that legitimate operations don't hit them during normal load. If timeouts are triggering frequently, you likely need more capacity (bigger pool or more servers) rather than shorter timeouts.
 
@@ -357,12 +350,12 @@ While Slow Query Segregation typically works smoothly, here are some common issu
 
 **Rapid classification changes**: If operations flip between fast and slow classification frequently, it might indicate high variability in performance. This could be due to caching effects, lock contention, or query plan changes. Consider if the operation's performance is actually stable or if there's an underlying issue.
 
-**High slot contention**: If both fast and slow slots show high contention simultaneously, your overall pool size is likely too small for your workload. Increase the HikariCP `maximumPoolSize` to add more total slots.
+**High slot contention**: If both fast and slow slots show high contention simultaneously, your overall pool size is likely too small for your workload. Increase the `maxPoolSize` configuration to add more total slots.
 
 ## Summary
 
-Slow Query Segregation is one of OJP's most powerful features for maintaining application responsiveness under mixed workloads. By automatically learning which operations are slow, reserving resources for each operation type, and adapting to changing patterns, it protects your fast queries from being starved by slow ones while making efficient use of available resources.
+Slow Query Segregation helps maintain application responsiveness in scenarios where you have mixed workloads. By automatically learning which operations are slow and reserving separate resources for each operation type, it can help protect your fast queries from being starved by slow ones.
 
-The feature requires minimal configuration, adapts automatically to your workload, and provides clear observability into its operation. For applications that serve both interactive users and analytical workloads, it's a game-changer that directly translates to better user experience and more predictable performance characteristics.
+The feature requires minimal configuration and adapts automatically to your workload. For applications that serve both interactive users and analytical workloads, it can be beneficial, though results will vary based on your specific use case and query patterns.
 
 In the next chapter, we'll explore another feature that enhances availability and scalability: Multinode Deployment. While Slow Query Segregation ensures efficient use of resources on a single server, multinode deployment lets you spread load across multiple servers for even greater capacity and resilience.
