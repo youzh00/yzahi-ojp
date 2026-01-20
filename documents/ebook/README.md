@@ -6,9 +6,9 @@ This comprehensive e-book provides complete documentation for Open-J-Proxy (OJP)
 
 ## Content Overview
 
-**Total Content**: 822KB across 22 chapters + 4 appendices  
+**Total Content**: 822KB across 23 chapters + 4 appendices  
 **Visual Assets**: 227 AI-ready image prompts, 70 Mermaid diagrams  
-**Completion**: 100% (all 23 chapters written)
+**Completion**: 100% (all 24 chapters written)
 
 ## Documentation Version
 
@@ -33,8 +33,9 @@ Message: Merge pull request #284 from Open-J-Proxy/copilot/evaluate-abandoned-se
 - [Chapter 6: Server Configuration](part2-chapter6-server-configuration.md)
 - [Chapter 7: Framework Integration](part2-chapter7-framework-integration.md)
 
-### Part III: Advanced Features (5 chapters)
+### Part III: Advanced Features (6 chapters)
 - [Chapter 8: Slow Query Segregation](part3-chapter8-slow-query-segregation.md)
+- [Chapter 8a: SQL Enhancer Engine with Apache Calcite](part3-chapter8a-sql-enhancer.md)
 - [Chapter 9: Multinode Deployment](part3-chapter9-multinode-deployment.md)
 - [Chapter 10: XA Distributed Transactions](part3-chapter10-xa-transactions.md)
 - [Chapter 11: Security & Network Architecture](part3-chapter11-security.md)
