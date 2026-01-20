@@ -235,22 +235,22 @@ On the client side, you can configure the XA connection pool through an `ojp.pro
 
 ```properties
 # Maximum total backend sessions per server
-ojp.xa.connection.pool.maxTotal=22
+xa.maxPoolSize=22
 
 # Minimum idle sessions to maintain
-ojp.xa.connection.pool.minIdle=20
+xa.minIdle=20
 
 # Timeout when borrowing sessions (milliseconds)
-ojp.xa.connection.pool.maxWaitMillis=20000
+xa.connectionTimeoutMs=20000
 
 # Idle session eviction timeout (milliseconds)
-ojp.xa.connection.pool.idleTimeout=600000
+xa.idleTimeoutMs=600000
 
 # Maximum session lifetime (milliseconds)
-ojp.xa.connection.pool.maxLifetime=1800000
+xa.maxLifetimeMs=1800000
 ```
 
-In a multinode deployment, OJP automatically divides the pool size among servers. For example, with two servers and `maxTotal=22`, each server maintains a pool of 11 sessions. When a server fails, the remaining servers automatically expand their pools to compensate, and when the failed server recovers, pools rebalance back to their original sizes.
+In a multinode deployment, OJP automatically divides the pool size among servers. For example, with two servers and `xa.maxPoolSize=22`, each server maintains a pool of 11 sessions. When a server fails, the remaining servers automatically expand their pools to compensate, and when the failed server recovers, pools rebalance back to their original sizes.
 
 For basic programmatic setup, you create an `OjpXADataSource` instead of a regular `OjpDataSource`. The URL format follows the OJP standard, supporting both single-server and multinode configurations:
 
@@ -409,7 +409,9 @@ Effective monitoring is essential for XA deployments because distributed transac
 
 ### Pool Metrics
 
-OJP exposes comprehensive pool metrics through both debug logging and JMX. The most important metrics to monitor are active session count, idle session count, and pool wait times.
+OJP exposes comprehensive pool metrics through both debug logging and JMX/Prometheus. For HikariCP (non-XA), metrics are exposed via `HikariPoolMXBean` including active connections, idle connections, total connections, and threads awaiting connections. For XA pools (Apache Commons Pool 2), metrics are exposed through debug logging and enhanced diagnostics.
+
+The most important metrics to monitor are active session count, idle session count, and pool wait times.
 
 Active session count shows how many backend sessions are currently borrowed from the pool. If this number consistently approaches `maxTotal`, you may need to increase your pool size. Idle session count shows how many sessions are waiting in the pool. If this number is consistently low, increasing `minIdle` ensures better response times for bursts of traffic.
 
