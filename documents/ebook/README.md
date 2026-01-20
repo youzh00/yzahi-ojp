@@ -19,15 +19,6 @@ Date: 2026-01-19 20:50:25 +0000
 Message: Merge pull request #284 from Open-J-Proxy/copilot/evaluate-abandoned-sessions
 ```
 
-This e-book is fully synchronized with the latest features and implementations in the OJP main branch, including:
-- **Core Architecture**: Action Pattern refactoring across StatementService (27+ PRs merged 2026-01-11 to 2026-01-19)
-- **Session Management**: Automatic cleanup for abandoned connections
-- **SQL Enhancer Engine**: Apache Calcite integration with query optimization, dialect translation, and complexity analysis
-- **Testing Infrastructure**: ojp-testcontainers module with Maven Central publishing
-- **XA Transactions**: Enhanced XA operations with singleton pattern and improved resource management
-- **Schema Loader**: Real database metadata loading for query optimization
-- **Community Growth**: Contributor recognition program with badge awards
-
 ## Table of Contents
 
 ### Part I: Foundation (4 chapters)

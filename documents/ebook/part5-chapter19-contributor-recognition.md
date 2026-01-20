@@ -249,52 +249,11 @@ Champions are typically contributors whose names come up frequently in community
 
 ## Current Badge Holders
 
-The OJP Recognition Program has awarded badges to contributors from around the world, representing diverse backgrounds and contribution styles. Here's a snapshot of current badge holders (as of January 2026):
+The OJP Recognition Program has awarded badges to contributors from around the world. For the complete and up-to-date list of all badge holders with their contributions, please visit:
 
-### Advanced Level
+**[OJP Badge Holders - Official Recognition Page](https://github.com/Open-J-Proxy/ojp/blob/main/CONTRIBUTORS.md)**
 
-**Jether Rodrigues** - OJP Community Leader (Brazil)
-- Recognized for organizing OJP-related events and building community engagement initiatives
-
-### Intermediate Level
-
-**Saulo Benedetti** - OJP Evangelist (Brazil)
-**Ediel Queiroz** - OJP Evangelist (Portugal, originally from Brazil)
-**Jether Rodrigues** - OJP Evangelist (Brazil)
-- These evangelists have consistently created content, given talks, and spread awareness of OJP
-
-**Roger Floriano** - OJP Quality Advocate (Canada, originally from Brazil)
-- Recognized for systematic testing and quality improvements
-
-### Entry Level
-
-The OJP project has awarded entry-level badges to contributors across all four tracks:
-
-**Code Contributors**: Luis Benavides Gimenez (Chile), Youssef Zahi (Morocco), Oussama Baccara (Tunisia), Ediel Queiroz, Gustavo Lima, Jether Rodrigues, Diego Vagliati, Roger Floriano, **Felipe Stanzani (Brazil, awarded January 14, 2026)**, **Matheus Andre (Brazil, awarded January 18, 2026)**
-
-**Advocates**: Robinson Severo, George Leon (Greece), Alan Jesus, Vitor Araujo, Gustavo Lima, Ediel Queiroz, Roger Floriano, Ingrid Adine, Saulo Benedetti, Jether Rodrigues
-
-**Documenters**: Ediel Queiroz, Jether Rodrigues, Alan Jesus, Vitor Araujo
-
-**Testers**: Roger Floriano
-
-### Recent Badge Awards (January 2026)
-
-**Felipe Stanzani** - OJP Contributor (January 14, 2026)
-- Awarded for implementing the Action Pattern refactoring across XA transaction operations
-- Key contributions: XaForgetAction, XaSetTransactionTimeoutAction, XaGetTransactionTimeoutAction, XaIsSameRMAction, ReadLobAction
-- Impact: Modernized StatementServiceImpl architecture, reducing complexity and improving testability
-- Multiple merged PRs demonstrating deep understanding of XA protocol and database abstractions
-
-**Matheus Andre** - OJP Contributor (January 18, 2026)
-- Awarded for comprehensive XA operations refactoring to Action Pattern
-- Key contributions: XaStartAction, XaEndAction, XaPrepareAction, XaCommitAction, XaRollbackAction, XaRecoverAction
-- Impact: Completed the XA operations modernization, making distributed transaction handling more maintainable
-- Sustained engagement across multiple PRs with high code quality and thorough testing
-
-These recent awards highlight the project's ongoing growth and the value of contributors who tackle complex architectural improvements. Both Felipe and Matheus demonstrated the quality and sustained engagement that defines OJP's Code track Entry level.
-
-This diverse group demonstrates that OJP recognition spans continents, backgrounds, and contribution styles—anyone can earn badges through meaningful contributions.
+This page is maintained with current badge recipients across all tracks and levels, including recent awards and detailed contribution descriptions.
 
 ## Contributing to Multiple Tracks
 
