@@ -44,18 +44,21 @@ public class Db2SessionAffinityIntegrationTest {
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
 
+        // Generate unique table name to avoid conflicts with previous test runs
+        String tableName = "temp_session_test_" + System.currentTimeMillis();
+        
         try (Statement stmt = conn.createStatement()) {
             // Create declared global temporary table (this should trigger session affinity)
-            log.debug("Creating DB2 declared global temporary table");
-            stmt.execute("DECLARE GLOBAL TEMPORARY TABLE temp_session_test (id INT, value VARCHAR(100)) ON COMMIT PRESERVE ROWS");
+            log.debug("Creating DB2 declared global temporary table: {}", tableName);
+            stmt.execute("DECLARE GLOBAL TEMPORARY TABLE " + tableName + " (id INT, value VARCHAR(100)) ON COMMIT PRESERVE ROWS");
 
             // Insert data into temporary table (should use same session)
             log.debug("Inserting data into temporary table");
-            stmt.execute("INSERT INTO SESSION.temp_session_test VALUES (1, 'test_value')");
+            stmt.execute("INSERT INTO SESSION." + tableName + " VALUES (1, 'test_value')");
 
             // Query temporary table (should use same session)
             log.debug("Querying temporary table");
-            ResultSet rs = stmt.executeQuery("SELECT id, value FROM SESSION.temp_session_test");
+            ResultSet rs = stmt.executeQuery("SELECT id, value FROM SESSION." + tableName);
             
             // Verify data was inserted and retrieved successfully
             Assert.assertTrue("Should have at least one row in temporary table", rs.next());
@@ -87,24 +90,27 @@ public class Db2SessionAffinityIntegrationTest {
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
 
+        // Generate unique table name to avoid conflicts with previous test runs
+        String tableName = "temp_complex_" + System.currentTimeMillis();
+        
         try (Statement stmt = conn.createStatement()) {
             // Create temporary table
-            log.debug("Creating complex temp table");
-            stmt.execute("DECLARE GLOBAL TEMPORARY TABLE temp_complex (id INT NOT NULL, name VARCHAR(100), amount DECIMAL(10,2)) ON COMMIT PRESERVE ROWS");
+            log.debug("Creating complex temp table: {}", tableName);
+            stmt.execute("DECLARE GLOBAL TEMPORARY TABLE " + tableName + " (id INT NOT NULL, name VARCHAR(100), amount DECIMAL(10,2)) ON COMMIT PRESERVE ROWS");
 
             // Insert multiple rows
             log.debug("Inserting multiple rows");
-            stmt.execute("INSERT INTO SESSION.temp_complex VALUES (1, 'Alice', 100.50)");
-            stmt.execute("INSERT INTO SESSION.temp_complex VALUES (2, 'Bob', 200.75)");
-            stmt.execute("INSERT INTO SESSION.temp_complex VALUES (3, 'Charlie', 150.25)");
+            stmt.execute("INSERT INTO SESSION." + tableName + " VALUES (1, 'Alice', 100.50)");
+            stmt.execute("INSERT INTO SESSION." + tableName + " VALUES (2, 'Bob', 200.75)");
+            stmt.execute("INSERT INTO SESSION." + tableName + " VALUES (3, 'Charlie', 150.25)");
 
             // Update a row
             log.debug("Updating a row");
-            stmt.executeUpdate("UPDATE SESSION.temp_complex SET amount = amount + 50.00 WHERE id = 2");
+            stmt.executeUpdate("UPDATE SESSION." + tableName + " SET amount = amount + 50.00 WHERE id = 2");
 
             // Query and verify
             log.debug("Querying temp table");
-            ResultSet rs = stmt.executeQuery("SELECT id, name, amount FROM SESSION.temp_complex ORDER BY id");
+            ResultSet rs = stmt.executeQuery("SELECT id, name, amount FROM SESSION." + tableName + " ORDER BY id");
             
             int rowCount = 0;
             while (rs.next()) {
@@ -148,18 +154,21 @@ public class Db2SessionAffinityIntegrationTest {
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
 
+        // Generate unique table name to avoid conflicts with previous test runs
+        String tableName = "temp_persist_" + System.currentTimeMillis();
+        
         try (Statement stmt = conn.createStatement()) {
             // Create temp table
-            stmt.execute("DECLARE GLOBAL TEMPORARY TABLE temp_persist (id INT, data VARCHAR(100)) ON COMMIT PRESERVE ROWS");
+            stmt.execute("DECLARE GLOBAL TEMPORARY TABLE " + tableName + " (id INT, data VARCHAR(100)) ON COMMIT PRESERVE ROWS");
 
             // Start transaction and insert
             conn.setAutoCommit(false);
-            stmt.execute("INSERT INTO SESSION.temp_persist VALUES (1, 'in_transaction')");
+            stmt.execute("INSERT INTO SESSION." + tableName + " VALUES (1, 'in_transaction')");
             conn.commit();
 
             // Start another transaction and query (should still see the temp table)
             conn.setAutoCommit(false);
-            ResultSet rs = stmt.executeQuery("SELECT * FROM SESSION.temp_persist WHERE id = 1");
+            ResultSet rs = stmt.executeQuery("SELECT * FROM SESSION." + tableName + " WHERE id = 1");
             Assert.assertTrue("Should find row inserted in previous transaction", rs.next());
             Assert.assertEquals("Data should match", "in_transaction", rs.getString("data"));
             rs.close();
