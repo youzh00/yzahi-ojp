@@ -953,6 +953,70 @@ graph LR
 
 ---
 
+## 2.5 Action Pattern Architecture (Server-Side)
+
+**[IMAGE PROMPT 15]**: Create a modern architectural diagram showing the Action Pattern transformation:
+LEFT: "Before" - Large StatementServiceImpl monolith box (2500+ lines)
+RIGHT: "After" - Multiple focused Action class boxes (ConnectAction, CommitTransactionAction, ExecuteQueryAction, XaStartAction, etc.)
+Show transformation arrow in the middle labeled "Action Pattern Refactoring (2026-01)"
+Use clean, professional style with color coding: monolith in red, actions in green
+Include metrics: "1 class → 20+ Actions", "Better testability", "Reduced complexity"
+
+In January 2026, OJP underwent a significant architectural refactoring, transforming the StatementServiceImpl class from a 2,500+ line monolith into a collection of focused Action classes. This improved code maintainability, testability, and scalability.
+
+### The Action Pattern Approach
+
+The refactoring introduced a clean Action Pattern where each operation is encapsulated in its own class implementing a simple interface:
+
+```java
+public interface Action<T> {
+    T execute(ActionContext context) throws SQLException;
+}
+```
+
+The ActionContext serves as a data transfer object carrying all necessary state (session, connection, request, managers). All Action classes implement the singleton pattern for memory efficiency, with zero allocation overhead and thread-safe stateless design.
+
+### Core Action Categories
+
+Operations are organized into logical categories:
+
+**Connection & Session Management**: ConnectAction, CreateSlowQuerySegregationManagerAction, TerminateSessionAction
+
+**Transaction Operations**: CommitTransactionAction, RollbackTransactionAction
+
+**XA Transactions**: XaStartAction, XaEndAction, XaPrepareAction, XaCommitAction, XaRollbackAction, XaRecoverAction, XaForgetAction, plus timeout and resource management actions
+
+**LOB Operations**: CreateLobAction, ReadLobAction
+
+### Benefits Realized
+
+**Code Quality**: From one 2,500-line class to 20+ focused classes averaging 100-150 lines each, with improved cohesion and organization
+
+**Testability**: Each action can be unit tested independently with simplified mocking
+
+**Performance**: Singleton pattern eliminates object allocation overhead and reduces GC pressure
+
+**Developer Experience**: Easier code navigation, reduced merge conflicts, clear extension points
+
+### Implementation Example
+
+```java
+// After refactoring
+public ConnectResponse connect(ConnectRequest request) {
+    ActionContext context = ActionContext.builder()
+        .request(request)
+        .sessionManager(sessionManager)
+        .build();
+        
+    ConnectAction.getInstance().execute(context);
+    return buildResponse(context);
+}
+```
+
+The refactoring maintains full backward compatibility while making the internal implementation modular and maintainable. The phased rollout throughout January 2026 (PRs #261-#284) ensured continuous integration without disrupting development.
+
+---
+
 ## Summary
 
 OJP's architecture is built on three core components working in harmony:

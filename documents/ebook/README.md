@@ -14,16 +14,10 @@ This comprehensive e-book provides complete documentation for Open-J-Proxy (OJP)
 
 **Last Updated Against Main Branch Commit:**
 ```
-Commit: f9cc349edea210e0736a9ed44218f0d42e602ca6
-Date: 2026-01-11 10:22:42 +0000
-Message: Merge pull request #243 from Open-J-Proxy/copilot/implement-schema-loader
+Commit: 05c75a6333926bda9931d6172900e6905473b927
+Date: 2026-01-19 20:50:25 +0000
+Message: Merge pull request #284 from Open-J-Proxy/copilot/evaluate-abandoned-sessions
 ```
-
-This e-book is fully synchronized with the latest features and implementations in the OJP main branch, including:
-- SQL Enhancer Engine with Apache Calcite integration
-- XA Pool Housekeeping Features (Leak Detection, Max Lifetime, Enhanced Diagnostics)
-- Schema Loader for real database metadata loading
-- Query Optimization with rule-based optimization
 
 ## Table of Contents
 
@@ -146,5 +140,5 @@ This documentation follows the same license as the Open-J-Proxy project. See the
 
 ---
 
-**Last Updated**: 2026-01-11  
-**Version**: Synchronized with OJP main branch commit f9cc349
+**Last Updated**: 2026-01-19  
+**Version**: Synchronized with OJP main branch commit 05c75a6
