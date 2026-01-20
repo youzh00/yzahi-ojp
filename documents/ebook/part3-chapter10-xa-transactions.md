@@ -475,21 +475,22 @@ Session state errors indicate that operations executed in the wrong order. XA re
 ```mermaid
 stateDiagram-v2
     [*] --> NONEXISTENT
-    NONEXISTENT --> ACTIVE : start()
+    NONEXISTENT --> ACTIVE : start() - Session pinned
     ACTIVE --> ENDED : end()
     ENDED --> PREPARED : prepare()
     PREPARED --> COMMITTED : commit()
     PREPARED --> ROLLEDBACK : rollback()
-    COMMITTED --> [*]
-    ROLLEDBACK --> [*]
+    COMMITTED --> PENDING_CLOSE : Transaction complete
+    ROLLEDBACK --> PENDING_CLOSE : Transaction complete
+    PENDING_CLOSE --> [*] : XAConnection.close() - Session returned to pool
     
     ACTIVE --> ROLLEDBACK : rollback()
     ENDED --> ROLLEDBACK : rollback()
     
-    note right of ACTIVE : SQL execution allowed
-    note right of PREPARED : Session pinned
-    note right of COMMITTED : Session returned to pool
-    note right of ROLLEDBACK : Session returned to pool
+    note right of ACTIVE : SQL execution allowed<br/>Session pinned to this OJP instance
+    note right of PREPARED : Session remains pinned
+    note right of PENDING_CLOSE : Waiting for XAConnection.close()<br/>Session still pinned
+    note right of [*] : Session returned to pool only<br/>after BOTH conditions met:<br/>1) TX complete (commit/rollback)<br/>2) XAConnection.close() called
 ```
 
 ## Multinode XA Coordination
@@ -502,13 +503,11 @@ OJP's XA implementation integrates tightly with the multinode health checking sy
 
 Pool rebalancing is critical for maintaining consistent performance during server failures. Consider a three-server cluster with `maxTotal=33` (11 sessions per server). If one server fails, the remaining two servers immediately expand their pools to 16-17 sessions each, ensuring the cluster maintains the same total capacity. When the failed server recovers, pools rebalance back to 11 sessions per server.
 
-This rebalancing happens transparently to applications. Active transactions continue executing, and new transaction requests find adequate pool capacity waiting. The only observable effect is a slight increase in average pool utilization on the surviving servers.
+This rebalancing happens transparently to applications. Active transactions continue executing on healthy servers, and new transaction requests find adequate pool capacity waiting. **Important**: In-flight XA transactions that have sessions pinned to a failed server will fail and need to be retried by the application or transaction manager. Once an XA session is established on a specific OJP server, it remains pinned to that server for the duration of the transaction to maintain XA integrity. The only observable effect under normal operation is a slight increase in average pool utilization on the surviving servers.
 
 ### Load Distribution
 
-OJP uses session count tracking to distribute XA transactions optimally across the cluster. When a client requests a new XA connection, OJP selects the server with the fewest active sessions. This load-aware selection provides significantly better distribution than simple round-robin, especially when transaction durations vary.
-
-The session count includes both active XA transactions and regular non-XA connections, providing accurate insight into each server's actual load. In practice, this approach distributes load within 10-15% variance across servers, compared to 30-40% variance with round-robin selection.
+OJP uses session count tracking to distribute both XA and non-XA connections optimally across the cluster. When a client requests a new XA connection, OJP selects the server with the fewest active sessions. Load distribution works the same way for XA transactions as for regular connections—the key difference is that once an XA transaction starts on a server, it remains pinned to that server for the entire transaction lifecycle to maintain XA session integrity.
 
 ### Cross-Database XA Transactions
 
