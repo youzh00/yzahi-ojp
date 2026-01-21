@@ -88,24 +88,27 @@ public class Db2SessionAffinityIntegrationTest {
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
         
-        try (Statement stmt = conn.createStatement()) {
-            // Try to create the declared global temporary table (this should trigger session affinity)
-            // If it already exists from a previous run, catch the duplicate error and just clear data
-            log.debug("Creating DB2 declared global temporary table: {}", SHARED_TABLE_NAME);
-            try {
-                stmt.execute("DECLARE GLOBAL TEMPORARY TABLE " + SHARED_TABLE_NAME + 
-                    " (id INT, value VARCHAR(100)) ON COMMIT PRESERVE ROWS");
-                log.debug("Successfully created temporary table");
-            } catch (SQLException e) {
-                // SQLCODE=-286 (SQLSTATE 42727) means table already exists - clear it and continue
-                if ("42727".equals(e.getSQLState())) {
-                    log.debug("Table already exists, clearing data");
-                    stmt.execute("DELETE FROM SESSION." + SHARED_TABLE_NAME);
-                } else {
-                    throw e;
-                }
+        // Try to create the declared global temporary table (this should trigger session affinity)
+        // If it already exists from a previous run, catch the duplicate error and just clear data
+        log.debug("Creating DB2 declared global temporary table: {}", SHARED_TABLE_NAME);
+        Statement createStmt = conn.createStatement();
+        try {
+            createStmt.execute("DECLARE GLOBAL TEMPORARY TABLE " + SHARED_TABLE_NAME + 
+                " (id INT, value VARCHAR(100)) ON COMMIT PRESERVE ROWS");
+            log.debug("Successfully created temporary table");
+        } catch (SQLException e) {
+            // SQLCODE=-286 (SQLSTATE 42727) means table already exists - clear it and continue
+            if ("42727".equals(e.getSQLState())) {
+                log.debug("Table already exists, clearing data");
+                createStmt.execute("DELETE FROM SESSION." + SHARED_TABLE_NAME);
+            } else {
+                throw e;
             }
-
+        } finally {
+            createStmt.close();
+        }
+        
+        try (Statement stmt = conn.createStatement()) {
             // Insert data into temporary table (should use same session)
             log.debug("Inserting data into temporary table");
             stmt.execute("INSERT INTO SESSION." + SHARED_TABLE_NAME + " VALUES (1, 'test_value')");
@@ -150,23 +153,26 @@ public class Db2SessionAffinityIntegrationTest {
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
         
-        try (Statement stmt = conn.createStatement()) {
-            // Try to create the table if it doesn't exist, or just clear data if it does
-            log.debug("Ensuring temp table exists: {}", SHARED_TABLE_NAME);
-            try {
-                stmt.execute("DECLARE GLOBAL TEMPORARY TABLE " + SHARED_TABLE_NAME + 
-                    " (id INT, value VARCHAR(100)) ON COMMIT PRESERVE ROWS");
-                log.debug("Successfully created temporary table");
-            } catch (SQLException e) {
-                // SQLCODE=-286 (SQLSTATE 42727) means table already exists - clear it and continue
-                if ("42727".equals(e.getSQLState())) {
-                    log.debug("Table already exists, clearing data");
-                    stmt.execute("DELETE FROM SESSION." + SHARED_TABLE_NAME);
-                } else {
-                    throw e;
-                }
+        // Try to create the table if it doesn't exist, or just clear data if it does
+        log.debug("Ensuring temp table exists: {}", SHARED_TABLE_NAME);
+        Statement createStmt = conn.createStatement();
+        try {
+            createStmt.execute("DECLARE GLOBAL TEMPORARY TABLE " + SHARED_TABLE_NAME + 
+                " (id INT, value VARCHAR(100)) ON COMMIT PRESERVE ROWS");
+            log.debug("Successfully created temporary table");
+        } catch (SQLException e) {
+            // SQLCODE=-286 (SQLSTATE 42727) means table already exists - clear it and continue
+            if ("42727".equals(e.getSQLState())) {
+                log.debug("Table already exists, clearing data");
+                createStmt.execute("DELETE FROM SESSION." + SHARED_TABLE_NAME);
+            } else {
+                throw e;
             }
-
+        } finally {
+            createStmt.close();
+        }
+        
+        try (Statement stmt = conn.createStatement()) {
             // Insert multiple rows
             log.debug("Inserting multiple rows");
             stmt.execute("INSERT INTO SESSION." + SHARED_TABLE_NAME + " VALUES (1, 'Alice')");
@@ -225,23 +231,26 @@ public class Db2SessionAffinityIntegrationTest {
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
         
-        try (Statement stmt = conn.createStatement()) {
-            // Try to create the table if it doesn't exist, or just clear data if it does
-            log.debug("Ensuring temp table exists: {}", SHARED_TABLE_NAME);
-            try {
-                stmt.execute("DECLARE GLOBAL TEMPORARY TABLE " + SHARED_TABLE_NAME + 
-                    " (id INT, value VARCHAR(100)) ON COMMIT PRESERVE ROWS");
-                log.debug("Successfully created temporary table");
-            } catch (SQLException e) {
-                // SQLCODE=-286 (SQLSTATE 42727) means table already exists - clear it and continue
-                if ("42727".equals(e.getSQLState())) {
-                    log.debug("Table already exists, clearing data");
-                    stmt.execute("DELETE FROM SESSION." + SHARED_TABLE_NAME);
-                } else {
-                    throw e;
-                }
+        // Try to create the table if it doesn't exist, or just clear data if it does
+        log.debug("Ensuring temp table exists: {}", SHARED_TABLE_NAME);
+        Statement createStmt = conn.createStatement();
+        try {
+            createStmt.execute("DECLARE GLOBAL TEMPORARY TABLE " + SHARED_TABLE_NAME + 
+                " (id INT, value VARCHAR(100)) ON COMMIT PRESERVE ROWS");
+            log.debug("Successfully created temporary table");
+        } catch (SQLException e) {
+            // SQLCODE=-286 (SQLSTATE 42727) means table already exists - clear it and continue
+            if ("42727".equals(e.getSQLState())) {
+                log.debug("Table already exists, clearing data");
+                createStmt.execute("DELETE FROM SESSION." + SHARED_TABLE_NAME);
+            } else {
+                throw e;
             }
-
+        } finally {
+            createStmt.close();
+        }
+        
+        try (Statement stmt = conn.createStatement()) {
             // Start transaction and insert
             conn.setAutoCommit(false);
             stmt.execute("INSERT INTO SESSION." + SHARED_TABLE_NAME + " VALUES (1, 'in_transaction')");
