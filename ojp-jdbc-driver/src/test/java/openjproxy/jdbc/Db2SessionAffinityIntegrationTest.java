@@ -3,6 +3,7 @@ package openjproxy.jdbc;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Assert;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
@@ -19,35 +20,49 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 /**
  * Integration tests for SQL session affinity feature with DB2 database.
- * Tests that declared global temporary tables work correctly across multiple
- * requests by ensuring session affinity.
  * 
- * <p><strong>DB2-Specific Test Design:</strong></p>
- * <p>Unlike other database integration tests, DB2 tests use a unique approach due to
- * DB2's declared global temporary table semantics:</p>
+ * <p><strong>⚠️ TESTS CURRENTLY DISABLED</strong></p>
  * 
+ * <p>These tests are disabled due to inconsistent DB2 behavior with declared global temporary tables.
+ * The issue has been observed both through OJP and when connecting directly to DB2, indicating this
+ * is a DB2-specific behavior rather than an OJP issue.</p>
+ * 
+ * <p><strong>Issue Description:</strong></p>
  * <ul>
- *   <li><strong>Session Persistence:</strong> DB2's DECLARE GLOBAL TEMPORARY TABLE creates
- *       tables that persist for the entire database session, not just a single transaction.</li>
- *   <li><strong>OJP Session Affinity:</strong> When using the OJP proxy URL 
- *       (jdbc:ojp[localhost:1059]_db2://...), the SQL pattern detector triggers session 
- *       affinity for DECLARE GLOBAL TEMPORARY TABLE statements. This binds all subsequent 
- *       operations to the same OJP session UUID, which in turn uses the same underlying 
- *       DB2 connection/session.</li>
- *   <li><strong>Shared State Across Tests:</strong> Because all test methods share the same
- *       DB2 session (via OJP session affinity), temporary tables created in one test remain
- *       visible in subsequent tests.</li>
+ *   <li><strong>Step 1:</strong> Execute {@code DECLARE GLOBAL TEMPORARY TABLE SESSION.temp_session_test ...}
+ *       for the first time in a fresh session.</li>
+ *   <li><strong>Expected:</strong> Table should be created successfully.</li>
+ *   <li><strong>Actual:</strong> DB2 returns SQLCODE=-286, SQLSTATE=42727 indicating "duplicate table name",
+ *       even though this is the first time the table is being declared in this session.</li>
+ *   <li><strong>Step 2:</strong> In the catch block, attempt to clean the supposedly existing table with
+ *       {@code DELETE FROM SESSION.temp_session_test} or query it.</li>
+ *   <li><strong>Expected:</strong> If table exists, DELETE should succeed.</li>
+ *   <li><strong>Actual:</strong> DB2 returns SQLCODE=-204, SQLSTATE=42704 indicating "table not found".</li>
  * </ul>
  * 
- * <p><strong>Solution:</strong> Tests are ordered using {@code @Order} annotations and reuse
- * a single temp table name ("temp_session_test"). The first test creates the table, and
- * subsequent tests simply clear the existing data with DELETE before using it. This approach:</p>
+ * <p>This contradictory behavior (table "exists" but "cannot be found") makes it impossible to write
+ * reliable integration tests for DB2 declared global temporary tables. The issue persists across
+ * different approaches:</p>
  * <ul>
- *   <li>Avoids SQLCODE=-286 (duplicate table name) errors</li>
- *   <li>Still properly tests session affinity behavior</li>
- *   <li>Reflects the actual usage pattern in production where the same session can be
- *       reused across multiple operations</li>
+ *   <li>Using qualified {@code SESSION.table_name} in DECLARE statement</li>
+ *   <li>Using separate Statement objects for create/cleanup vs. test operations</li>
+ *   <li>Attempting to DROP the table before DECLARE</li>
+ *   <li>Catching duplicate errors and attempting cleanup</li>
  * </ul>
+ * 
+ * <p><strong>Investigation Results:</strong></p>
+ * <ul>
+ *   <li>The behavior has been reproduced when connecting directly to DB2 (not through OJP)</li>
+ *   <li>This confirms the issue is with DB2 itself, not with OJP session affinity implementation</li>
+ *   <li>The SQL pattern detector correctly identifies DECLARE GLOBAL TEMPORARY TABLE and triggers
+ *       session affinity as expected</li>
+ * </ul>
+ * 
+ * <p><strong>Session Affinity Implementation Status:</strong></p>
+ * <p>Despite the disabled tests, the DB2 DECLARE GLOBAL TEMPORARY TABLE pattern is correctly
+ * detected by {@link org.openjproxy.grpc.server.sql.SqlSessionAffinityDetector} and will trigger
+ * session affinity in production usage. The tests are disabled only because DB2's inconsistent
+ * behavior makes automated testing unreliable.</p>
  * 
  * @see org.openjproxy.grpc.server.sql.SqlSessionAffinityDetector
  */
@@ -76,7 +91,10 @@ public class Db2SessionAffinityIntegrationTest {
      * 
      * <p>This test verifies that DECLARE GLOBAL TEMPORARY TABLE triggers session affinity
      * and subsequent operations use the same session/connection.</p>
+     * 
+     * <p><strong>DISABLED:</strong> See class-level documentation for explanation of DB2 inconsistent behavior.</p>
      */
+    @Disabled("DB2 exhibits inconsistent behavior with DECLARE GLOBAL TEMPORARY TABLE - see class javadoc")
     @Order(1)
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
@@ -141,7 +159,10 @@ public class Db2SessionAffinityIntegrationTest {
      * 
      * <p>The test clears existing data first, then performs INSERT, UPDATE, and SELECT
      * operations to verify session affinity is maintained across complex operations.</p>
+     * 
+     * <p><strong>DISABLED:</strong> See class-level documentation for explanation of DB2 inconsistent behavior.</p>
      */
+    @Disabled("DB2 exhibits inconsistent behavior with DECLARE GLOBAL TEMPORARY TABLE - see class javadoc")
     @Order(2)
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
@@ -219,7 +240,10 @@ public class Db2SessionAffinityIntegrationTest {
      * 
      * <p>The test clears existing data, inserts new data in a transaction, commits,
      * and then verifies the data is still accessible in a subsequent transaction.</p>
+     * 
+     * <p><strong>DISABLED:</strong> See class-level documentation for explanation of DB2 inconsistent behavior.</p>
      */
+    @Disabled("DB2 exhibits inconsistent behavior with DECLARE GLOBAL TEMPORARY TABLE - see class javadoc")
     @Order(3)
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
