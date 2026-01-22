@@ -4,7 +4,7 @@ This guide explains how to build and run the OJP Server as a standalone runnable
 
 ## Prerequisites
 
-- **Java 22 or higher** - Required for building and running OJP Server
+- **Java 21 or higher** - Required for building and running OJP Server
 - **Maven 3.9+** - Required for building the runnable JAR from source
 - **Git** - Required for cloning the repository (if building from source)
 
@@ -16,7 +16,7 @@ Verify your Java version before proceeding:
 java -version
 ```
 
-Expected output (version should be 22 or higher):
+Expected output (version should be 21 or higher):
 ```
 openjdk version "22.0.1" 2024-04-16
 OpenJDK Runtime Environment (build 22.0.1+8-16)
