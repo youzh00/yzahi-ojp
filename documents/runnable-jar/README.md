@@ -18,9 +18,9 @@ java -version
 
 Expected output (version should be 21 or higher):
 ```
-openjdk version "22.0.1" 2024-04-16
-OpenJDK Runtime Environment (build 22.0.1+8-16)
-OpenJDK 64-Bit Server VM (build 22.0.1+8-16, mixed mode, sharing)
+openjdk version "21.0.9" 2025-10-21
+OpenJDK Runtime Environment (build 21.0.9+10)
+OpenJDK 64-Bit Server VM (build 21.0.9+10, mixed mode, sharing)
 ```
 
 ## Building the Runnable JAR from Source
