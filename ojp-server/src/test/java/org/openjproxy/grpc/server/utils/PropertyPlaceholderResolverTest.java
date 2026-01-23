@@ -17,7 +17,11 @@ class PropertyPlaceholderResolverTest {
         System.clearProperty("ojp.server.sslrootcert");
         System.clearProperty("ojp.server.sslcert");
         System.clearProperty("ojp.server.sslkey");
-        System.clearProperty("test.property");
+        System.clearProperty("ojp.server.test");
+        System.clearProperty("ojp.server.trustStore");
+        System.clearProperty("ojp.server.trustStorePassword");
+        System.clearProperty("ojp.server.sslTrustStoreLocation");
+        System.clearProperty("ojp.client.config");
     }
     
     @AfterEach
@@ -26,7 +30,11 @@ class PropertyPlaceholderResolverTest {
         System.clearProperty("ojp.server.sslrootcert");
         System.clearProperty("ojp.server.sslcert");
         System.clearProperty("ojp.server.sslkey");
-        System.clearProperty("test.property");
+        System.clearProperty("ojp.server.test");
+        System.clearProperty("ojp.server.trustStore");
+        System.clearProperty("ojp.server.trustStorePassword");
+        System.clearProperty("ojp.server.sslTrustStoreLocation");
+        System.clearProperty("ojp.client.config");
     }
     
     @Test
@@ -177,34 +185,184 @@ class PropertyPlaceholderResolverTest {
     
     @Test
     void testResolvePlaceholderAtStartOfString() {
-        System.setProperty("test.property", "value");
+        System.setProperty("ojp.server.test", "value");
         
-        String input = "${test.property}-rest-of-string";
+        String input = "${ojp.server.test}-rest-of-string";
         String expected = "value-rest-of-string";
         String result = PropertyPlaceholderResolver.resolvePlaceholders(input);
         
         assertEquals(expected, result);
+        System.clearProperty("ojp.server.test");
     }
     
     @Test
     void testResolvePlaceholderAtEndOfString() {
-        System.setProperty("test.property", "value");
+        System.setProperty("ojp.server.test", "value");
         
-        String input = "start-of-string-${test.property}";
+        String input = "start-of-string-${ojp.server.test}";
         String expected = "start-of-string-value";
         String result = PropertyPlaceholderResolver.resolvePlaceholders(input);
         
         assertEquals(expected, result);
+        System.clearProperty("ojp.server.test");
     }
     
     @Test
     void testResolveMultipleSamePlaceholders() {
-        System.setProperty("test.property", "value");
+        System.setProperty("ojp.server.test", "value");
         
-        String input = "${test.property} and ${test.property} again";
+        String input = "${ojp.server.test} and ${ojp.server.test} again";
         String expected = "value and value again";
         String result = PropertyPlaceholderResolver.resolvePlaceholders(input);
         
         assertEquals(expected, result);
+        System.clearProperty("ojp.server.test");
+    }
+    
+    // Security validation tests
+    
+    @Test
+    void testValidPropertyNameWithOjpServerPrefix() {
+        assertTrue(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.sslrootcert"));
+        assertTrue(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.mysql.truststore"));
+        assertTrue(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.oracle.wallet.location"));
+        assertTrue(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.db2.keystore"));
+    }
+    
+    @Test
+    void testValidPropertyNameWithOjpClientPrefix() {
+        assertTrue(PropertyPlaceholderResolver.isValidPropertyName("ojp.client.config.value"));
+        assertTrue(PropertyPlaceholderResolver.isValidPropertyName("ojp.client.setting"));
+    }
+    
+    @Test
+    void testValidPropertyNameWithAllowedCharacters() {
+        // Test dots, hyphens, underscores, alphanumeric
+        assertTrue(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.ssl-root_cert.path123"));
+        assertTrue(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.config_value-test.abc"));
+    }
+    
+    @Test
+    void testInvalidPropertyNameWithoutWhitelistedPrefix() {
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("java.home"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("user.home"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("os.name"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("custom.property"));
+    }
+    
+    @Test
+    void testInvalidPropertyNameEmpty() {
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName(""));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName(null));
+    }
+    
+    @Test
+    void testInvalidPropertyNameWithDisallowedCharacters() {
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert;DROP TABLE"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert&malicious"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert|command"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert$exploit"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert(evil)"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert[test]"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert{test}"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert@test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert!test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert#test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert%test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert^test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert*test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert+test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert=test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert\\test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert/test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert<test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert>test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert?test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert:test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert\"test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert'test"));
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName("ojp.server.cert space"));
+    }
+    
+    @Test
+    void testInvalidPropertyNameTooLong() {
+        // The regex allows "ojp.server." (11 chars) + up to 200 chars = 211 total
+        // Create a property name with 212 characters to exceed the limit
+        String longSuffix = "a".repeat(201); // 201 + "ojp.server." (11 chars) = 212 chars
+        String longName = "ojp.server." + longSuffix;
+        assertFalse(PropertyPlaceholderResolver.isValidPropertyName(longName));
+    }
+    
+    @Test
+    void testSecurityExceptionForMaliciousPropertyName() {
+        String input = "jdbc:postgresql://host:5432/db?param=${java.home}";
+        
+        SecurityException exception = assertThrows(SecurityException.class, () -> {
+            PropertyPlaceholderResolver.resolvePlaceholders(input);
+        });
+        
+        assertTrue(exception.getMessage().contains("Security violation"));
+        assertTrue(exception.getMessage().contains("java.home"));
+        assertTrue(exception.getMessage().contains("does not match allowed pattern"));
+    }
+    
+    @Test
+    void testSecurityExceptionForSystemPropertyAccess() {
+        String input = "jdbc:postgresql://host:5432/db?param=${user.home}";
+        
+        SecurityException exception = assertThrows(SecurityException.class, () -> {
+            PropertyPlaceholderResolver.resolvePlaceholders(input);
+        });
+        
+        assertTrue(exception.getMessage().contains("Security violation"));
+        assertTrue(exception.getMessage().contains("user.home"));
+    }
+    
+    @Test
+    void testSecurityExceptionForArbitraryProperty() {
+        String input = "jdbc:postgresql://host:5432/db?param=${malicious.property}";
+        
+        SecurityException exception = assertThrows(SecurityException.class, () -> {
+            PropertyPlaceholderResolver.resolvePlaceholders(input);
+        });
+        
+        assertTrue(exception.getMessage().contains("Security violation"));
+        assertTrue(exception.getMessage().contains("malicious.property"));
+    }
+    
+    @Test
+    void testSecurityExceptionForCommandInjectionAttempt() {
+        String input = "jdbc:postgresql://host:5432/db?param=${ojp.server.cert;rm -rf /}";
+        
+        SecurityException exception = assertThrows(SecurityException.class, () -> {
+            PropertyPlaceholderResolver.resolvePlaceholders(input);
+        });
+        
+        assertTrue(exception.getMessage().contains("Security violation"));
+    }
+    
+    @Test
+    void testSecurityExceptionForPathTraversalAttempt() {
+        String input = "jdbc:postgresql://host:5432/db?param=${ojp.server../../../etc/passwd}";
+        
+        SecurityException exception = assertThrows(SecurityException.class, () -> {
+            PropertyPlaceholderResolver.resolvePlaceholders(input);
+        });
+        
+        assertTrue(exception.getMessage().contains("Security violation"));
+    }
+    
+    @Test
+    void testValidPropertyNamesResolveSuccessfully() {
+        System.setProperty("ojp.server.sslrootcert", "/etc/certs/ca.pem");
+        System.setProperty("ojp.client.config", "value123");
+        
+        String input = "url=${ojp.server.sslrootcert}&config=${ojp.client.config}";
+        String expected = "url=/etc/certs/ca.pem&config=value123";
+        String result = PropertyPlaceholderResolver.resolvePlaceholders(input);
+        
+        assertEquals(expected, result);
+        
+        System.clearProperty("ojp.client.config");
     }
 }

@@ -18,6 +18,10 @@ import java.util.regex.Pattern;
  * </ol>
  * </p>
  * 
+ * <p><strong>Security:</strong> Only property names matching the allowed pattern are resolved.
+ * Property names must start with a whitelisted prefix (e.g., "ojp.server.") to prevent
+ * malicious property access from compromised clients.</p>
+ * 
  * <p>Example usage:
  * <pre>
  * String url = "jdbc:postgresql://host:5432/db?sslrootcert=${ojp.server.sslrootcert}";
@@ -34,15 +38,36 @@ public class PropertyPlaceholderResolver {
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([^}]+)\\}");
     
     /**
+     * Pattern for validating property names.
+     * 
+     * <p>Property names must:
+     * <ul>
+     *   <li>Start with "ojp.server." or "ojp.client." (whitelisted prefixes)</li>
+     *   <li>Contain only alphanumeric characters, dots, hyphens, and underscores</li>
+     *   <li>Be between 1 and 200 characters in length</li>
+     * </ul>
+     * </p>
+     * 
+     * <p>This prevents access to arbitrary system properties and protects against
+     * potential security vulnerabilities if a client is compromised.</p>
+     */
+    private static final Pattern ALLOWED_PROPERTY_NAME_PATTERN = 
+        Pattern.compile("^(ojp\\.server\\.|ojp\\.client\\.)[a-zA-Z0-9._-]{1,200}$");
+    
+    /**
      * Resolves all placeholders in the given input string.
      * 
      * <p>Placeholders are in the format ${property.name}. The property value is looked up
      * first in JVM system properties, then in environment variables (with dots converted
      * to underscores and converted to uppercase).</p>
      * 
+     * <p><strong>Security:</strong> Only property names matching the whitelist pattern
+     * are resolved. This prevents malicious access to arbitrary system properties.</p>
+     * 
      * @param input The string containing placeholders to resolve
      * @return The string with all placeholders replaced by their values
-     * @throws IllegalArgumentException if a placeholder cannot be resolved
+     * @throws IllegalArgumentException if a placeholder cannot be resolved or contains an invalid property name
+     * @throws SecurityException if a placeholder references a property name that doesn't match the whitelist
      */
     public static String resolvePlaceholders(String input) {
         if (input == null || input.isEmpty()) {
@@ -54,6 +79,19 @@ public class PropertyPlaceholderResolver {
         
         while (matcher.find()) {
             String placeholder = matcher.group(1); // Extract property name without ${}
+            
+            // Validate property name against whitelist
+            if (!isValidPropertyName(placeholder)) {
+                String errorMsg = String.format(
+                    "Security violation: Property name '${%s}' does not match allowed pattern. " +
+                    "Property names must start with 'ojp.server.' or 'ojp.client.' and contain only " +
+                    "alphanumeric characters, dots, hyphens, and underscores (max 200 characters).",
+                    placeholder
+                );
+                logger.error(errorMsg);
+                throw new SecurityException(errorMsg);
+            }
+            
             String value = resolveProperty(placeholder);
             
             if (value == null) {
@@ -73,6 +111,23 @@ public class PropertyPlaceholderResolver {
         
         matcher.appendTail(result);
         return result.toString();
+    }
+    
+    /**
+     * Validates that a property name matches the allowed pattern.
+     * 
+     * <p>This is a security measure to prevent access to arbitrary system properties
+     * if a client is compromised. Only properties starting with whitelisted prefixes
+     * are allowed.</p>
+     * 
+     * @param propertyName The property name to validate
+     * @return true if the property name is valid, false otherwise
+     */
+    static boolean isValidPropertyName(String propertyName) {
+        if (propertyName == null || propertyName.isEmpty()) {
+            return false;
+        }
+        return ALLOWED_PROPERTY_NAME_PATTERN.matcher(propertyName).matches();
     }
     
     /**

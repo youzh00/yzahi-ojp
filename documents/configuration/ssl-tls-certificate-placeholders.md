@@ -30,6 +30,34 @@ ${ojp.server.trustStore}
 ${ojp.server.oracle.wallet.location}
 ```
 
+### Security Validation
+
+**Important**: For security, property names in placeholders are validated against a whitelist pattern to prevent unauthorized access to system properties if a client is compromised.
+
+**Allowed property names must:**
+- Start with `ojp.server.` or `ojp.client.` (whitelisted prefixes)
+- Contain only alphanumeric characters, dots (`.`), hyphens (`-`), and underscores (`_`)
+- Be between 1 and 200 characters in length (after the prefix)
+
+**Examples of valid property names:**
+```
+${ojp.server.sslrootcert}           ✓ Valid
+${ojp.server.mysql.truststore}      ✓ Valid
+${ojp.client.config-value}          ✓ Valid
+${ojp.server.ssl_root_cert.path}    ✓ Valid
+```
+
+**Examples of invalid property names (rejected for security):**
+```
+${java.home}                        ✗ Invalid - not whitelisted prefix
+${user.home}                        ✗ Invalid - not whitelisted prefix
+${ojp.server.cert;rm -rf /}         ✗ Invalid - contains semicolon
+${ojp.server.cert../../../passwd}   ✗ Invalid - path traversal attempt
+${ojp.server.cert|command}          ✗ Invalid - contains pipe character
+```
+
+If an invalid property name is detected, the server will throw a `SecurityException` and log the attempt, preventing the connection from being established.
+
 ## Configuration Methods
 
 ### JVM System Properties
@@ -509,12 +537,28 @@ Ensure the property is set either as a JVM property or environment variable befo
 
 ## Security Considerations
 
+### Placeholder Validation
+
+OJP implements strict security validation for property placeholders to protect against malicious attacks if a client is compromised:
+
+1. **Whitelist-based validation**: Only property names starting with `ojp.server.` or `ojp.client.` are allowed
+2. **Character restrictions**: Property names can only contain alphanumeric characters, dots, hyphens, and underscores
+3. **Length limits**: Property names are limited to 200 characters (after the prefix) to prevent DoS attacks
+4. **Injection prevention**: Special characters like semicolons, pipes, backslashes, and quotes are rejected
+5. **Path traversal protection**: Attempts like `../../../etc/passwd` are blocked
+
+If an invalid property name is detected, the server throws a `SecurityException`, logs the security violation, and rejects the connection attempt.
+
+### Certificate Management
+
 1. **Never commit certificates to version control**: Use placeholders in configuration files
 2. **Rotate certificates regularly**: Update property values when certificates are rotated
 3. **Limit file access**: Use restrictive file permissions (400 or 440)
 4. **Use strong passwords**: For keystores and truststores
 5. **Monitor certificate expiration**: Set up alerts for expiring certificates
 6. **Validate certificates**: Always use certificate validation in production (`sslmode=verify-full` for PostgreSQL, `trustServerCertificate=false` for SQL Server)
+7. **Separate environments**: Use different certificates for dev, staging, and production
+8. **Audit access**: Log and monitor access to certificate files and property configurations
 
 ## Additional Resources
 
