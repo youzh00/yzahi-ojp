@@ -73,6 +73,7 @@ public class GrpcServer {
                         config
                 ))
                 .addService(OjpHealthManager.getHealthStatusManager().getHealthService())
+                .intercept(new IpWhitelistingInterceptor(config.getAllowedIps()))
                 .intercept(grpcTelemetry.newServerInterceptor());
 
         Server server = serverBuilder.build();
