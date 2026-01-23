@@ -108,6 +108,165 @@ Connection backgroundConn = DriverManager.getConnection(
 3. Use either named datasource configuration or default configuration format
 4. The driver will automatically load and send these properties to the server when establishing a connection
 
+### Environment-Specific Configuration
+
+OJP supports environment-specific properties files, allowing you to maintain separate configurations for different environments (development, staging, production, etc.) **without requiring any custom code**.
+
+#### Naming Convention
+
+Use the following naming pattern for environment-specific properties files:
+
+- `ojp-dev.properties` - Development environment
+- `ojp-staging.properties` - Staging environment
+- `ojp-prod.properties` - Production environment
+- `ojp-test.properties` - Testing environment
+- `ojp-{environment}.properties` - Any custom environment name
+
+#### Environment Selection
+
+The environment is automatically determined by (in order of precedence):
+
+1. **System property**: `-Dojp.environment=dev`
+2. **Environment variable**: `OJP_ENVIRONMENT=dev`
+
+If no environment is specified, OJP loads the default `ojp.properties` file.
+
+#### Fallback Behavior
+
+- If an environment is specified but the environment-specific file doesn't exist, OJP automatically falls back to `ojp.properties`
+- This ensures backward compatibility and provides a safe default configuration
+
+#### Configuration Examples
+
+**Development Environment (`ojp-dev.properties`):**
+```properties
+# Development configuration - smaller pools, more logging
+ojp.connection.pool.maximumPoolSize=10
+ojp.connection.pool.minimumIdle=2
+ojp.connection.pool.connectionTimeout=30000
+ojp.connection.pool.idleTimeout=300000
+
+# XA settings for development
+ojp.xa.connection.pool.maxTotal=5
+ojp.xa.connection.pool.minIdle=1
+```
+
+**Staging Environment (`ojp-staging.properties`):**
+```properties
+# Staging configuration - moderate pools, production-like
+ojp.connection.pool.maximumPoolSize=20
+ojp.connection.pool.minimumIdle=5
+ojp.connection.pool.connectionTimeout=20000
+ojp.connection.pool.idleTimeout=600000
+
+# XA settings for staging
+ojp.xa.connection.pool.maxTotal=15
+ojp.xa.connection.pool.minIdle=3
+```
+
+**Production Environment (`ojp-prod.properties`):**
+```properties
+# Production configuration - optimized for high load
+ojp.connection.pool.maximumPoolSize=50
+ojp.connection.pool.minimumIdle=10
+ojp.connection.pool.connectionTimeout=15000
+ojp.connection.pool.idleTimeout=600000
+ojp.connection.pool.maxLifetime=1800000
+
+# XA settings for production
+ojp.xa.connection.pool.maxTotal=40
+ojp.xa.connection.pool.minIdle=8
+ojp.xa.connection.pool.connectionTimeout=25000
+
+# Production-specific datasources
+webapp.ojp.connection.pool.maximumPoolSize=60
+webapp.ojp.connection.pool.minimumIdle=15
+
+api.ojp.connection.pool.maximumPoolSize=40
+api.ojp.connection.pool.minimumIdle=10
+```
+
+#### Running with Environment-Specific Configuration
+
+**Using System Property:**
+```bash
+# Development
+java -Dojp.environment=dev -jar myapp.jar
+
+# Staging
+java -Dojp.environment=staging -jar myapp.jar
+
+# Production
+java -Dojp.environment=prod -jar myapp.jar
+```
+
+**Using Environment Variable:**
+```bash
+# Development
+export OJP_ENVIRONMENT=dev
+java -jar myapp.jar
+
+# Staging
+export OJP_ENVIRONMENT=staging
+java -jar myapp.jar
+
+# Production
+export OJP_ENVIRONMENT=prod
+java -jar myapp.jar
+```
+
+**Docker Deployment:**
+```yaml
+# docker-compose.yml
+services:
+  app-dev:
+    image: myapp:latest
+    environment:
+      - OJP_ENVIRONMENT=dev
+  
+  app-prod:
+    image: myapp:latest
+    environment:
+      - OJP_ENVIRONMENT=prod
+```
+
+**Kubernetes Deployment:**
+```yaml
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+spec:
+  template:
+    spec:
+      containers:
+      - name: myapp
+        image: myapp:latest
+        env:
+        - name: OJP_ENVIRONMENT
+          value: "prod"
+```
+
+#### Benefits
+
+- **No Custom Code Required**: Simply specify the environment and OJP automatically loads the correct configuration
+- **Single Application Package**: Deploy the same JAR/WAR to all environments with all configuration files included
+- **Clear Separation**: Each environment has its own clearly named configuration file
+- **Easy Testing**: Test different environment configurations locally by changing the environment variable
+- **Safe Defaults**: Falls back to `ojp.properties` if environment-specific file is missing
+- **Override Support**: Environment variables and system properties can still override file properties
+
+#### Example Configuration Files
+
+Complete example configuration files for different environments are available:
+
+- **[ojp-dev.properties](ojp-dev.properties)** - Development environment configuration
+- **[ojp-staging.properties](ojp-staging.properties)** - Staging environment configuration
+- **[ojp-prod.properties](ojp-prod.properties)** - Production environment configuration
+
+These examples demonstrate recommended settings for each environment and can be used as starting templates.
+
 | Property                              | Type | Default | Description                                              |
 |---------------------------------------|------|---------|----------------------------------------------------------|
 | `ojp.connection.pool.maximumPoolSize` | int  | 20      | Maximum number of connections in the pool                |
