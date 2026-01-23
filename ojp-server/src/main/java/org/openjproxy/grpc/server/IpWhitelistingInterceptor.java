@@ -54,7 +54,6 @@ public class IpWhitelistingInterceptor implements ServerInterceptor {
         }
         
         // IP is allowed, proceed with the call
-        logger.debug("IP whitelisting access allowed: clientIp={}, method={}", clientIp, methodName);
         return next.startCall(call, headers);
     }
     
