@@ -534,47 +534,66 @@ keytool -import -alias ca -file ca-cert.pem -keystore ojp-client-truststore.jks 
 
 ### Configuring OJP Server for mTLS
 
-Configure the OJP Server to require client certificates. These paths point to the keystore and truststore files on the OJP server machine:
+OJP Server supports three security modes: plaintext (default), server TLS, and mutual TLS (mTLS). Configure the server using JVM system properties or environment variables. These paths point to the keystore and truststore files on the OJP server machine.
+
+**Full mTLS Configuration (Both Server and Client Certificates):**
 
 ```bash
 # Start OJP Server with mTLS enabled
 # Note: Paths are actual file locations on the OJP server
 java -Dojp.server.tls.enabled=true \
-     -Dojp.server.tls.keystore.path=/etc/ojp/tls/ojp-server-keystore.jks \
+     -Dojp.server.tls.keystore.path=/etc/ojp/tls/server-keystore.jks \
      -Dojp.server.tls.keystore.password=changeit \
-     -Dojp.server.tls.truststore.path=/etc/ojp/tls/ojp-server-truststore.jks \
+     -Dojp.server.tls.truststore.path=/etc/ojp/tls/server-truststore.jks \
      -Dojp.server.tls.truststore.password=changeit \
-     -Dojp.server.tls.client.auth=REQUIRE \
+     -Dojp.server.tls.clientAuthRequired=true \
      -jar ojp-server.jar
 ```
 
-Or using environment variables:
+**Server TLS Only (No Client Certificate Required):**
+
+```bash
+# Encrypted communication without requiring client certificates
+java -Dojp.server.tls.enabled=true \
+     -Dojp.server.tls.keystore.path=/etc/ojp/tls/server-keystore.jks \
+     -Dojp.server.tls.keystore.password=changeit \
+     -Dojp.server.tls.clientAuthRequired=false \
+     -jar ojp-server.jar
+```
+
+**Using Environment Variables:**
 
 ```bash
 export OJP_SERVER_TLS_ENABLED=true
-export OJP_SERVER_TLS_KEYSTORE_PATH=/etc/ojp/tls/ojp-server-keystore.jks
+export OJP_SERVER_TLS_KEYSTORE_PATH=/etc/ojp/tls/server-keystore.jks
 export OJP_SERVER_TLS_KEYSTORE_PASSWORD=changeit
-export OJP_SERVER_TLS_TRUSTSTORE_PATH=/etc/ojp/tls/ojp-server-truststore.jks
+export OJP_SERVER_TLS_TRUSTSTORE_PATH=/etc/ojp/tls/server-truststore.jks
 export OJP_SERVER_TLS_TRUSTSTORE_PASSWORD=changeit
-export OJP_SERVER_TLS_CLIENT_AUTH=REQUIRE
+export OJP_SERVER_TLS_CLIENTAUTHREQUIRED=true
 
 java -jar ojp-server.jar
 ```
 
 **Configuration Properties Reference:**
 
-| Property | Description | Values |
-|----------|-------------|--------|
-| `ojp.server.tls.enabled` | Enable TLS for gRPC | `true`, `false` (default) |
-| `ojp.server.tls.keystore.path` | Server certificate keystore location | File path |
-| `ojp.server.tls.keystore.password` | Keystore password | Encrypted string |
-| `ojp.server.tls.truststore.path` | Client certificate truststore location | File path |
-| `ojp.server.tls.truststore.password` | Truststore password | Encrypted string |
-| `ojp.server.tls.client.auth` | Client certificate requirement | `NONE`, `OPTIONAL`, `REQUIRE` |
+| Property | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ojp.server.tls.enabled` | No | `false` | Enable/disable TLS for gRPC connections |
+| `ojp.server.tls.keystore.path` | Yes (if TLS enabled) | - | Server certificate keystore location |
+| `ojp.server.tls.keystore.password` | Yes | - | Keystore password |
+| `ojp.server.tls.keystore.type` | No | `JKS` | Keystore type (JKS, PKCS12, etc.) |
+| `ojp.server.tls.truststore.path` | For mTLS | JVM default | Client certificate truststore location |
+| `ojp.server.tls.truststore.password` | No | - | Truststore password |
+| `ojp.server.tls.truststore.type` | No | `JKS` | Truststore type |
+| `ojp.server.tls.clientAuthRequired` | No | `false` | Require client certificates (mTLS) |
+
+> **💡 JVM Default Truststore:** If truststore path is not specified, OJP uses the JVM's default truststore (typically `$JAVA_HOME/lib/security/cacerts`). This works well in containerized environments with centralized PKI management. For multi-tenant production deployments, explicit paths provide better isolation.
 
 ### Configuring JDBC Driver for mTLS
 
-Client applications need keystore (client certificate) and truststore (to verify server). These paths point to certificate files on the client application machine:
+The OJP JDBC Driver supports TLS configuration via system properties or an `ojp.properties` file on the classpath. Client applications need a keystore (containing the client certificate for mTLS) and a truststore (to verify the server certificate).
+
+**Using System Properties:**
 
 ```java
 import com.zaxxer.hikari.HikariConfig;
@@ -584,12 +603,11 @@ import javax.sql.DataSource;
 public class DataSourceConfig {
     
     public DataSource createSecureDataSource() {
-        // Set system properties for client TLS
-        // Note: Paths are actual file locations on the client machine
+        // Enable TLS with explicit certificate paths
         System.setProperty("ojp.client.tls.enabled", "true");
-        System.setProperty("ojp.client.tls.keystore.path", "/etc/app/tls/ojp-client-keystore.jks");
+        System.setProperty("ojp.client.tls.keystore.path", "/etc/app/tls/client-keystore.jks");
         System.setProperty("ojp.client.tls.keystore.password", "changeit");
-        System.setProperty("ojp.client.tls.truststore.path", "/etc/app/tls/ojp-client-truststore.jks");
+        System.setProperty("ojp.client.tls.truststore.path", "/etc/app/tls/client-truststore.jks");
         System.setProperty("ojp.client.tls.truststore.password", "changeit");
         
         HikariConfig config = new HikariConfig();
@@ -603,20 +621,60 @@ public class DataSourceConfig {
 }
 ```
 
-Or via `ojp.properties` file on the classpath:
+**Using `ojp.properties` File:**
+
+Create a file named `ojp.properties` in your application's classpath:
 
 ```properties
-# Client mTLS configuration
-# Note: Paths are actual file locations on the client machine
+# Client mTLS configuration with explicit paths
 ojp.client.tls.enabled=true
-ojp.client.tls.keystore.path=/etc/app/tls/ojp-client-keystore.jks
+ojp.client.tls.keystore.path=/etc/app/tls/client-keystore.jks
 ojp.client.tls.keystore.password=changeit
-ojp.client.tls.truststore.path=/etc/app/tls/ojp-client-truststore.jks
+ojp.client.tls.truststore.path=/etc/app/tls/client-truststore.jks
 ojp.client.tls.truststore.password=changeit
+
+# Optional: Keystore types (default: JKS)
+ojp.client.tls.keystore.type=JKS
+ojp.client.tls.truststore.type=JKS
 
 # Connection settings
 ojp.connection.url=jdbc:ojp://ojp-server.internal.company.com:1059/postgresql://dbhost:5432/mydb
 ```
+
+**Server TLS Only (No Client Certificate):**
+
+For encrypted connections without client authentication:
+
+```properties
+# Enable TLS but don't provide client certificate
+ojp.client.tls.enabled=true
+# Only specify truststore to verify server
+ojp.client.tls.truststore.path=/etc/app/tls/client-truststore.jks
+ojp.client.tls.truststore.password=changeit
+```
+
+**Using JVM Default Truststore:**
+
+```properties
+# Enable TLS and rely on JVM default truststore
+ojp.client.tls.enabled=true
+# Don't specify truststore path - uses $JAVA_HOME/lib/security/cacerts
+# Don't specify keystore path - no client certificate provided
+```
+
+**Client Configuration Properties:**
+
+| Property | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `ojp.client.tls.enabled` | No | `false` | Enable/disable TLS |
+| `ojp.client.tls.keystore.path` | For mTLS | - | Path to client certificate keystore |
+| `ojp.client.tls.keystore.password` | For mTLS | - | Password for client keystore |
+| `ojp.client.tls.keystore.type` | No | `JKS` | Keystore type (JKS, PKCS12, etc.) |
+| `ojp.client.tls.truststore.path` | No | JVM default | Path to truststore for server verification |
+| `ojp.client.tls.truststore.password` | No | - | Password for truststore |
+| `ojp.client.tls.truststore.type` | No | `JKS` | Truststore type |
+
+> **💡 Configuration Flexibility:** OJP supports two approaches: (1) explicit keystore/truststore paths for maximum control and isolation, or (2) JVM default keystores for simpler configuration in containerized environments. See the complete [mTLS Configuration Guide](../configuration/mtls-configuration-guide.md) for detailed examples, certificate generation, and troubleshooting.
 
 ### Certificate Rotation and Management
 
@@ -692,14 +750,35 @@ Network architecture determines your security posture as much as encryption and 
 
 **Architecture:**
 
-```
-[Internet] → [Load Balancer] → [Application Network]
-                                  ├─ App Servers
-                                  ├─ OJP Server ←─┐
-                                  └────────────────┘
-                                         ↓
-                                  [Database Network]
-                                  └─ Database Servers
+```mermaid
+graph TB
+    Internet[Internet] --> LB[Load Balancer]
+    LB --> AppNet[Application Network]
+    
+    subgraph AppNet[Application Network]
+        App1[App Server 1]
+        App2[App Server 2]
+        App3[App Server 3]
+        OJP[OJP Server]
+    end
+    
+    App1 -.->|local network<br/>~0.5ms| OJP
+    App2 -.->|local network<br/>~0.5ms| OJP
+    App3 -.->|local network<br/>~0.5ms| OJP
+    
+    OJP -->|cross-zone<br/>~2ms| FW1{Firewall}
+    
+    FW1 --> DBNet[Database Network]
+    
+    subgraph DBNet[Database Network]
+        DB1[Database Server 1]
+        DB2[Database Server 2]
+    end
+    
+    style AppNet fill:#e3f2fd
+    style DBNet fill:#bbdefb
+    style FW1 fill:#ff9999
+    style OJP fill:#90caf9
 ```
 
 In this pattern, OJP Server resides in the same network segment as your application servers, with the database tier in a separate protected network. Applications connect to OJP over the local network, and OJP connects to databases across a network boundary.
@@ -730,13 +809,40 @@ In this pattern, OJP Server resides in the same network segment as your applicat
 
 **Architecture:**
 
-```
-[Internet] → [Load Balancer] → [Application Network]
-                                  └─ App Servers
-                                         ↓
-                                  [Database Network]
-                                  ├─ OJP Server
-                                  └─ Database Servers
+```mermaid
+graph TB
+    Internet[Internet] --> LB[Load Balancer]
+    LB --> AppNet[Application Network]
+    
+    subgraph AppNet[Application Network]
+        App1[App Server 1]
+        App2[App Server 2]
+        App3[App Server 3]
+        App4[App Server 4]
+    end
+    
+    App1 -->|cross-boundary<br/>~3ms| FW1{Firewall<br/>Allow gRPC :1059}
+    App2 -->|cross-boundary<br/>~3ms| FW1
+    App3 -->|cross-boundary<br/>~3ms| FW1
+    App4 -->|cross-boundary<br/>~3ms| FW1
+    
+    FW1 --> DBNet[Database Network]
+    
+    subgraph DBNet[Database Network]
+        OJP[OJP Server]
+        DB1[Database Server 1]
+        DB2[Database Server 2]
+        DB3[Database Server 3]
+    end
+    
+    OJP -.->|local network<br/><1ms| DB1
+    OJP -.->|local network<br/><1ms| DB2
+    OJP -.->|local network<br/><1ms| DB3
+    
+    style AppNet fill:#f5f5f5
+    style DBNet fill:#1565c0,color:#fff
+    style FW1 fill:#ff9999
+    style OJP fill:#42a5f5
 ```
 
 Here, OJP Server sits within the database network tier, fully isolated from the application network. Applications reach OJP across a network boundary, and OJP communicates with databases over the local network.
@@ -768,15 +874,42 @@ Here, OJP Server sits within the database network tier, fully isolated from the 
 
 **Architecture:**
 
-```
-[Internet] → [Load Balancer] → [Application Network]
-                                  └─ App Servers
-                                         ↓
-                                  [Middleware Network]
-                                  └─ OJP Server
-                                         ↓
-                                  [Database Network]
-                                  └─ Database Servers
+```mermaid
+graph TB
+    Internet[Internet] --> LB[Load Balancer]
+    LB --> AppNet[Application Network]
+    
+    subgraph AppNet[Application Network]
+        App1[App Server 1]
+        App2[App Server 2]
+        App3[App Server 3]
+    end
+    
+    App1 --> FW1{Firewall 1}
+    App2 --> FW1
+    App3 --> FW1
+    
+    FW1 --> MWNet[Middleware Network]
+    
+    subgraph MWNet[Middleware Network]
+        OJP[OJP Server]
+    end
+    
+    OJP --> FW2{Firewall 2}
+    
+    FW2 --> DBNet[Database Network]
+    
+    subgraph DBNet[Database Network]
+        DB1[Database Server 1]
+        DB2[Database Server 2]
+    end
+    
+    style AppNet fill:#e8f5e9
+    style MWNet fill:#fff9c4
+    style DBNet fill:#1565c0,color:#fff
+    style FW1 fill:#ff9999
+    style FW2 fill:#ff9999
+    style OJP fill:#ffd54f
 ```
 
 This pattern introduces a third network tier specifically for middleware components like OJP. Applications connect to the middleware network, and middleware connects to the database network. Each boundary has independent security controls.
