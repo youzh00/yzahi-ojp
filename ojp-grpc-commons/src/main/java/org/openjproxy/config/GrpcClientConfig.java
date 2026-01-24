@@ -56,17 +56,18 @@ public class GrpcClientConfig {
      * @param key The property key
      * @param props The properties file
      * @param defaultValue The default value if not found
-     * @return The property value
+     * @return The property value (trimmed)
      */
     private String getProperty(String key, Properties props, String defaultValue) {
         // System properties take precedence
         String value = System.getProperty(key);
         if (value != null) {
-            return value;
+            return value.trim();
         }
         
         // Fall back to properties file
-        return props.getProperty(key, defaultValue);
+        value = props.getProperty(key, defaultValue);
+        return value != null ? value.trim() : null;
     }
 
     /**

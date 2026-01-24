@@ -175,22 +175,31 @@ public class GrpcServer {
      * @throws Exception if TLS configuration fails
      */
     private static void configureTls(NettyServerBuilder serverBuilder, ServerConfiguration config) throws Exception {
-        io.grpc.netty.GrpcSslContexts.SslContextBuilder sslContextBuilder = 
-            io.grpc.netty.GrpcSslContexts.forServer(
-                loadKeyManager(config)
+        // Load keystore and extract certificate and key
+        java.security.KeyStore keyStore = loadKeyStore(config);
+        
+        // Build SSL context using Netty's builder
+        io.netty.handler.ssl.SslContextBuilder sslContextBuilder = 
+            io.netty.handler.ssl.SslContextBuilder.forServer(
+                extractKeyManagerFactory(keyStore, config.getTlsKeystorePassword())
             );
+        
+        // Apply gRPC-specific SSL settings
+        sslContextBuilder = io.grpc.netty.GrpcSslContexts.configure(sslContextBuilder);
         
         // Configure client authentication (mTLS) if required
         if (config.isTlsClientAuthRequired()) {
             logger.info("mTLS (mutual TLS) enabled - client certificates required");
-            sslContextBuilder.trustManager(loadTrustManager(config));
+            javax.net.ssl.TrustManagerFactory trustManagerFactory = loadTrustManager(config);
+            sslContextBuilder.trustManager(trustManagerFactory);
             sslContextBuilder.clientAuth(io.netty.handler.ssl.ClientAuth.REQUIRE);
         } else {
             logger.info("Server TLS enabled - client certificates not required");
             // Optionally configure truststore for client certificate verification
             if (config.getTlsTruststorePath() != null && !config.getTlsTruststorePath().trim().isEmpty()) {
                 logger.info("Truststore configured for optional client certificate verification");
-                sslContextBuilder.trustManager(loadTrustManager(config));
+                javax.net.ssl.TrustManagerFactory trustManagerFactory = loadTrustManager(config);
+                sslContextBuilder.trustManager(trustManagerFactory);
                 sslContextBuilder.clientAuth(io.netty.handler.ssl.ClientAuth.OPTIONAL);
             }
         }
@@ -200,13 +209,13 @@ public class GrpcServer {
     }
     
     /**
-     * Loads the key manager for server certificate.
+     * Loads the keystore containing server certificate and private key.
      * 
      * @param config Server configuration
-     * @return KeyManagerFactory for server certificate
+     * @return KeyStore instance
      * @throws Exception if keystore cannot be loaded
      */
-    private static javax.net.ssl.KeyManagerFactory loadKeyManager(ServerConfiguration config) throws Exception {
+    private static java.security.KeyStore loadKeyStore(ServerConfiguration config) throws Exception {
         if (config.getTlsKeystorePath() == null || config.getTlsKeystorePath().trim().isEmpty()) {
             throw new IllegalStateException("TLS is enabled but keystore path is not configured. " +
                     "Set ojp.server.tls.keystore.path property.");
@@ -218,11 +227,22 @@ public class GrpcServer {
                 config.getTlsKeystorePassword().toCharArray() : null);
         }
         
+        return keyStore;
+    }
+    
+    /**
+     * Creates a KeyManagerFactory from the keystore.
+     * 
+     * @param keyStore The loaded keystore
+     * @param password The keystore password
+     * @return KeyManagerFactory for server certificate
+     * @throws Exception if KeyManagerFactory cannot be created
+     */
+    private static javax.net.ssl.KeyManagerFactory extractKeyManagerFactory(
+            java.security.KeyStore keyStore, String password) throws Exception {
         javax.net.ssl.KeyManagerFactory keyManagerFactory = 
             javax.net.ssl.KeyManagerFactory.getInstance(javax.net.ssl.KeyManagerFactory.getDefaultAlgorithm());
-        keyManagerFactory.init(keyStore, config.getTlsKeystorePassword() != null ? 
-            config.getTlsKeystorePassword().toCharArray() : null);
-        
+        keyManagerFactory.init(keyStore, password != null ? password.toCharArray() : null);
         return keyManagerFactory;
     }
     
