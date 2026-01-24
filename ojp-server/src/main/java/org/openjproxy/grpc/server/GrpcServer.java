@@ -62,7 +62,7 @@ public class GrpcServer {
         // Build server with configuration
         SessionManagerImpl sessionManager = new SessionManagerImpl();
         
-        ServerBuilder<?> serverBuilder = NettyServerBuilder
+        NettyServerBuilder serverBuilder = NettyServerBuilder
                 .forPort(config.getServerPort())
                 .executor(Executors.newFixedThreadPool(config.getThreadPoolSize()))
                 .maxInboundMessageSize(config.getMaxRequestSize())
@@ -75,6 +75,19 @@ public class GrpcServer {
                 .addService(OjpHealthManager.getHealthStatusManager().getHealthService())
                 .intercept(new IpWhitelistingInterceptor(config.getAllowedIps()))
                 .intercept(grpcTelemetry.newServerInterceptor());
+        
+        // Configure TLS if enabled
+        if (config.isTlsEnabled()) {
+            try {
+                configureTls(serverBuilder, config);
+                logger.info("TLS/mTLS enabled for gRPC server");
+            } catch (Exception e) {
+                logger.error("Failed to configure TLS for gRPC server: {}", e.getMessage(), e);
+                System.exit(1);
+            }
+        } else {
+            logger.info("TLS not enabled - using plaintext communication");
+        }
 
         Server server = serverBuilder.build();
 
@@ -152,5 +165,94 @@ public class GrpcServer {
 
         logger.info("OJP gRPC Server started successfully and awaiting termination");
         server.awaitTermination();
+    }
+    
+    /**
+     * Configures TLS/mTLS for the gRPC server.
+     * 
+     * @param serverBuilder The NettyServerBuilder to configure
+     * @param config Server configuration containing TLS settings
+     * @throws Exception if TLS configuration fails
+     */
+    private static void configureTls(NettyServerBuilder serverBuilder, ServerConfiguration config) throws Exception {
+        io.grpc.netty.GrpcSslContexts.SslContextBuilder sslContextBuilder = 
+            io.grpc.netty.GrpcSslContexts.forServer(
+                loadKeyManager(config)
+            );
+        
+        // Configure client authentication (mTLS) if required
+        if (config.isTlsClientAuthRequired()) {
+            logger.info("mTLS (mutual TLS) enabled - client certificates required");
+            sslContextBuilder.trustManager(loadTrustManager(config));
+            sslContextBuilder.clientAuth(io.netty.handler.ssl.ClientAuth.REQUIRE);
+        } else {
+            logger.info("Server TLS enabled - client certificates not required");
+            // Optionally configure truststore for client certificate verification
+            if (config.getTlsTruststorePath() != null && !config.getTlsTruststorePath().trim().isEmpty()) {
+                logger.info("Truststore configured for optional client certificate verification");
+                sslContextBuilder.trustManager(loadTrustManager(config));
+                sslContextBuilder.clientAuth(io.netty.handler.ssl.ClientAuth.OPTIONAL);
+            }
+        }
+        
+        io.netty.handler.ssl.SslContext sslContext = sslContextBuilder.build();
+        serverBuilder.sslContext(sslContext);
+    }
+    
+    /**
+     * Loads the key manager for server certificate.
+     * 
+     * @param config Server configuration
+     * @return KeyManagerFactory for server certificate
+     * @throws Exception if keystore cannot be loaded
+     */
+    private static javax.net.ssl.KeyManagerFactory loadKeyManager(ServerConfiguration config) throws Exception {
+        if (config.getTlsKeystorePath() == null || config.getTlsKeystorePath().trim().isEmpty()) {
+            throw new IllegalStateException("TLS is enabled but keystore path is not configured. " +
+                    "Set ojp.server.tls.keystore.path property.");
+        }
+        
+        java.security.KeyStore keyStore = java.security.KeyStore.getInstance(config.getTlsKeystoreType());
+        try (java.io.FileInputStream fis = new java.io.FileInputStream(new java.io.File(config.getTlsKeystorePath()))) {
+            keyStore.load(fis, config.getTlsKeystorePassword() != null ? 
+                config.getTlsKeystorePassword().toCharArray() : null);
+        }
+        
+        javax.net.ssl.KeyManagerFactory keyManagerFactory = 
+            javax.net.ssl.KeyManagerFactory.getInstance(javax.net.ssl.KeyManagerFactory.getDefaultAlgorithm());
+        keyManagerFactory.init(keyStore, config.getTlsKeystorePassword() != null ? 
+            config.getTlsKeystorePassword().toCharArray() : null);
+        
+        return keyManagerFactory;
+    }
+    
+    /**
+     * Loads the trust manager for client certificate verification.
+     * 
+     * @param config Server configuration
+     * @return TrustManagerFactory for client certificate verification
+     * @throws Exception if truststore cannot be loaded
+     */
+    private static javax.net.ssl.TrustManagerFactory loadTrustManager(ServerConfiguration config) throws Exception {
+        if (config.getTlsTruststorePath() == null || config.getTlsTruststorePath().trim().isEmpty()) {
+            logger.info("No truststore path configured, using JVM default truststore");
+            // Return default trust manager factory
+            javax.net.ssl.TrustManagerFactory trustManagerFactory = 
+                javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+            trustManagerFactory.init((java.security.KeyStore) null);
+            return trustManagerFactory;
+        }
+        
+        java.security.KeyStore trustStore = java.security.KeyStore.getInstance(config.getTlsTruststoreType());
+        try (java.io.FileInputStream fis = new java.io.FileInputStream(new java.io.File(config.getTlsTruststorePath()))) {
+            trustStore.load(fis, config.getTlsTruststorePassword() != null ? 
+                config.getTlsTruststorePassword().toCharArray() : null);
+        }
+        
+        javax.net.ssl.TrustManagerFactory trustManagerFactory = 
+            javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+        trustManagerFactory.init(trustStore);
+        
+        return trustManagerFactory;
     }
 }
