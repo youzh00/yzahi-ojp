@@ -534,10 +534,22 @@ keytool -import -alias ca -file ca-cert.pem -keystore ojp-client-truststore.jks 
 
 ### Configuring OJP Server for mTLS
 
+> **⚠️ Implementation Status:** The mTLS configuration properties shown below are not yet implemented in the current version of OJP Server. This section describes the planned configuration interface for future implementation.
+>
+> **To implement these features**, add the following properties to the `ServerConfiguration` class in `ojp-server/src/main/java/org/openjproxy/grpc/server/ServerConfiguration.java`:
+> - `ojp.server.tls.enabled` (boolean, default: false)
+> - `ojp.server.tls.keystore.path` (string)
+> - `ojp.server.tls.keystore.password` (string)
+> - `ojp.server.tls.truststore.path` (string)
+> - `ojp.server.tls.truststore.password` (string)
+> - `ojp.server.tls.client.auth` (enum: NONE, OPTIONAL, REQUIRE)
+>
+> Then configure the gRPC server builder in the server initialization code to use these properties with `NettyServerBuilder.forPort().sslContext()` using `SslContextBuilder` from `io.netty.handler.ssl` package.
+
 Configure the OJP Server to require client certificates. These paths point to the keystore and truststore files on the OJP server machine:
 
 ```bash
-# Start OJP Server with mTLS enabled
+# Start OJP Server with mTLS enabled (Planned Configuration)
 # Note: Paths are actual file locations on the OJP server
 java -Dojp.server.tls.enabled=true \
      -Dojp.server.tls.keystore.path=/etc/ojp/tls/ojp-server-keystore.jks \
@@ -561,7 +573,7 @@ export OJP_SERVER_TLS_CLIENT_AUTH=REQUIRE
 java -jar ojp-server.jar
 ```
 
-**Configuration Properties Reference:**
+**Configuration Properties Reference (Planned):**
 
 | Property | Description | Values |
 |----------|-------------|--------|
@@ -574,6 +586,17 @@ java -jar ojp-server.jar
 
 ### Configuring JDBC Driver for mTLS
 
+> **⚠️ Implementation Status:** The client-side mTLS configuration properties shown below are not yet implemented in the current version of OJP JDBC Driver. This section describes the planned configuration interface for future implementation.
+>
+> **To implement these features**, add support for the following system properties in the OJP JDBC Driver's gRPC channel builder:
+> - `ojp.client.tls.enabled` (boolean, default: false)
+> - `ojp.client.tls.keystore.path` (string)
+> - `ojp.client.tls.keystore.password` (string)
+> - `ojp.client.tls.truststore.path` (string)
+> - `ojp.client.tls.truststore.password` (string)
+>
+> Then configure the gRPC channel to use these properties with `ManagedChannelBuilder.forAddress().sslContext()` using `SslContextBuilder` from `io.netty.handler.ssl` package to build the SSL context with mutual authentication.
+
 Client applications need keystore (client certificate) and truststore (to verify server). These paths point to certificate files on the client application machine:
 
 ```java
@@ -584,7 +607,7 @@ import javax.sql.DataSource;
 public class DataSourceConfig {
     
     public DataSource createSecureDataSource() {
-        // Set system properties for client TLS
+        // Set system properties for client TLS (Planned Configuration)
         // Note: Paths are actual file locations on the client machine
         System.setProperty("ojp.client.tls.enabled", "true");
         System.setProperty("ojp.client.tls.keystore.path", "/etc/app/tls/ojp-client-keystore.jks");
@@ -606,7 +629,7 @@ public class DataSourceConfig {
 Or via `ojp.properties` file on the classpath:
 
 ```properties
-# Client mTLS configuration
+# Client mTLS configuration (Planned Configuration)
 # Note: Paths are actual file locations on the client machine
 ojp.client.tls.enabled=true
 ojp.client.tls.keystore.path=/etc/app/tls/ojp-client-keystore.jks
@@ -692,14 +715,35 @@ Network architecture determines your security posture as much as encryption and 
 
 **Architecture:**
 
-```
-[Internet] → [Load Balancer] → [Application Network]
-                                  ├─ App Servers
-                                  ├─ OJP Server ←─┐
-                                  └────────────────┘
-                                         ↓
-                                  [Database Network]
-                                  └─ Database Servers
+```mermaid
+graph TB
+    Internet[Internet] --> LB[Load Balancer]
+    LB --> AppNet[Application Network]
+    
+    subgraph AppNet[Application Network]
+        App1[App Server 1]
+        App2[App Server 2]
+        App3[App Server 3]
+        OJP[OJP Server]
+    end
+    
+    App1 -.->|local network<br/>~0.5ms| OJP
+    App2 -.->|local network<br/>~0.5ms| OJP
+    App3 -.->|local network<br/>~0.5ms| OJP
+    
+    OJP -->|cross-zone<br/>~2ms| FW1{Firewall}
+    
+    FW1 --> DBNet[Database Network]
+    
+    subgraph DBNet[Database Network]
+        DB1[Database Server 1]
+        DB2[Database Server 2]
+    end
+    
+    style AppNet fill:#e3f2fd
+    style DBNet fill:#bbdefb
+    style FW1 fill:#ff9999
+    style OJP fill:#90caf9
 ```
 
 In this pattern, OJP Server resides in the same network segment as your application servers, with the database tier in a separate protected network. Applications connect to OJP over the local network, and OJP connects to databases across a network boundary.
@@ -730,13 +774,40 @@ In this pattern, OJP Server resides in the same network segment as your applicat
 
 **Architecture:**
 
-```
-[Internet] → [Load Balancer] → [Application Network]
-                                  └─ App Servers
-                                         ↓
-                                  [Database Network]
-                                  ├─ OJP Server
-                                  └─ Database Servers
+```mermaid
+graph TB
+    Internet[Internet] --> LB[Load Balancer]
+    LB --> AppNet[Application Network]
+    
+    subgraph AppNet[Application Network]
+        App1[App Server 1]
+        App2[App Server 2]
+        App3[App Server 3]
+        App4[App Server 4]
+    end
+    
+    App1 -->|cross-boundary<br/>~3ms| FW1{Firewall<br/>Allow gRPC :1059}
+    App2 -->|cross-boundary<br/>~3ms| FW1
+    App3 -->|cross-boundary<br/>~3ms| FW1
+    App4 -->|cross-boundary<br/>~3ms| FW1
+    
+    FW1 --> DBNet[Database Network]
+    
+    subgraph DBNet[Database Network]
+        OJP[OJP Server]
+        DB1[Database Server 1]
+        DB2[Database Server 2]
+        DB3[Database Server 3]
+    end
+    
+    OJP -.->|local network<br/>&lt;1ms| DB1
+    OJP -.->|local network<br/>&lt;1ms| DB2
+    OJP -.->|local network<br/>&lt;1ms| DB3
+    
+    style AppNet fill:#f5f5f5
+    style DBNet fill:#1565c0,color:#fff
+    style FW1 fill:#ff9999
+    style OJP fill:#42a5f5
 ```
 
 Here, OJP Server sits within the database network tier, fully isolated from the application network. Applications reach OJP across a network boundary, and OJP communicates with databases over the local network.
@@ -768,15 +839,42 @@ Here, OJP Server sits within the database network tier, fully isolated from the 
 
 **Architecture:**
 
-```
-[Internet] → [Load Balancer] → [Application Network]
-                                  └─ App Servers
-                                         ↓
-                                  [Middleware Network]
-                                  └─ OJP Server
-                                         ↓
-                                  [Database Network]
-                                  └─ Database Servers
+```mermaid
+graph TB
+    Internet[Internet] --> LB[Load Balancer]
+    LB --> AppNet[Application Network]
+    
+    subgraph AppNet[Application Network]
+        App1[App Server 1]
+        App2[App Server 2]
+        App3[App Server 3]
+    end
+    
+    App1 --> FW1{Firewall 1}
+    App2 --> FW1
+    App3 --> FW1
+    
+    FW1 --> MWNet[Middleware Network]
+    
+    subgraph MWNet[Middleware Network]
+        OJP[OJP Server]
+    end
+    
+    OJP --> FW2{Firewall 2}
+    
+    FW2 --> DBNet[Database Network]
+    
+    subgraph DBNet[Database Network]
+        DB1[Database Server 1]
+        DB2[Database Server 2]
+    end
+    
+    style AppNet fill:#e8f5e9
+    style MWNet fill:#fff9c4
+    style DBNet fill:#1565c0,color:#fff
+    style FW1 fill:#ff9999
+    style FW2 fill:#ff9999
+    style OJP fill:#ffd54f
 ```
 
 This pattern introduces a third network tier specifically for middleware components like OJP. Applications connect to the middleware network, and middleware connects to the database network. Each boundary has independent security controls.
