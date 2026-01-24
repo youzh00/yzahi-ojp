@@ -319,9 +319,10 @@ MySQL and SQL Server also support standard Java SSL properties (`javax.net.ssl.t
 
 3. **Secure file permissions** on certificate files:
    ```bash
-   chmod 400 /etc/ojp/certs/**/*.pem
-   chmod 600 /etc/ojp/certs/**/*.jks
-   chown ojp-server:ojp-server /etc/ojp/certs -R
+   # Use find for better portability across shells
+   find /etc/ojp/certs -name '*.pem' -exec chmod 400 {} \;
+   find /etc/ojp/certs -name '*.jks' -exec chmod 400 {} \;
+   chown -R ojp-server:ojp-server /etc/ojp/certs
    ```
 
 4. **Never commit credentials** to version control—use environment-specific configuration:

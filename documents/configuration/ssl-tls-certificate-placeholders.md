@@ -494,14 +494,14 @@ Ensure certificate files have appropriate permissions:
 
 ```bash
 # Certificate files should be readable only by the OJP server user
-chmod 400 /etc/ojp/certs/**/ca-cert.pem
-chmod 400 /etc/ojp/certs/**/client-cert.pem
-chmod 400 /etc/ojp/certs/**/client-key.pem
-chmod 400 /etc/ojp/certs/**/*.jks
+# Use find for better portability across shells
+find /etc/ojp/certs -name 'ca-cert.pem' -exec chmod 400 {} \;
+find /etc/ojp/certs -name 'client-cert.pem' -exec chmod 400 {} \;
+find /etc/ojp/certs -name 'client-key.pem' -exec chmod 400 {} \;
+find /etc/ojp/certs -name '*.jks' -exec chmod 400 {} \;
 
 # Directories should be accessible
-chmod 500 /etc/ojp/certs/
-chmod 500 /etc/ojp/certs/*/
+find /etc/ojp/certs -type d -exec chmod 500 {} \;
 ```
 
 ### 4. Use Environment Variables in Production
@@ -621,10 +621,8 @@ When defining property placeholders in your client configuration:
 **Example of well-defined placeholders:**
 ```properties
 # Good: Clear, descriptive, follows all rules
-ojp.datasource.url=jdbc:ojp[localhost:1059]_postgresql://host:5432/db?\
-  sslrootcert=${ojp.server.postgresql.prod.ca-cert}&\
-  sslcert=${ojp.server.postgresql.prod.client-cert}&\
-  sslkey=${ojp.server.postgresql.prod.client-key}
+# (In actual usage, the URL should be on a single line)
+ojp.datasource.url=jdbc:ojp[localhost:1059]_postgresql://host:5432/db?sslrootcert=${ojp.server.postgresql.prod.ca-cert}&sslcert=${ojp.server.postgresql.prod.client-cert}&sslkey=${ojp.server.postgresql.prod.client-key}
 ```
 
 ### Certificate Management
