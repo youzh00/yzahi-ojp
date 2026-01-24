@@ -239,7 +239,7 @@ ojp.datasource.url=jdbc:ojp[localhost:1059]_postgresql://dbhost:5432/mydb?ssl=tr
 
 MySQL:
 ```properties
-ojp.datasource.url=jdbc:ojp[localhost:1059]_mysql://dbhost:3306/mydb?useSSL=true&requireSSL=true&trustCertificateKeyStoreUrl=${ojp.server.mysql.truststore}&trustCertificateKeyStorePassword=${ojp.server.mysql.password}
+ojp.datasource.url=jdbc:ojp[localhost:1059]_mysql://dbhost:3306/mydb?useSSL=true&requireSSL=true&trustCertificateKeyStoreUrl=${ojp.server.mysql.truststore}&trustCertificateKeyStorePassword=${ojp.server.mysql.truststorePassword}
 ```
 
 Oracle (with placeholders):
@@ -260,12 +260,12 @@ java -jar ojp-server.jar \
 
 SQL Server:
 ```properties
-ojp.datasource.url=jdbc:ojp[localhost:1059]_sqlserver://dbhost:1433;databaseName=mydb;encrypt=true;trustStore=${ojp.server.sqlserver.truststore};trustStorePassword=${ojp.server.sqlserver.password}
+ojp.datasource.url=jdbc:ojp[localhost:1059]_sqlserver://dbhost:1433;databaseName=mydb;encrypt=true;trustStore=${ojp.server.sqlserver.truststore};trustStorePassword=${ojp.server.sqlserver.truststorePassword}
 ```
 
 DB2:
 ```properties
-ojp.datasource.url=jdbc:ojp[localhost:1059]_db2://dbhost:50001/mydb:sslConnection=true;sslTrustStoreLocation=${ojp.server.db2.truststore};sslTrustStorePassword=${ojp.server.db2.password};
+ojp.datasource.url=jdbc:ojp[localhost:1059]_db2://dbhost:50001/mydb:sslConnection=true;sslTrustStoreLocation=${ojp.server.db2.truststore};sslTrustStorePassword=${ojp.server.db2.truststorePassword};
 ```
 
 **Alternative: JVM-Based SSL Configuration**
@@ -328,10 +328,10 @@ MySQL and SQL Server also support standard Java SSL properties (`javax.net.ssl.t
 4. **Never commit credentials** to version control—use environment-specific configuration:
    ```bash
    # Development
-   export OJP_SERVER_MYSQL_PASSWORD=dev_password
+   export OJP_SERVER_MYSQL_TRUSTSTOREPASSWORD=dev_password
    
    # Production (use secrets management)
-   export OJP_SERVER_MYSQL_PASSWORD=$(vault read -field=password secret/ojp/mysql)
+   export OJP_SERVER_MYSQL_TRUSTSTOREPASSWORD=$(vault read -field=password secret/ojp/mysql/truststore)
    ```
 
 For complete details on SSL certificate placeholder configuration, including security considerations, troubleshooting, and advanced scenarios, see the [SSL/TLS Certificate Configuration Guide](../configuration/ssl-tls-certificate-placeholders.md).
