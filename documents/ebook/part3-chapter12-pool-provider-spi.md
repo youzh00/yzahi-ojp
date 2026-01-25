@@ -6,24 +6,38 @@ This chapter explores OJP's connection pool abstraction layer, examining how the
 
 ## 12.1 Understanding the Pool Abstraction
 
-At its core, the Connection Pool Provider SPI separates **what** OJP needs from a connection pool from **how** that pool is implemented. This abstraction layer consists of three main components working in concert.
+At its core, the Connection Pool Provider SPI separates **what** OJP needs from a connection pool from **how** that pool is implemented. OJP actually defines two distinct SPI interfaces to handle the different requirements of standard and distributed transactions—**ConnectionPoolProvider** for regular JDBC connections and **XAConnectionPoolProvider** for XA distributed transactions.
 
-The **PoolConfig** class defines pool configuration in a vendor-neutral way. It captures essential settings like pool size, timeout values, and connection properties without binding to any specific pool implementation. Think of it as a translation layer—your application specifies requirements using standard terminology, and the SPI translates those requirements into whatever configuration format the chosen provider expects.
+### The Two SPI Interfaces
 
-The **ConnectionPoolProvider** interface defines the contract that all pool implementations must fulfill. Providers must create DataSource instances from configuration, manage their lifecycle, expose statistics for monitoring, and handle graceful shutdown. This consistent interface means switching from HikariCP to DBCP (or to your custom provider) requires no changes to OJP's core code or your application configuration—just a different provider JAR on the classpath.
+The **ConnectionPoolProvider** interface (`org.openjproxy.datasource.ConnectionPoolProvider`) manages standard JDBC connection pools for non-distributed transactions. It defines the contract for creating `DataSource` instances from configuration, managing their lifecycle, exposing statistics for monitoring, and handling graceful shutdown. This interface powers the HikariCP and DBCP providers that handle the majority of OJP workloads. The consistent interface means switching between implementations requires no changes to OJP's core code or your application configuration—just a different provider JAR on the classpath.
 
-The **ConnectionPoolProviderRegistry** serves as the discovery and factory mechanism. Using Java's ServiceLoader pattern, it automatically discovers available providers at startup, selects the appropriate one based on configuration or priority, and provides a unified API for interacting with pools regardless of which implementation is active underneath.
+The **XAConnectionPoolProvider** interface (`org.openjproxy.xa.pool.spi.XAConnectionPoolProvider`) extends the abstraction to XA distributed transactions, which require fundamentally different pool management. While standard pools manage `DataSource` objects that produce regular connections, XA pools manage `XADataSource` instances that produce XA-capable connections for two-phase commit protocols. The XA interface adds methods for borrowing and returning `XABackendSession` objects—wrappers that maintain transaction state across prepare/commit/rollback phases—along with session invalidation for error handling. This separation of concerns allows OJP to optimize each pool type independently while maintaining the same pluggable architecture.
 
-This architecture delivers powerful benefits. You gain **vendor flexibility** by easily switching between pool implementations based on performance characteristics, licensing requirements, or operational preferences. The design supports **operational isolation** through the ability to size pools independently for different databases or workloads within the same OJP instance. **Custom integrations** become straightforward when you need to integrate with proprietary connection management systems or implement specialized pooling logic. And you maintain **future compatibility** because new pool implementations can be added without modifying OJP's core code.
+Both interfaces share common patterns: a unique `id()` for provider selection, `getPriority()` for automatic selection when multiple providers are available, `isAvailable()` to check for required dependencies, and `getStatistics()` for operational visibility. The key difference lies in what they pool and how lifecycle is managed. Standard pools create and destroy connections around single-phase transactions, while XA pools maintain session affinity across distributed transaction boundaries, holding connections through prepare phases and potentially across multiple sequential transactions on the same logical session.
 
-**[IMAGE PROMPT: Connection Pool Abstraction Architecture]**
-Create a layered architecture diagram showing the abstraction stack from top to bottom. Top layer: "OJP Server (StatementServiceImpl)" in blue. Middle layer: "ConnectionPoolProviderRegistry" (discovery and factory) in purple. Third layer: "ConnectionPoolProvider SPI Interface" (with method signatures: createDataSource, closeDataSource, getStatistics) in orange. Bottom layer split into three sections showing "HikariCP Provider (Priority: 100, Default)", "DBCP Provider (Priority: 10, Alternative)", and "Custom Provider (Priority: 0, User-defined)" all in different colors connecting down to their respective implementations. Use arrows to show the flow from top to bottom, with a side note showing "ServiceLoader Discovery" pointing to the provider layer.
+### Supporting Infrastructure
 
-The abstraction excels in Non-XA scenarios where traditional connection pooling applies. For XA distributed transactions, a specialized variation called the **XA Connection Pool Provider SPI** handles the unique requirements of XA session management. Chapter 10 explored this in depth, but the key difference lies in how XA connections maintain their association with transaction branches even after the application code releases them—a capability that requires custom pool logic beyond what standard connection pools provide.
+The **PoolConfig** class defines pool configuration in a vendor-neutral way for standard pools. It captures essential settings like pool size, timeout values, and connection properties without binding to any specific pool implementation. Think of it as a translation layer—your application specifies requirements using standard terminology, and the SPI translates those requirements into whatever configuration format the chosen provider expects. For XA pools, configuration is passed as a `Map<String, String>` with canonical keys like `xa.maxPoolSize` and `xa.datasource.className`, providing the flexibility needed for reflection-based instantiation of vendor XADataSource classes.
+
+The **ConnectionPoolProviderRegistry** serves as the discovery and factory mechanism for standard pools. Using Java's ServiceLoader pattern, it automatically discovers available providers at startup by scanning for `META-INF/services/org.openjproxy.datasource.ConnectionPoolProvider` files, selects the appropriate one based on configuration or priority, and provides a unified API for interacting with pools regardless of which implementation is active underneath. XA providers follow the same ServiceLoader pattern with their own service file (`META-INF/services/org.openjproxy.xa.pool.spi.XAConnectionPoolProvider`), ensuring consistent discovery and selection mechanisms across both pool types.
+
+### Architectural Benefits
+
+This dual-SPI architecture delivers powerful benefits across both standard and distributed transaction scenarios. You gain **vendor flexibility** by easily switching between pool implementations based on performance characteristics, licensing requirements, or operational preferences—whether for standard connections (HikariCP vs. DBCP) or XA transactions (Commons Pool 2 vs. vendor-specific implementations like Oracle UCP). The design supports **operational isolation** through the ability to size pools independently for different databases or workloads within the same OJP instance. **Custom integrations** become straightforward when you need to integrate with proprietary connection management systems or implement specialized pooling logic. And you maintain **future compatibility** because new pool implementations can be added without modifying OJP's core code—the ServiceLoader pattern ensures automatic discovery and integration.
+
+**[IMAGE PROMPT: Dual SPI Architecture]**
+Create a side-by-side comparison showing two parallel abstraction stacks. Left side labeled "Standard Transactions" shows: Top layer "OJP Server" in blue, middle layer "ConnectionPoolProviderRegistry" in purple, third layer "ConnectionPoolProvider SPI" in orange with method signatures (createDataSource, closeDataSource, getStatistics), bottom layer showing "HikariCP" and "DBCP" providers. Right side labeled "XA Distributed Transactions" shows: Same top layer "OJP Server", middle layer "XA Registry" in purple, third layer "XAConnectionPoolProvider SPI" in green with method signatures (createXADataSource, borrowSession, returnSession, invalidateSession), bottom layer showing "Commons Pool 2 XA Provider". Use arrows showing ServiceLoader discovery for both sides. Add a dividing line between the two stacks with bidirectional arrows at the top showing "OJP Server routes based on transaction type".
+
+### Transaction Type Routing
+
+OJP's server automatically routes connection requests to the appropriate SPI based on the transaction type. When your application requests a standard `DataSource` through JDBC, OJP uses the **ConnectionPoolProvider** SPI—defaulting to HikariCP for its performance characteristics or DBCP when fine-grained control is needed. When your application requests an `XADataSource` for distributed transactions, OJP routes to the **XAConnectionPoolProvider** SPI, which currently uses the Apache Commons Pool 2 implementation.
+
+This routing happens transparently based on the connection type requested. Standard JDBC connections follow the traditional pooling model optimized for single-phase commits. XA connections require specialized handling—the XAConnectionPoolProvider pools `XABackendSession` objects rather than raw connections, maintaining transaction state and session associations across transaction branches even after the application releases them. As covered in detail in Section 12.2 and Chapter 10, this session affinity is essential for distributed transactions, where a connection must remain associated with a transaction branch through prepare/commit/rollback phases—capabilities that require custom pool logic beyond what standard connection pools provide.
 
 ## 12.2 Built-in Pool Providers
 
-OJP ships with two production-ready pool providers, each optimized for different scenarios and preferences. Understanding their characteristics helps you choose the right one for your workload.
+OJP ships with three production-ready pool providers, each optimized for different scenarios and preferences. Understanding their characteristics helps you choose the right one for your workload.
 
 ### HikariCP Provider: The Default Choice
 
@@ -82,8 +96,37 @@ The choice often comes down to your priorities. Choose **HikariCP** when perform
 
 Both providers are production-ready, well-maintained, and capable of handling demanding workloads. The SPI architecture means you can switch between them without application code changes—just modify the `ojp.datasource.provider` property or change the provider JAR on the classpath.
 
-**[IMAGE PROMPT: HikariCP vs DBCP Comparison Matrix]**
-Create a side-by-side comparison chart showing HikariCP on the left and DBCP on the right. Include these comparison dimensions as rows: Performance (HikariCP: Very High with speedometer icon, DBCP: High), Configurability (HikariCP: Streamlined/Essential, DBCP: Extensive/Granular), Maturity (HikariCP: Modern/Optimized, DBCP: Battle-Tested/Legacy), Use Cases (HikariCP: High-throughput APIs, Web apps, DBCP: Enterprise apps, Batch jobs), Learning Curve (HikariCP: Gentle, DBCP: Steeper), Monitoring Depth (HikariCP: JMX/Micrometer, DBCP: Detailed statistics). Use green for strengths, yellow for neutral, and provide icons to make it visually engaging.
+### Apache Commons Pool 2 XA Provider: Distributed Transaction Support
+
+While HikariCP and DBCP handle traditional (non-XA) connection pooling, OJP's distributed transaction support requires a different approach. The Apache Commons Pool 2 XA provider (`ojp-xa-pool-commons`) delivers a specialized implementation designed specifically for XA distributed transactions, addressing the unique session management requirements that standard connection pools cannot handle.
+
+Traditional connection pools like HikariCP and DBCP excel at managing regular JDBC connections, but XA transactions introduce complexities that require specialized handling. XA connections must maintain their association with transaction branches even after the application releases them, support multiple sequential transactions on the same connection, and provide state management for prepare/commit/rollback operations. These requirements led to the development of a custom XA pool provider built on Apache Commons Pool 2's battle-tested foundation.
+
+The provider (`ojp-xa-pool-commons`) pools `XABackendSession` objects rather than raw `XAConnection` instances. Each session wraps a database XAConnection and maintains transaction state, OJP-specific metadata, and lifecycle management hooks. This architecture allows OJP to eliminate the traditional XA performance penalty—typically 100-500 milliseconds per transaction for connection establishment—by reusing backend sessions across multiple sequential XA transactions.
+
+Apache Commons Pool 2's generic `PooledObjectFactory<T>` design proved ideal for this use case. Rather than forcing a connection-centric model, Commons Pool 2 allows pooling arbitrary object types. The `BackendSessionFactory` manages session lifecycle—creation, validation, passivation, and destruction—while Commons Pool 2 handles the core pooling mechanics that power Tomcat and DBCP with 15+ years of production hardening.
+
+The provider supports universal database compatibility through reflection-based instantiation. Whether you're connecting to PostgreSQL, SQL Server, DB2, MySQL, or MariaDB, the provider works seamlessly without compile-time vendor dependencies. This contrasts with alternative approaches that require explicit vendor-specific configuration.
+
+```java
+// XA provider configuration (managed internally by OJP)
+// Pool configuration in ojp.properties
+ojp.xa.connection.pool.enabled=true
+ojp.xa.connection.pool.maxTotal=22
+ojp.xa.connection.pool.minIdle=5
+ojp.xa.connection.pool.maxWaitMillis=10000
+```
+
+The XA provider includes production-ready housekeeping features built on Commons Pool 2's foundation. Leak detection runs continuously to catch forgotten connections before they exhaust the pool. Max lifetime enforcement recycles idle connections after a configured duration (default 30 minutes), preventing stale connections while protecting active transactions. Enhanced diagnostics provide operational visibility through debug logging and metrics exposure.
+
+Configuration focuses on pool sizing rather than vendor-specific settings. The `maxTotal` property controls the maximum number of backend sessions, while `minIdle` maintains a minimum number of idle sessions for burst traffic. In multinode deployments, OJP automatically divides the pool size among servers—for example, with two servers and `maxTotal=22`, each server maintains 11 sessions. When a server fails, remaining servers expand their pools to compensate, and pools rebalance when the failed server recovers.
+
+The implementation represents a deliberate architectural decision documented in ADR 007. Rather than adopting an off-the-shelf XA connection pool like Agroal, OJP built a custom solution that aligns with its proxy architecture. Since OJP pools session wrappers containing transaction state and OJP-specific logic—not raw connections—standard XA pools cannot effectively track leaks or manage lifecycle at the appropriate abstraction level. The custom implementation achieves the same monitoring and management goals while maintaining compatibility with OJP's universal provider model.
+
+For detailed coverage of XA transaction mechanics, session lifecycle, monitoring, and troubleshooting, see Chapter 10. The key takeaway for this chapter: when your application uses XA distributed transactions, OJP automatically uses the Apache Commons Pool 2 XA provider instead of HikariCP or DBCP, providing the specialized pooling behavior that XA requires while maintaining the same configuration simplicity and operational visibility.
+
+**[IMAGE PROMPT: Pool Provider Comparison Matrix]**
+Create a three-column comparison chart showing HikariCP on the left, DBCP in the middle, and Apache Commons Pool 2 XA on the right. Include these comparison dimensions as rows: Performance (HikariCP: Very High with speedometer icon, DBCP: High, XA: Optimized for XA), Configurability (HikariCP: Streamlined/Essential, DBCP: Extensive/Granular, XA: Pool-focused/XA-specific), Maturity (HikariCP: Modern/Optimized, DBCP: Battle-Tested/Legacy, XA: Built on 15+ year Commons Pool 2 foundation), Use Cases (HikariCP: High-throughput APIs/Web apps, DBCP: Enterprise apps/Batch jobs, XA: Distributed transactions/XA workloads), Transaction Type (HikariCP: Non-XA only, DBCP: Non-XA only, XA: XA distributed transactions), Pooled Object (HikariCP: Connections, DBCP: Connections, XA: XABackendSessions), Learning Curve (HikariCP: Gentle, DBCP: Steeper, XA: Automatic/Transparent), Monitoring Depth (HikariCP: JMX/Micrometer, DBCP: Detailed statistics, XA: Debug logging/Metrics). Use green for strengths, yellow for neutral, and provide icons to make it visually engaging.
 
 ## 12.3 Configuration and Discovery
 
@@ -242,6 +285,8 @@ Create a monitoring dashboard visualization showing 4 panels arranged in a grid.
 ## 12.5 Building Custom Providers
 
 The true power of the SPI emerges when you need pool behavior beyond what HikariCP or DBCP provide. Custom providers enable integration with proprietary connection management systems, implementation of specialized pooling logic, or extension of pool behavior for unique requirements.
+
+OJP supports custom implementations of both the **ConnectionPoolProvider** (for standard connections) and **XAConnectionPoolProvider** (for XA distributed transactions). This section focuses primarily on ConnectionPoolProvider since it represents the more common use case, but the patterns apply equally to XAConnectionPoolProvider implementations. The key differences: XA providers implement `createXADataSource()` instead of `createDataSource()`, add session management methods (`borrowSession()`, `returnSession()`, `invalidateSession()`), and work with `XABackendSession` objects that wrap XAConnections with transaction state. For detailed XA provider implementation guidance, see the `XAConnectionPoolProvider` interface javadoc and the `CommonsPool2XAProvider` source code in the `ojp-xa-pool-commons` module.
 
 ### Provider Interface Implementation
 
