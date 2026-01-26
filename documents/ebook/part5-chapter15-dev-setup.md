@@ -1,8 +1,8 @@
-# Chapter 16: Development Environment Setup
+# Chapter 15: Development Environment Setup
 
 Setting up your development environment for OJP is straightforward, but there are a few important steps to ensure everything works smoothly. This chapter walks you through the entire process, from installing prerequisites to running your first tests. Whether you're fixing a bug, adding a feature, or just exploring the codebase, following these steps will get you productive quickly.
 
-## 16.1 Prerequisites and Installation
+## 15.1 Prerequisites and Installation
 
 Before diving into OJP development, you'll need to have the right tools installed on your machine. The good news is that OJP doesn't require anything exotic—just the standard Java development toolchain plus Docker for running databases.
 
@@ -67,7 +67,7 @@ sudo apt install git
 
 **[IMAGE_PROMPT_1]**: Create a technical diagram showing the development environment stack for OJP. Show four layers vertically: at the bottom "Operating System (Linux/macOS/Windows)", then "Java 22+ JDK & Maven 3.9+", then "Docker Engine with database containers (PostgreSQL, MySQL, H2)", and at the top "OJP Source Code (ojp-server, ojp-jdbc-driver, ojp-grpc-commons)". Use clean lines connecting the layers with arrows showing dependencies flowing upward. Include small icons for Java, Maven, Docker, and Git. Professional developer-focused style with muted blue and gray tones.
 
-## 16.2 Forking and Cloning the Repository
+## 15.2 Forking and Cloning the Repository
 
 OJP follows the standard GitHub fork-and-pull-request workflow. This means you'll work in your own fork of the repository and submit changes via pull requests.
 
@@ -118,7 +118,7 @@ graph LR
 
 **[IMAGE_PROMPT_2]**: Create an infographic showing the Git workflow for OJP contributions. Show three connected nodes: (1) "Open-J-Proxy/ojp" (upstream) at the top, (2) "YOUR-USERNAME/ojp" (fork) in the middle, and (3) "Local Development" at the bottom. Draw arrows showing: "Fork" from upstream to fork, "Clone" from fork to local, "Fetch/Merge" from upstream to local (dashed line), and "Push/PR" from local back to fork and upstream. Use GitHub-style colors and include small Git command labels on arrows. Clean, professional diagram style.
 
-## 16.3 Downloading JDBC Drivers
+## 15.3 Downloading JDBC Drivers
 
 Here's where OJP's setup differs slightly from typical Java projects. Because JDBC drivers have varying licenses and some (like Oracle's) can't be redistributed, OJP doesn't bundle all drivers in its dependencies. Instead, you'll download them explicitly.
 
@@ -154,7 +154,7 @@ The repository includes detailed setup guides for each proprietary database in `
 
 **[IMAGE_PROMPT_3]**: Create a visual showing the driver download process. Show a folder structure with "ojp/" at the root, containing "ojp-libs/" directory. Inside ojp-libs, show JAR file icons for different drivers: h2-2.x.x.jar (green), postgresql-42.x.x.jar (blue), mysql-connector-9.x.x.jar (orange), mariadb-java-client-3.x.x.jar (brown), and placeholders for oracle and sqlserver (dashed boxes). Add a terminal window in the corner showing "$ bash download-drivers.sh" with a checkmark. Clean technical documentation style.
 
-## 16.4 Building the Project
+## 15.4 Building the Project
 
 With prerequisites in place and drivers downloaded, you're ready to build OJP.
 
@@ -210,7 +210,7 @@ graph TD
     style D fill:#ffcdd2,stroke:#c62828,stroke-width:2px
 ```
 
-## 16.5 Running the OJP Server
+## 15.5 Running the OJP Server
 
 Before you can run tests, you need a running OJP server. Think of it as the "backend" that your test code (acting as a client) connects to.
 
@@ -254,7 +254,7 @@ mvn verify -pl ojp-server -Prun-ojp-server -Dgrpc.port=50052
 
 **[IMAGE_PROMPT_4]**: Create a split-screen diagram showing server startup. Left side shows a terminal window with "$ mvn verify -pl ojp-server -Prun-ojp-server" and log output lines "Starting OJP Server..." "gRPC server started on port 50051" "Server is ready". Right side shows a simplified architecture: ojp-server process box listening on port 50051, with an arrow pointing down to a database pool icon (showing multiple database connections), and an arrow pointing up to a "Test Client" box. Use green checkmarks to indicate successful startup. Professional documentation style with monospace font for terminal text.
 
-## 16.6 Running Tests Locally
+## 15.6 Running Tests Locally
 
 Now that the server is running, you can execute OJP's comprehensive test suite. Tests are organized by database type and disabled by default to avoid requiring complex setups.
 
@@ -335,7 +335,7 @@ stateDiagram-v2
 
 **[IMAGE_PROMPT_5]**: Create a testing workflow diagram showing test execution across databases. Center the diagram on "ojp-server (running)" as a box. Draw arrows radiating out to different database test boxes: "H2 Tests (embedded)", "PostgreSQL Tests", "MySQL Tests", "MariaDB Tests", and "Other DB Tests". Color-code them: green for H2 (always available), blue for free databases (requires Docker), orange for proprietary (requires license). Show checkmarks for passing tests and question marks for optional tests. Add enable flags like "-DenableH2Tests=true" as labels. Clean, flowchart-style diagram.
 
-## 16.7 Understanding Test Configuration
+## 15.7 Understanding Test Configuration
 
 OJP's tests use CSV files to define database connections. This approach is flexible and allows testing against multiple database instances with different configurations.
 
@@ -385,7 +385,7 @@ This ensures tests are isolated and don't interfere with each other.
 
 **[IMAGE_PROMPT_6]**: Create a technical diagram showing the test configuration flow. Show a CSV file icon labeled "h2_postgres_connections.csv" with sample rows visible. Draw an arrow from the CSV to a "Test Framework" box that reads and parses the configuration. From the test framework, draw multiple arrows to different "Test Execution" boxes, one for each connection ID in the CSV. Each execution box should connect to its respective database (H2 or PostgreSQL). Use a clean, architectural diagram style with clear labels and color-coding for different database types.
 
-### 16.7.5 OJP TestContainers Module
+### 15.7.5 OJP TestContainers Module
 
 **Added in January 2026**, OJP now provides a dedicated `ojp-testcontainers` module that simplifies integration testing by providing a standardized TestContainers-based `OjpContainer` implementation. This module makes it trivial to spin up complete OJP server instances in your tests, eliminating manual server management.
 
@@ -544,7 +544,7 @@ mvn test -Dtest=H2IntegrationWithContainerTest
 
 The `ojp-testcontainers` module represents a significant step toward making OJP development more accessible. By eliminating manual server management and providing reproducible test environments, it encourages contributors to write comprehensive integration tests.
 
-## 16.8 Common Development Tasks
+## 15.8 Common Development Tasks
 
 Once your environment is set up, here are some common tasks you'll perform during development.
 
@@ -615,7 +615,7 @@ This gives you detailed information about connection creation, query execution, 
 
 **[IMAGE_PROMPT_7]**: Create a workflow diagram showing the development cycle. Show circular flow: "Make Changes" → "Build (mvn clean install)" → "Start/Restart Server" → "Run Tests (mvn test)" → "Review Results" → back to "Make Changes" if needed, or "Commit & Push" if successful. Include a side branch from "Review Results" showing "Debug with Logs" that loops back to "Make Changes". Use blue for building steps, green for testing, orange for debugging, and purple for the final commit. Professional flowchart style with clear icons.
 
-## 16.9 Troubleshooting Setup Issues
+## 15.9 Troubleshooting Setup Issues
 
 Even with careful setup, you might encounter issues. Here are solutions to common problems.
 

@@ -1,4 +1,4 @@
-# Chapter 18: Testing Philosophy and Code Quality
+# Chapter 17: Testing Philosophy and Code Quality
 
 Testing isn't just about finding bugs—it's about building confidence that your code works correctly under all conditions. For a project like OJP that sits between applications and databases, comprehensive testing is critical. A bug in connection pooling or transaction handling can cause production outages, data corruption, or silent failures that are difficult to diagnose.
 
@@ -6,7 +6,7 @@ This chapter explores OJP's testing philosophy, test infrastructure, and code qu
 
 ---
 
-## 18.1 The Testing Philosophy
+## 17.1 The Testing Philosophy
 
 OJP's testing philosophy is built on several core principles that guide how we write, organize, and run tests.
 
@@ -70,7 +70,7 @@ Each database runs in GitHub Actions workflows or on self-hosted runners, giving
 
 ---
 
-## 18.2 Types of Tests in OJP
+## 17.2 Types of Tests in OJP
 
 OJP uses several types of tests, each serving a specific purpose in ensuring code quality.
 
@@ -325,7 +325,7 @@ This test ensures connection acquisition remains fast. If a change introduces a 
 
 ---
 
-## 18.3 Test Infrastructure and Configuration
+## 17.3 Test Infrastructure and Configuration
 
 OJP's test infrastructure is designed to make running tests easy while providing flexibility for different environments.
 
@@ -439,7 +439,7 @@ Tests should never depend on data left by previous tests or leave behind data th
 
 ---
 
-## 18.4 Writing Good Tests
+## 17.4 Writing Good Tests
 
 Effective tests share common characteristics. Here's how to write tests that are reliable, maintainable, and valuable.
 
@@ -602,7 +602,7 @@ When this test fails, you immediately see which server got an unexpected number 
 
 ---
 
-## 18.5 Code Quality Standards
+## 17.5 Code Quality Standards
 
 Beyond testing, OJP maintains high code quality through consistent coding standards and practices.
 
@@ -773,7 +773,7 @@ Try-with-resources is safer, more concise, and handles exceptions correctly.
 
 ---
 
-## 18.6 Code Review Checklist
+## 17.6 Code Review Checklist
 
 When reviewing code (yours or others'), check these items:
 
@@ -810,7 +810,7 @@ When reviewing code (yours or others'), check these items:
 
 ---
 
-## 18.7 Running Tests in CI
+## 17.7 Running Tests in CI
 
 OJP's CI pipeline runs tests automatically on every PR. Understanding how CI works helps you debug failures.
 
@@ -916,7 +916,7 @@ void cleanup() {
 
 ---
 
-## 18.8 Test-Driven Development (TDD)
+## 17.8 Test-Driven Development (TDD)
 
 While not required, Test-Driven Development can improve code quality and design.
 
@@ -1011,7 +1011,7 @@ Test still passes, but code is cleaner and uses proper exception type.
 
 ---
 
-## 18.9 Performance Testing Best Practices
+## 17.9 Performance Testing Best Practices
 
 Performance tests ensure changes don't introduce regressions.
 
@@ -1078,7 +1078,7 @@ Percentiles handle outliers better than averages.
 
 ---
 
-## 18.10 Continuous Improvement
+## 17.10 Continuous Improvement
 
 Code quality isn't static—it requires ongoing attention and improvement.
 
@@ -1156,7 +1156,7 @@ This ensures the bug doesn't regress in future changes.
 
 ---
 
-## 18.11 Summary
+## 17.11 Summary
 
 OJP's testing philosophy prioritizes integration tests that verify real behavior with actual databases, while maintaining fast feedback through a tiered CI approach. Code quality standards ensure consistency and maintainability across the codebase.
 
@@ -1174,7 +1174,7 @@ Contributing to OJP means writing code that's tested, maintainable, and meets qu
 
 ---
 
-**AI Image Prompts for Chapter 18:**
+**AI Image Prompts for Chapter 17:**
 
 1. **Testing Philosophy Pyramid**: "Technical diagram showing OJP's inverted testing pyramid with integration tests at the base (largest), unit tests in middle, and performance tests at top. Include database icons and labels. Modern, clean design."
 
@@ -1227,6 +1227,6 @@ flowchart TD
 
 ---
 
-## 18.12 Next Steps
+## 17.12 Next Steps
 
 You now understand how to contribute code, test it thoroughly, and maintain quality standards. The next chapter explores the Contributor Recognition Program—how your contributions are recognized and celebrated in the OJP community. You'll learn about the badge system, progression paths, and how contributions across different tracks (code, testing, documentation, evangelism) can all lead to the highest honor: OJP Champion.

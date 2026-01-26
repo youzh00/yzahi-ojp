@@ -756,7 +756,7 @@ replicaCount: 3                              # Static count based on capacity pl
 - **Size for peak load**: Deploy enough replicas to handle maximum expected load
 - **Use monitoring**: Track resource utilization with Prometheus/Grafana
 - **Manual scaling**: Adjust replica count during maintenance windows when clients can be updated
-- **Future enhancement**: Dynamic service discovery is a planned feature (see Chapter 22: Project Vision)
+- **Future enhancement**: Dynamic service discovery is a planned feature (see Chapter 21: Project Vision)
 
 #### Node Affinity and Tolerations
 

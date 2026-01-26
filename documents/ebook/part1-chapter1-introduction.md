@@ -540,7 +540,7 @@ Understanding new failure modes helps you prepare mitigation strategies:
 - Keep OJP JDBC Driver and Server versions synchronized
 - Implement proper error handling for gRPC exceptions
 - Use connection pooling at the driver level to recover from transient gRPC failures
-- Review Chapter 15 (Troubleshooting) for gRPC diagnostics
+- Review Appendix G (Troubleshooting) for gRPC diagnostics
 
 #### 4. Connection Pool Exhaustion
 **New Failure Mode**: If OJP Server pool is exhausted, new requests queue or timeout even if applications have capacity.

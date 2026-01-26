@@ -1,8 +1,8 @@
-# Chapter 15: Troubleshooting
+# Appendix G: Troubleshooting
 
-Even the most robust systems encounter issues in production. Open J Proxy aims for reliability, but database proxies sit in a complex stack where problems can originate from applications, networks, the proxy itself, or databases. This chapter equips you with diagnostic techniques and solutions for the most common problems you'll encounter.
+Even the most robust systems encounter issues in production. Open J Proxy aims for reliability, but database proxies sit in a complex stack where problems can originate from applications, networks, the proxy itself, or databases. This appendix equips you with diagnostic techniques and solutions for the most common problems you'll encounter.
 
-## 15.1 Diagnostic Fundamentals
+## G.1 Diagnostic Fundamentals
 
 Before diving into specific issues, let's establish a systematic troubleshooting approach that applies to any OJP problem.
 
@@ -28,7 +28,7 @@ Prometheus metrics (Chapter 13) provide operational visibility. Check connection
 
 **[AI Image Prompt: Create a troubleshooting workflow diagram showing the systematic approach to OJP issues. Display a decision tree: 1) Start with "Identify symptoms" (collect exact error messages, timing, affected operations), 2) "Can reproduce?" branch (yes=controlled test, no=production investigation), 3) "Check logs" (OJP debug logs, database logs, application logs), 4) "Check metrics" (connection pools, latency, errors), 5) "Network test" (connectivity, latency, packet loss), 6) "Isolate layer" (application, OJP, network, database). Use flowchart style with clear decision points and action boxes. Include icons for each tool/step. Style: Technical flowchart, professional, clear visual hierarchy, color-coded severity levels.]**
 
-## 15.2 Build and Installation Issues
+## G.2 Build and Installation Issues
 
 Getting OJP built and running correctly forms the foundation for everything else. Let's address common setup problems.
 
@@ -85,7 +85,7 @@ Class loading issues in application servers (Tomcat, JBoss) sometimes require pl
 
 **[AI Image Prompt: Create a troubleshooting checklist infographic for OJP installation issues. Display 5 common problems as separate cards: 1) Build failures (Maven flags, protoc check, Docker requirement), 2) JAR execution (classpath verification, port conflicts, permissions), 3) Driver installation (Maven dependencies, classloader considerations), 4) Database drivers (ojp-libs directory, download script), 5) First connection (JDBC URL format, server connectivity). For each card, show problem symptoms, diagnostic commands, and solutions. Use checkmark icons for steps to verify. Style: Checklist infographic, modern flat design, organized layout, clear typography.]**
 
-## 15.3 Connection Problems
+## G.3 Connection Problems
 
 Connection issues account for the majority of OJP troubleshooting cases. Let's systematically address them.
 
@@ -241,7 +241,7 @@ Coordinate timeouts across layers. As a general rule:
 - Application query timeout < OJP connection timeout < Database statement timeout
 - This ensures timeouts happen at the application layer where you can handle them gracefully, rather than deeper in the stack where they cause more disruptive failures.
 
-## 15.4 Performance Problems
+## G.4 Performance Problems
 
 When OJP performs poorly, multiple factors might be responsible. Let's diagnose and resolve them systematically.
 
@@ -326,7 +326,7 @@ Use `-Xms` (initial heap) close to `-Xmx` (maximum heap) to avoid heap resizing 
 
 **[AI Image Prompt: Create a performance troubleshooting decision tree diagram. Start with "Performance Issue" at top, branch into three main categories: 1) High Latency (branches: connection acquisition, query execution, result fetching, network latency), 2) Memory Pressure (branches: large result sets, too many connections, insufficient heap), 3) CPU Saturation (branches: too many concurrent queries, expensive queries, insufficient resources). For each leaf node, show diagnostic commands and solutions. Use color coding: red for symptoms, yellow for diagnostics, green for solutions. Style: Technical decision tree, clear hierarchy, professional colors, monospace font for commands.]**
 
-## 15.5 Multinode Deployment Issues
+## G.5 Multinode Deployment Issues
 
 Multinode OJP deployments introduce additional complexity. Let's troubleshoot common multinode problems.
 
@@ -423,7 +423,7 @@ If these values differ, you have a split-brain condition. Restart affected serve
 
 **[AI Image Prompt: Create an illustrated guide showing multinode troubleshooting scenarios. Display 4 panels: 1) "Discovery Failure" - show servers unable to see each other with X marks on network connections, 2) "Load Imbalance" - show 3 servers with uneven load bars (80%, 40%, 20%), 3) "Connection Redistribution" - show before/after server recovery with connection flow arrows redistributing, 4) "Split-Brain" - show two groups of servers with different cluster views separated by a network partition symbol. Use server rack icons, network connection lines, and clear visual metaphors. Style: Technical illustration, isometric or flat design, clear problem representation.]**
 
-## 15.6 Database-Specific Issues
+## G.6 Database-Specific Issues
 
 Different databases have unique quirks that affect OJP behavior. Let's address database-specific problems.
 
@@ -526,7 +526,7 @@ SQL Server's lock escalation can cause timeouts under heavy load. Monitor lock w
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 ```
 
-## 15.7 Logging and Debug Techniques
+## G.7 Logging and Debug Techniques
 
 Effective logging makes troubleshooting dramatically easier. Let's explore OJP's logging capabilities.
 
@@ -653,7 +653,7 @@ Structured logs enable powerful queries like "show all errors for connection con
 
 **[AI Image Prompt: Create a visual guide to OJP log levels and their use cases. Display 5 log levels as horizontal bars with increasing verbosity: 1) ERROR (red) - production, critical issues only, 2) WARN (orange) - production, includes recoverable issues, 3) INFO (blue) - production, operational events, 4) DEBUG (yellow) - troubleshooting, detailed operation flow, 5) TRACE (purple) - development only, extremely verbose. For each level, show example log messages, appropriate use case, and performance impact indicator. Include a "severity meter" showing which levels to use when. Style: Educational infographic, color-coded severity, clear information hierarchy, code samples in monospace font.]**
 
-## 15.8 Failure Scenarios and Recovery Procedures
+## G.8 Failure Scenarios and Recovery Procedures
 
 Production systems must handle failures gracefully. This section examines critical failure scenarios you'll encounter with OJP and provides systematic recovery procedures. Understanding these failure modes helps you build resilient architectures and respond effectively when things go wrong.
 
@@ -1231,7 +1231,7 @@ try {
 }
 ```
 
-## 15.9 When to Escalate Issues
+## G.9 When to Escalate Issues
 
 Sometimes you'll encounter problems beyond your ability to resolve. Knowing when and how to escalate ensures you get help effectively.
 

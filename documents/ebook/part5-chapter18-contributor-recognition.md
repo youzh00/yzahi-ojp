@@ -1,4 +1,4 @@
-# Chapter 19: Contributor Recognition Program
+# Chapter 18: Contributor Recognition Program
 
 The Open J Proxy project celebrates contributors who invest their time, skills, and passion to make OJP better. Whether you write code, test features, create documentation, or spread the word about OJP, your contributions matter—and they deserve recognition that extends beyond the project itself.
 
@@ -461,6 +461,6 @@ Your badge is waiting. What will you contribute to earn it?
 
 ---
 
-**Chapter Summary**: Chapter 19 explained the OJP Contributor Recognition Program, a structured system of badges that honors contributions across code, testing, documentation, and evangelism tracks. You learned about the four contribution tracks with progressive levels (Entry → Intermediate → Advanced → Champion), how badges serve as verifiable professional credentials for your CV and LinkedIn, and the community-driven nomination process. The chapter covered how to use badges professionally, the current badge holders, and how cross-track contributions accelerate your path to Champion status. The recognition program transforms open-source contributions into tangible career assets while fostering a culture of collaboration and growth.
+**Chapter Summary**: Chapter 18 explained the OJP Contributor Recognition Program, a structured system of badges that honors contributions across code, testing, documentation, and evangelism tracks. You learned about the four contribution tracks with progressive levels (Entry → Intermediate → Advanced → Champion), how badges serve as verifiable professional credentials for your CV and LinkedIn, and the community-driven nomination process. The chapter covered how to use badges professionally, the current badge holders, and how cross-track contributions accelerate your path to Champion status. The recognition program transforms open-source contributions into tangible career assets while fostering a culture of collaboration and growth.
 
-**Next Chapter**: The e-book is now complete! All 23 chapters have been written, covering the full spectrum of OJP from architecture to contribution. You're ready to build production systems with OJP, contribute to the project, and join the community of recognized contributors.
+**Next Chapter**: The e-book is now complete! All 22 chapters have been written, covering the full spectrum of OJP from architecture to contribution. You're ready to build production systems with OJP, contribute to the project, and join the community of recognized contributors.

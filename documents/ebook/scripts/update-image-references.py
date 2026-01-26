@@ -35,13 +35,13 @@ def update_markdown_file(file_path, dry_run=False):
             subdir = 'part2-configuration'
         elif 'part3' in chapter_name or 'chapter8' in chapter_name or 'chapter9' in chapter_name or 'chapter10' in chapter_name or 'chapter11' in chapter_name or 'chapter12' in chapter_name:
             subdir = 'part3-advanced'
-        elif 'part4' in chapter_name or 'chapter13' in chapter_name or 'chapter14' in chapter_name or 'chapter15' in chapter_name:
+        elif 'part4' in chapter_name or 'chapter13' in chapter_name or 'chapter14' in chapter_name:
             subdir = 'part4-operations'
-        elif 'part5' in chapter_name or 'chapter16' in chapter_name or 'chapter17' in chapter_name or 'chapter18' in chapter_name or 'chapter19' in chapter_name:
+        elif 'part5' in chapter_name or 'chapter15' in chapter_name or 'chapter16' in chapter_name or 'chapter17' in chapter_name or 'chapter18' in chapter_name:
             subdir = 'part5-development'
-        elif 'part6' in chapter_name or 'chapter20' in chapter_name or 'chapter21' in chapter_name:
+        elif 'part6' in chapter_name or 'chapter19' in chapter_name or 'chapter20' in chapter_name:
             subdir = 'part6-analysis'
-        elif 'part7' in chapter_name or 'chapter22' in chapter_name or 'chapter23' in chapter_name:
+        elif 'part7' in chapter_name or 'chapter21' in chapter_name or 'chapter22' in chapter_name:
             subdir = 'part7-vision'
         elif 'appendix' in chapter_name:
             subdir = 'appendices'

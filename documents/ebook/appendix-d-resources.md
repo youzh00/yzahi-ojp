@@ -449,7 +449,7 @@ Methodology for building software-as-a-service apps - relevant for OJP deploymen
 ### For Contributors
 
 1. Read CONTRIBUTING.md
-2. Set up the development environment (Chapter 16)
+2. Set up the development environment (Chapter 15)
 3. Review Architecture Decision Records (ADRs)
 4. Pick a "good first issue"
 5. Join GitHub Discussions
