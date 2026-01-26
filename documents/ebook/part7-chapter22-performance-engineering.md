@@ -1,8 +1,8 @@
-# Chapter 23: Performance Engineering and Capacity Planning
+# Chapter 22: Performance Engineering and Capacity Planning
 
 Understanding OJP's performance characteristics is essential for successful production deployments. This chapter provides comprehensive guidance on capacity planning, performance profiling, resource consumption patterns, and benchmarking methodologies to help you right-size your OJP infrastructure and meet your performance objectives.
 
-## 23.1 Performance Fundamentals
+## 22.1 Performance Fundamentals
 
 OJP introduces a network hop between your application and the database, which fundamentally changes the performance profile compared to in-process connection pooling. Understanding these characteristics is critical for setting realistic expectations and making informed architectural decisions.
 
@@ -109,7 +109,7 @@ OJP's CPU consumption is primarily driven by serialization, deserialization, and
 - Monitor CPU utilization targeting 40-60% average (peak ~80%)
 - Consider vertical scaling before horizontal for CPU-bound workloads
 
-## 23.2 Capacity Planning Framework
+## 22.2 Capacity Planning Framework
 
 Proper capacity planning prevents both under-provisioning (performance degradation, outages) and over-provisioning (wasted resources). This framework guides you through the sizing process.
 
@@ -222,7 +222,7 @@ Before production deployment, validate your capacity plan:
 - CPU utilization <70% at sustained load
 - Memory utilization stable (no growth >5% over 24h)
 
-## 23.3 Performance Profiling and Optimization
+## 22.3 Performance Profiling and Optimization
 
 Once deployed, continuous profiling identifies bottlenecks and optimization opportunities.
 
@@ -454,7 +454,7 @@ Statement stmt = conn.createStatement(
    net.ipv4.tcp_wmem = 4096 65536 67108864
    ```
 
-## 23.4 Benchmarking Methodology
+## 22.4 Benchmarking Methodology
 
 Effective benchmarking provides accurate performance data for capacity planning and optimization validation.
 
@@ -699,7 +699,7 @@ public class Metrics {
 }
 ```
 
-## 23.5 Resource Consumption Guidance
+## 22.5 Resource Consumption Guidance
 
 Understanding resource consumption patterns helps with cost optimization and capacity forecasting.
 
@@ -812,7 +812,7 @@ logging.file.max-history=7
 logging.pattern.console=%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n
 ```
 
-## 23.6 Performance Monitoring and Alerting
+## 22.6 Performance Monitoring and Alerting
 
 Continuous monitoring ensures you detect and resolve performance issues before they impact users.
 
@@ -933,7 +933,7 @@ scheduler.scheduleAtFixedRate(() -> {
     description: "CPU: {{ $value | humanizePercentage }}"
 ```
 
-## 23.7 Cost Optimization Strategies
+## 22.7 Cost Optimization Strategies
 
 Balancing performance with cost is essential for sustainable operations.
 
@@ -1001,9 +1001,9 @@ Track these metrics for cost optimization:
 
 ---
 
-## AI-Ready Image Prompts for Chapter 23
+## AI-Ready Image Prompts for Chapter 22
 
-**Image 23-1: Performance Overhead Breakdown**
+**Image 22-1: Performance Overhead Breakdown**
 Create a stacked bar chart visualization showing the latency overhead components of OJP. The chart should have three bars representing "Same Datacenter," "Same AZ," and "Cross-AZ" deployments. Each bar is divided into colored segments for: Network RTT (blue), gRPC Serialization (green), OJP Server Processing (orange), and Database Execution (gray, for reference). Include exact millisecond values for each component and a total overhead number at the top of each bar. Use a clean, technical style with a white background and clear labels.
 
 **Image 23-2: Throughput Scaling Curve**

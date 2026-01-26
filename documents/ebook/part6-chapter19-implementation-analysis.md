@@ -1,8 +1,8 @@
-# Chapter 20: Implementation Analysis
+# Chapter 19: Implementation Analysis
 
 Modern software development involves countless design decisions and trade-offs. The Open J Proxy project represents years of architectural evolution, with each implementation choice carefully considered to balance performance, maintainability, and flexibility. This chapter explores three critical implementation decisions that shaped OJP's architecture: driver externalization, the pool disable capability, and the XA Connection Pool Provider SPI. Understanding these design choices provides insights into how OJP achieves its goals of flexibility and efficiency.
 
-## 20.1 Driver Externalization
+## 19.1 Driver Externalization
 
 When OJP first launched, it included all open-source JDBC drivers as embedded dependencies in the server JAR. While this "batteries included" approach simplified initial deployment, it created several challenges that became increasingly problematic as the project matured.
 
@@ -34,7 +34,7 @@ graph TD
 
 This implementation demonstrates a key principle in OJP's design philosophy: start with simplicity but architect for flexibility. The "batteries included" Docker image preserves the easy onboarding experience, while the externalization architecture accommodates enterprise requirements for control and customization.
 
-## 20.2 Pool Disable Feature
+## 19.2 Pool Disable Feature
 
 Connection pooling typically improves performance by reusing database connections, but certain scenarios demand direct connections without pooling overhead. OJP's pool disable feature recognizes that one size doesn't fit all, allowing users to selectively disable pooling for both Non-XA and XA connections on a per-datasource basis.
 
@@ -70,7 +70,7 @@ Create a flowchart showing the connection acquisition decision process. Start wi
 
 From a performance perspective, disabled pooling introduces additional overhead for each connection request but eliminates the pooling infrastructure entirely. For workloads dominated by long-lived connections, this trade-off makes sense. For high-frequency, short-lived operations, pooling remains the clear winner. The feature empowers users to make this decision based on their specific workload characteristics rather than forcing a one-size-fits-all approach.
 
-## 20.3 XA Pool SPI
+## 19.3 XA Pool SPI
 
 The Connection Pool Provider SPI (Service Provider Interface) represents OJP's most extensible architecture component. While HikariCP handles Non-XA connection pooling exceptionally well, XA (distributed transaction) pooling requires specialized capabilities. Different databases and use cases benefit from different XA pooling implementations, so OJP provides a pluggable SPI that allows custom pool providers.
 

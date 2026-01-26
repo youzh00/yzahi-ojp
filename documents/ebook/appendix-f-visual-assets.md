@@ -3022,9 +3022,9 @@ Create a detailed flowchart showing the SQL enhancement process. Start with "SQL
 Create a monitoring dashboard mockup showing SQL Enhancer metrics. Include four main panels: 1) "Cache Hit Rate" gauge showing 87% in green, 2) "Parse Performance" line graph showing parse times declining over time as cache warms up (starting at 50ms average, declining to 2ms average), 3) "Query Status" pie chart showing 87% cached (green), 11% parsed (yellow), 2% passthrough on error (orange), and 4) "Recent Activity" log showing last 5 queries with timestamps, SQL snippets, cache hit/miss status, and parse times. Use a modern dashboard style with purple/blue color scheme, clean typography, and status badges (Enabled, Healthy). Include a timestamp "2026-01-10 10:30:00" and total queries processed "1,247,892" in header.
 
 
-### Chapter 20: Implementation Analysis
+### Chapter 19: Implementation Analysis
 
-**Source:** `documents/ebook/part6-chapter20-implementation-analysis.md`
+**Source:** `documents/ebook/part6-chapter19-implementation-analysis.md`
 
 #### Prompt 1
 
@@ -3085,9 +3085,9 @@ Looking forward, the SPI enables community contributions without requiring chang
 The implementation demonstrates sophisticated software engineering: defining clear boundaries, minimizing coupling, maximizing cohesion, and enabling extension without modification. It's the Open-Closed Principle in action—OJP is closed for modification but open for extension through the SPI mechanism.
 
 
-### Chapter 21: Fixed Issues and Lessons Learned
+### Chapter 20: Fixed Issues and Lessons Learned
 
-**Source:** `documents/ebook/part6-chapter21-lessons-learned.md`
+**Source:** `documents/ebook/part6-chapter20-lessons-learned.md`
 
 #### Prompt 1
 
@@ -3169,9 +3169,9 @@ Create an infographic summarizing key lessons learned. Display five sections ver
 **Documentation as Living Artifact**: Initially, documentation captured the intended design. Production deployment revealed gaps between intention and reality—configurations that theoretically should work but practically don't, workarounds necessary for specific databases, performance characteristics that only emerge under load. Documentation evolved to capture this operational wisdom, not just design specifications. The lesson: documentation must reflect reality, including the rough edges.
 
 
-### Chapter 22: Project Vision and Future
+### Chapter 21: Project Vision and Future
 
-**Source:** `documents/ebook/part7-chapter22-vision-future.md`
+**Source:** `documents/ebook/part7-chapter21-vision-future.md`
 
 #### Prompt 1
 

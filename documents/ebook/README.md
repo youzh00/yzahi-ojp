@@ -6,9 +6,9 @@ This comprehensive e-book provides complete documentation for Open-J-Proxy (OJP)
 
 ## Content Overview
 
-**Total Content**: 822KB across 22 chapters + 4 appendices  
+**Total Content**: 822KB across 22 chapters + 5 appendices  
 **Visual Assets**: 227 AI-ready image prompts, 70 Mermaid diagrams  
-**Completion**: 100% (all 23 chapters written)
+**Completion**: 100% (all 22 chapters written)
 
 ## Documentation Version
 
@@ -40,27 +40,30 @@ Message: Merge pull request #284 from Open-J-Proxy/copilot/evaluate-abandoned-se
 - [Chapter 11: Security & Network Architecture](part3-chapter11-security.md)
 - [Chapter 12: Connection Pool Provider SPI](part3-chapter12-pool-provider-spi.md)
 
-### Part IV: Operations (3 chapters)
+### Part IV: Operations (2 chapters)
 - [Chapter 13: Telemetry and Monitoring](part4-chapter13-telemetry.md)
 - [Chapter 14: Protocol and Wire Format](part4-chapter14-protocol.md)
-- [Chapter 15: Troubleshooting](part4-chapter15-troubleshooting.md)
 
 ### Part V: Development & Contribution (4 chapters)
-- [Chapter 16: Development Environment Setup](part5-chapter16-dev-setup.md)
-- [Chapter 17: Contributing Workflow and Git Strategy](part5-chapter17-contributing-workflow.md)
-- [Chapter 18: Testing Philosophy and Code Quality](part5-chapter18-testing-code-quality.md)
-- [Chapter 19: Contributor Recognition Program](part5-chapter19-contributor-recognition.md)
+- [Chapter 15: Development Environment Setup](part5-chapter15-dev-setup.md)
+- [Chapter 16: Contributing Workflow and Git Strategy](part5-chapter16-contributing-workflow.md)
+- [Chapter 17: Testing Philosophy and Code Quality](part5-chapter17-testing-code-quality.md)
+- [Chapter 18: Contributor Recognition Program](part5-chapter18-contributor-recognition.md)
 
-### Part VI-VII: Advanced Topics & Vision (3 chapters)
-- [Chapter 20: Implementation Analysis](part6-chapter20-implementation-analysis.md)
-- [Chapter 21: Fixed Issues and Lessons Learned](part6-chapter21-lessons-learned.md)
-- [Chapter 22: Project Vision and Future](part7-chapter22-vision-future.md)
+### Part VI-VII: Advanced Topics & Vision (4 chapters)
+- [Chapter 19: Implementation Analysis](part6-chapter19-implementation-analysis.md)
+- [Chapter 20: Fixed Issues and Lessons Learned](part6-chapter20-lessons-learned.md)
+- [Chapter 21: Project Vision and Future](part7-chapter21-vision-future.md)
+- [Chapter 22: Performance Engineering and Capacity Planning](part7-chapter22-performance-engineering.md)
 
-### Appendices (4 appendices)
+### Appendices (5 appendices)
 - [Appendix A: Command and Configuration Quick Reference](appendix-a-command-reference.md)
 - [Appendix B: Database-Specific Configuration Guides](appendix-b-database-guides.md)
 - [Appendix C: Glossary](appendix-c-glossary.md)
 - [Appendix D: Resources and References](appendix-d-resources.md)
+- [Appendix E: JDBC Compatibility Matrix](appendix-e-jdbc-compatibility.md)
+- [Appendix F: Visual Assets Index](appendix-f-visual-assets.md)
+- [Appendix G: Troubleshooting](appendix-g-troubleshooting.md)
 
 ## Reading Paths
 
@@ -79,7 +82,7 @@ Start with Chapter 3 (Quick Start Guide) for immediate hands-on experience, then
 2. Chapter 5: JDBC Configuration
 3. Chapter 7: Framework Integration
 4. Chapter 12: Connection Pool Provider SPI
-5. Chapter 15: Troubleshooting
+5. Appendix G: Troubleshooting
 
 ### For Advanced Users
 1. Chapter 8: Slow Query Segregation
@@ -88,10 +91,10 @@ Start with Chapter 3 (Quick Start Guide) for immediate hands-on experience, then
 4. Chapter 12: Connection Pool Provider SPI (SQL Enhancer, Pool Housekeeping)
 
 ### For Contributors
-1. Chapter 16: Development Environment Setup
-2. Chapter 17: Contributing Workflow and Git Strategy
-3. Chapter 18: Testing Philosophy and Code Quality
-4. Chapter 19: Contributor Recognition Program
+1. Chapter 15: Development Environment Setup
+2. Chapter 16: Contributing Workflow and Git Strategy
+3. Chapter 17: Testing Philosophy and Code Quality
+4. Chapter 18: Contributor Recognition Program
 
 ## E-Book Characteristics
 
@@ -132,7 +135,7 @@ This e-book is ready for conversion to:
 
 ## Contributing to This E-Book
 
-If you find errors, have suggestions for improvements, or want to contribute new content, please follow the guidelines in [Chapter 17: Contributing Workflow](part5-chapter17-contributing-workflow.md).
+If you find errors, have suggestions for improvements, or want to contribute new content, please follow the guidelines in [Chapter 16: Contributing Workflow](part5-chapter16-contributing-workflow.md).
 
 ## License
 

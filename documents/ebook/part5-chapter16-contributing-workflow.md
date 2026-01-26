@@ -1,4 +1,4 @@
-# Chapter 17: Contributing Workflow and Git Strategy
+# Chapter 16: Contributing Workflow and Git Strategy
 
 Contributing to an open-source project like OJP requires more than just writing good code—it requires understanding the collaboration workflow, knowing how to navigate Git effectively, and being part of a community-driven development process. This chapter walks you through the entire contribution journey, from forking the repository to seeing your pull request merged and celebrated.
 
@@ -6,7 +6,7 @@ Whether you're fixing a small bug, adding a major feature, or improving document
 
 ---
 
-## 17.1 Understanding the Git Workflow
+## 16.1 Understanding the Git Workflow
 
 OJP uses a **fork-based workflow** with the **main branch** as the stable, production-ready branch. All development happens in feature branches in individual forks, which are then submitted as pull requests to the upstream repository.
 
@@ -35,7 +35,7 @@ This single-branch strategy avoids the complexity of maintaining development, st
 
 ---
 
-## 17.2 Setting Up Your Development Environment
+## 16.2 Setting Up Your Development Environment
 
 Before you can contribute, you need to set up your local development environment. This involves forking the repository, cloning your fork, and establishing a connection to the upstream repository.
 
@@ -95,7 +95,7 @@ This four-step process ensures your local main branch matches the upstream main 
 
 ---
 
-## 17.3 Creating a Feature Branch
+## 16.3 Creating a Feature Branch
 
 Never work directly on the main branch in your fork. Instead, create a feature branch for each piece of work. This keeps your changes isolated and makes it easy to work on multiple features or fixes simultaneously.
 
@@ -132,7 +132,7 @@ Now you're ready to make changes. All your commits will go to this feature branc
 
 ---
 
-## 17.4 Making Changes and Committing
+## 16.4 Making Changes and Committing
 
 With your feature branch created, you can start writing code, fixing bugs, or updating documentation. Follow these practices to make your changes easy to review and integrate.
 
@@ -211,7 +211,7 @@ git log --graph --oneline --all
 
 ---
 
-## 17.5 Testing Your Changes Locally
+## 16.5 Testing Your Changes Locally
 
 Before pushing your changes, test them thoroughly. OJP has a comprehensive test suite, but tests are disabled by default to avoid requiring database setup for casual contributors.
 
@@ -248,7 +248,7 @@ mvn test -DenableMySQLTests=true
 mvn test -DenableH2Tests=true -DenablePostgresTests=true
 ```
 
-See Chapter 16 for detailed setup instructions for each database.
+See Chapter 15 for detailed setup instructions for each database.
 
 ### Running Specific Tests
 
@@ -277,7 +277,7 @@ This compiles all modules, runs unit tests, and creates the JAR files. If this s
 
 ---
 
-## 17.6 Pushing to Your Fork
+## 16.6 Pushing to Your Fork
 
 Once you're satisfied with your changes and all tests pass, push your feature branch to your fork on GitHub:
 
@@ -315,7 +315,7 @@ If your pull request is already open, GitHub automatically updates it with your 
 
 ---
 
-## 17.7 Creating a Pull Request
+## 16.7 Creating a Pull Request
 
 With your changes pushed to your fork, you're ready to create a pull request (PR) to submit your work for review.
 
@@ -384,7 +384,7 @@ If no issue exists for what you're working on, create one first to discuss the p
 
 ---
 
-## 17.8 The Pull Request Review Process
+## 16.8 The Pull Request Review Process
 
 Once you've submitted your PR, it enters the review phase. This is a collaborative process where maintainers and other contributors provide feedback to improve your code.
 
@@ -454,7 +454,7 @@ Use `--force-with-lease` instead of `--force` to avoid accidentally overwriting 
 
 ---
 
-## 17.9 After Your PR is Merged
+## 16.9 After Your PR is Merged
 
 Congratulations! Your contribution has been accepted and merged. Here's what to do next:
 
@@ -489,7 +489,7 @@ Ready for more? Create a new feature branch and repeat the process. Each contrib
 
 ---
 
-## 17.10 Advanced Git Techniques
+## 16.10 Advanced Git Techniques
 
 As you become more experienced with Git, these advanced techniques will help you work more efficiently.
 
@@ -555,7 +555,7 @@ The three-dot syntax shows changes from the common ancestor, which is usually wh
 
 ---
 
-## 17.11 Working on Multiple Features
+## 16.11 Working on Multiple Features
 
 You can work on multiple features simultaneously by using separate branches:
 
@@ -581,7 +581,7 @@ Each branch is independent, allowing you to submit multiple PRs simultaneously. 
 
 ---
 
-## 17.12 Troubleshooting Common Git Issues
+## 16.12 Troubleshooting Common Git Issues
 
 ### Accidentally Committed to Main
 
@@ -623,7 +623,7 @@ If you encounter conflicts during a rebase:
 
 ---
 
-## 17.13 Etiquette and Best Practices
+## 16.13 Etiquette and Best Practices
 
 Contributing to open source is as much about communication as it is about code. Follow these guidelines to be a respectful and effective contributor.
 
@@ -655,7 +655,7 @@ Contributing to open source is as much about communication as it is about code. 
 
 ---
 
-## 17.14 Common Contribution Scenarios
+## 16.14 Common Contribution Scenarios
 
 Let's walk through some typical contribution scenarios from start to finish.
 
@@ -757,7 +757,7 @@ git push origin docs/improve-multinode-guide
 
 ---
 
-## 17.15 Git Workflow Summary
+## 16.15 Git Workflow Summary
 
 Here's a quick reference for the complete Git workflow:
 
@@ -800,7 +800,7 @@ git branch -d feature/your-feature-name
 
 ---
 
-## 17.16 Next Steps
+## 16.16 Next Steps
 
 Understanding the Git workflow is the foundation of contributing to OJP. In the next chapter, we'll dive deeper into testing strategies, code quality standards, and how to write tests that ensure your contributions are robust and maintainable.
 

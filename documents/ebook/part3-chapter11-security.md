@@ -1180,4 +1180,4 @@ The investment in proper security pays dividends in reduced risk, compliance con
 
 With security fundamentals in place, you're ready to explore advanced extensibility in **Chapter 12: Connection Pool Provider SPI**, where you'll learn how to implement custom connection pooling providers and integrate alternative pooling libraries beyond HikariCP and DBCP.
 
-For operational concerns, review **Chapter 13: Telemetry and Monitoring** to ensure you have visibility into your secure OJP deployment. And for contribution opportunities, security features are always welcome—see **Chapter 17: Contributing Workflow** for guidelines on submitting security enhancements.
+For operational concerns, review **Chapter 13: Telemetry and Monitoring** to ensure you have visibility into your secure OJP deployment. And for contribution opportunities, security features are always welcome—see **Chapter 16: Contributing Workflow** for guidelines on submitting security enhancements.

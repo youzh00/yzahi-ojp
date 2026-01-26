@@ -1,8 +1,8 @@
-# Chapter 21: Fixed Issues and Lessons Learned
+# Chapter 20: Fixed Issues and Lessons Learned
 
 Software engineering is a discipline of continuous learning. Every bug fixed, every performance issue resolved, and every production incident weathered contributes to collective wisdom. The Open J Proxy project's journey includes critical fixes that shaped its architecture and operational characteristics. This chapter examines significant issues encountered in OJP's evolution, the engineering insights they revealed, and the lasting improvements they inspired.
 
-## 21.1 Issue #29: The Indefinite Blocking Crisis
+## 20.1 Issue #29: The Indefinite Blocking Crisis
 
 The most critical issue in OJP's history emerged from a seemingly straightforward integration test. Under high concurrent load—200+ threads hammering the server simultaneously—OJP would stop responding entirely. Queries wouldn't complete, errors wouldn't surface, and the system effectively hung until manually terminated. This behavior represented a catastrophic failure mode: silent, complete, and indefinite.
 
@@ -67,7 +67,7 @@ Fourth, **connection pool sizing is workload-dependent**. There's no universal "
 **[IMAGE PROMPT: Before and After Comparison]**
 Create a split-screen comparison showing system behavior under high load. Left side "Before Fix": Show a dashboard with all metrics flatlined or frozen, system status "UNRESPONSIVE", error log showing no new entries, and a timestamp showing "10+ minutes elapsed". Right side "After Fix": Show active metrics with some operations succeeding (green) and some failing with timeout errors (yellow), system status "RESPONSIVE", error log showing clear timeout messages, and timestamp showing "~8 seconds elapsed". Include visual metaphors: left side shows a completely blocked pipe, right side shows a pipe with controlled flow and pressure relief valve.
 
-## 21.2 Multinode Connection Redistribution
+## 20.2 Multinode Connection Redistribution
 
 As OJP matured and users deployed it in production, multinode configurations became increasingly common. Multiple OJP servers provide high availability and horizontal scaling, but they introduced a subtle challenge: how connections redistribute when the server pool changes.
 
@@ -90,7 +90,7 @@ The configuration design balances simplicity with control. Users specify total d
 
 The lessons learned from this issue emphasize the importance of **thinking at the cluster level, not just the server level**. In distributed systems, configuration that seems local often has global implications. Second, **automatic coordination beats manual calculation**. Expecting operators to manually calculate and adjust pool sizes during topology changes invites errors. Third, **smooth transitions prevent disruption**. Immediately closing connections during scale-down would terminate in-flight operations; gradual adjustment through attrition maintains service continuity.
 
-## 21.3 Production Patterns and Insights
+## 20.3 Production Patterns and Insights
 
 Beyond specific issues, OJP's journey has revealed recurring patterns and insights applicable to database connection management generally.
 

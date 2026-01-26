@@ -1123,7 +1123,7 @@ When migrating from direct JDBC to OJP, use this checklist to ensure compatibili
 - Chapter 5: JDBC Configuration
 - Chapter 10: XA Distributed Transactions
 - Chapter 13: Telemetry and Monitoring
-- Chapter 15: Troubleshooting
+- Appendix G: Troubleshooting
 
 ---
 
