@@ -31,11 +31,11 @@ This directory contains all generated images for the Open J Proxy e-book.
 - `part1-foundation/` - Images for Chapters 1-3a (Introduction, Architecture, Quick Start, Kubernetes)
 - `part2-configuration/` - Images for Chapters 4-7 (Database Drivers, JDBC Config, Server Config, Framework Integration)
 - `part3-advanced/` - Images for Chapters 8-12 (Slow Query, Multinode, XA, Security, Pool SPI)
-- `part4-operations/` - Images for Chapters 13-15 (Telemetry, Protocol, Troubleshooting)
-- `part5-development/` - Images for Chapters 16-19 (Dev Setup, Contributing, Testing, Recognition)
-- `part6-analysis/` - Images for Chapters 20-21 (Implementation Analysis, Lessons Learned)
-- `part7-vision/` - Images for Chapters 22-23 (Vision, Performance Engineering)
-- `appendices/` - Images for Appendices A-E
+- `part4-operations/` - Images for Chapters 13-14 (Telemetry, Protocol)
+- `part5-development/` - Images for Chapters 15-18 (Dev Setup, Contributing, Testing, Recognition)
+- `part6-analysis/` - Images for Chapters 19-20 (Implementation Analysis, Lessons Learned)
+- `part7-vision/` - Images for Chapters 21-22 (Vision, Performance Engineering)
+- `appendices/` - Images for Appendices A-G (including Troubleshooting)
 
 ## Image Specifications
 
