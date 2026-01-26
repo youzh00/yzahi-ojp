@@ -421,7 +421,7 @@ def process_large_result_set(client, result_set_id):
     return total_rows
 ```
 
-The `max_rows` parameter controls batch size. Larger batches reduce round trips but increase memory usage. Tune this based on your row size and network latency.
+**Important:** OJP Server streams results in fixed batches of 100 records (currently hardcoded and not configurable via `max_rows`). The stream is continuous—if your client processes rows slowly, records will accumulate in client memory. Ensure your client processes each batch promptly to avoid memory pressure, especially with large result sets.
 
 ## 14.4 Protocol Versioning and Compatibility
 
