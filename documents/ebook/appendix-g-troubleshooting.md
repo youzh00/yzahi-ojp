@@ -964,7 +964,7 @@ PostgreSQL commonly uses streaming replication with automatic failover tools lik
 
 #### MySQL/MariaDB Replication Failover
 
-MySQL replication with MHA or ProxySQL provides automatic failover. The process is similar to PostgreSQL but with different failure characteristics.
+MySQL replication with MHA or ProxySQL provides automatic failover. The process is similar to PostgreSQL but with different failure characteristics. Note that ProxySQL and OJP serve different purposes and can be used together—see **[Chapter 2a](part1-chapter2a-smart-load-balancing.md)** for a detailed comparison of OJP with traditional database proxies like ProxySQL.
 
 **Handling with OJP**:
 1. **Use ProxySQL for routing**: ProxySQL handles primary detection and routing automatically
