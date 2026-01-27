@@ -72,7 +72,7 @@ graph TD
 
 ### Virtual JDBC Connections Over Multiplexed gRPC
 
-It's important to understand that OJP JDBC driver hands out **virtual JDBC connections** that all use the same **multiplexed gRPC connection** to each OJP Server. When you call `getConnection()`, you don't create a new network connection—you create a lightweight virtual connection object that sends operations over an existing gRPC channel.
+It's important to understand that OJP JDBC driver hands out **virtual JDBC connections** that all use the same **multiplexed gRPC connection** to each OJP Server. These "virtual" connections are lightweight objects that implement the JDBC `Connection` interface but don't correspond to actual network connections or backend database connections. Instead, when you call `getConnection()`, you get a virtual connection object that sends operations over an existing gRPC channel to the selected OJP Server, which then manages the actual database connections.
 
 This multiplexing is key to OJP's efficiency:
 - **Single gRPC Connection per Server**: The driver establishes one gRPC connection to each configured OJP Server when first connecting
@@ -119,8 +119,8 @@ graph LR
 
 When you configure OJP with multiple servers, the connection pool sizing works differently than you might expect. **Each OJP Server automatically caps its connections based on the total pool size divided by the number of servers**.
 
-For example, if you configure a maximum of 30 connections for a given application and you have 3 OJP Servers:
-- Each server will cap at 10 connections (30 ÷ 3 = 10 per server)
+For example, if you configure a maximum of 30 backend database connections per application instance (via your connection pool settings) and you have 3 OJP Servers:
+- Each server will cap at 10 backend database connections (30 ÷ 3 = 10 per server)
 - If one OJP Server goes down, the other two will rebalance to max 15 connections each (30 ÷ 2 = 15 per server) to compensate
 - When that OJP node comes back online, it will rebalance back to 10 connections per server
 
@@ -379,7 +379,7 @@ String url = "jdbc:ojp[ojp-server-1:1059,ojp-server-2:1059,ojp-server-3:1059]_" 
              "postgresql://db.internal:5432/proddb";
 ```
 
-Three servers provide better fault tolerance (can survive one failure with 2 healthy servers remaining) while minimizing infrastructure costs.
+Three servers is the recommended minimum because it provides better fault tolerance (can survive one failure with 2 healthy servers remaining) while minimizing infrastructure costs. You can deploy more servers (4, 5, or more) if you need higher capacity or want to tolerate multiple simultaneous failures, but 3 is the practical minimum for production HA.
 
 ### Health Check Tuning
 
