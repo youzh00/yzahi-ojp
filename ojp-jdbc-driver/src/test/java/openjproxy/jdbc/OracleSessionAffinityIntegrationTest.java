@@ -1,7 +1,5 @@
 package openjproxy.jdbc;
 
-import lombok.extern.slf4j.Slf4j;
-import org.junit.Assert;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
@@ -41,7 +39,7 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
     @CsvFileSource(resources = "/oracle_connections.csv")
      void testTemporaryTableSessionAffinity(String driverClass, String url, String user, String pwd)             throws SQLException {
         assumeFalse(isTestDisabled, "Oracle tests are disabled");
-
+        logger.info("Testing temporay table with Driver: {}", driverClass);
         logger.info("Testing temporary table session affinity for Oracle: {}", url);
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -99,7 +97,7 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
     @CsvFileSource(resources = "/oracle_connections.csv")
      void testComplexTemporaryTableOperations(String driverClass, String url, String user, String pwd)             throws SQLException {
         assumeFalse(isTestDisabled, "Oracle tests are disabled");
-
+        logger.info("Testing temporay table with Driver: {}", driverClass);
         logger.info("Testing complex temporary table operations for Oracle: {}", url);
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -175,7 +173,7 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
     @CsvFileSource(resources = "/oracle_connections.csv")
     void testTemporaryTablePersistenceAcrossTransactions(String driverClass, String url, String user, String pwd)             throws SQLException {
         assumeFalse(isTestDisabled, "Oracle tests are disabled");
-
+        logger.info("Testing temporay table with Driver: {}", driverClass);
         logger.info("Testing temporary table persistence across transactions for Oracle: {}", url);
 
         Connection conn = DriverManager.getConnection(url, user, pwd);

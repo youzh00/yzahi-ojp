@@ -1,7 +1,5 @@
 package openjproxy.jdbc;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.MethodOrderer;
@@ -9,6 +7,8 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -16,7 +16,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 /**
@@ -67,9 +69,9 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
  *
  * @see org.openjproxy.grpc.server.sql.SqlSessionAffinityDetector
  */
-@Slf4j
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class Db2SessionAffinityIntegrationTest {
+    private static final Logger logger = LoggerFactory.getLogger(Db2SessionAffinityIntegrationTest.class);
 
     private static boolean isTestDisabled;
 
@@ -99,26 +101,26 @@ class Db2SessionAffinityIntegrationTest {
     @Order(1)
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    void testTemporaryTableSessionAffinity(String driverClass, String url, String user, String pwd)
-            throws SQLException, ClassNotFoundException {
+    void testTemporaryTableSessionAffinity(String driverClass, String url, String user, String pwd) throws SQLException {
+        logger.info("Testing temporay table with Driver: {}", driverClass);
         assumeFalse(isTestDisabled, "DB2 tests are disabled");
 
-        log.info("Testing temporary table session affinity for DB2: {}", url);
+        logger.info("Testing temporary table session affinity for DB2: {}", url);
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
 
         // Try to create the declared global temporary table (this should trigger session affinity)
         // If it already exists from a previous run, catch the duplicate error and just clear data
-        log.debug("Creating DB2 declared global temporary table: {}", SHARED_TABLE_NAME);
+        logger.debug("Creating DB2 declared global temporary table: {}", SHARED_TABLE_NAME);
         Statement createStmt = conn.createStatement();
         try {
             createStmt.execute("DECLARE GLOBAL TEMPORARY TABLE SESSION." + SHARED_TABLE_NAME +
                     " (id INT, value VARCHAR(100)) ON COMMIT PRESERVE ROWS");
-            log.debug("Successfully created temporary table");
+            logger.debug("Successfully created temporary table");
         } catch (SQLException e) {
             // SQLCODE=-286 (SQLSTATE 42727) means table already exists - clear it and continue
             if ("42727".equals(e.getSQLState())) {
-                log.debug("Table already exists, clearing data");
+                logger.debug("Table already exists, clearing data");
                 createStmt.execute("DELETE FROM SESSION." + SHARED_TABLE_NAME);
             } else {
                 throw e;
@@ -129,11 +131,11 @@ class Db2SessionAffinityIntegrationTest {
 
         try (Statement stmt = conn.createStatement()) {
             // Insert data into temporary table (should use same session)
-            log.debug("Inserting data into temporary table");
+            logger.debug("Inserting data into temporary table");
             stmt.execute("INSERT INTO SESSION." + SHARED_TABLE_NAME + " VALUES (1, 'test_value')");
 
             // Query temporary table (should use same session)
-            log.debug("Querying temporary table");
+            logger.debug("Querying temporary table");
             ResultSet rs = stmt.executeQuery("SELECT id, value FROM SESSION." + SHARED_TABLE_NAME);
 
             // Verify data was inserted and retrieved successfully
@@ -146,7 +148,7 @@ class Db2SessionAffinityIntegrationTest {
 
             rs.close();
 
-            log.info("DB2 temporary table session affinity test passed");
+            logger.info("DB2 temporary table session affinity test passed");
 
         } finally {
             conn.close();
@@ -167,25 +169,24 @@ class Db2SessionAffinityIntegrationTest {
     @Order(2)
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    void testComplexTemporaryTableOperations(String driverClass, String url, String user, String pwd)
-            throws SQLException, ClassNotFoundException {
+    void testComplexTemporaryTableOperations(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "DB2 tests are disabled");
-
-        log.info("Testing complex temporary table operations for DB2: {}", url);
+        logger.info("Testing temporay table with Driver: {}", driverClass);
+        logger.info("Testing complex temporary table operations for DB2: {}", url);
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
 
         // Try to create the table if it doesn't exist, or just clear data if it does
-        log.debug("Ensuring temp table exists: {}", SHARED_TABLE_NAME);
+        logger.debug("Ensuring temp table exists: {}", SHARED_TABLE_NAME);
         Statement createStmt = conn.createStatement();
         try {
             createStmt.execute("DECLARE GLOBAL TEMPORARY TABLE SESSION." + SHARED_TABLE_NAME +
                     " (id INT, value VARCHAR(100)) ON COMMIT PRESERVE ROWS");
-            log.debug("Successfully created temporary table");
+            logger.debug("Successfully created temporary table");
         } catch (SQLException e) {
             // SQLCODE=-286 (SQLSTATE 42727) means table already exists - clear it and continue
             if ("42727".equals(e.getSQLState())) {
-                log.debug("Table already exists, clearing data");
+                logger.debug("Table already exists, clearing data");
                 createStmt.execute("DELETE FROM SESSION." + SHARED_TABLE_NAME);
             } else {
                 throw e;
@@ -196,17 +197,17 @@ class Db2SessionAffinityIntegrationTest {
 
         try (Statement stmt = conn.createStatement()) {
             // Insert multiple rows
-            log.debug("Inserting multiple rows");
+            logger.debug("Inserting multiple rows");
             stmt.execute("INSERT INTO SESSION." + SHARED_TABLE_NAME + " VALUES (1, 'Alice')");
             stmt.execute("INSERT INTO SESSION." + SHARED_TABLE_NAME + " VALUES (2, 'Bob')");
             stmt.execute("INSERT INTO SESSION." + SHARED_TABLE_NAME + " VALUES (3, 'Charlie')");
 
             // Update a row
-            log.debug("Updating a row");
+            logger.debug("Updating a row");
             stmt.executeUpdate("UPDATE SESSION." + SHARED_TABLE_NAME + " SET value = 'Robert' WHERE id = 2");
 
             // Query and verify
-            log.debug("Querying temp table");
+            logger.debug("Querying temp table");
             ResultSet rs = stmt.executeQuery("SELECT id, value FROM SESSION." + SHARED_TABLE_NAME + " ORDER BY id");
 
             int rowCount = 0;
@@ -227,7 +228,7 @@ class Db2SessionAffinityIntegrationTest {
             assertEquals(3, rowCount, "Should have 3 rows");
             rs.close();
 
-            log.info("DB2 complex temporary table operations test passed");
+            logger.info("DB2 complex temporary table operations test passed");
 
         } finally {
             conn.close();
@@ -248,25 +249,24 @@ class Db2SessionAffinityIntegrationTest {
     @Order(3)
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    void testTemporaryTablePersistenceAcrossTransactions(String driverClass, String url, String user, String pwd)
-            throws SQLException, ClassNotFoundException {
+    void testTemporaryTablePersistenceAcrossTransactions(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "DB2 tests are disabled");
-
-        log.info("Testing temporary table persistence across transactions for DB2: {}", url);
+        logger.info("Testing temporay table with Driver: {}", driverClass);
+        logger.info("Testing temporary table persistence across transactions for DB2: {}", url);
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
 
         // Try to create the table if it doesn't exist, or just clear data if it does
-        log.debug("Ensuring temp table exists: {}", SHARED_TABLE_NAME);
+        logger.debug("Ensuring temp table exists: {}", SHARED_TABLE_NAME);
         Statement createStmt = conn.createStatement();
         try {
             createStmt.execute("DECLARE GLOBAL TEMPORARY TABLE SESSION." + SHARED_TABLE_NAME +
                     " (id INT, value VARCHAR(100)) ON COMMIT PRESERVE ROWS");
-            log.debug("Successfully created temporary table");
+            logger.debug("Successfully created temporary table");
         } catch (SQLException e) {
             // SQLCODE=-286 (SQLSTATE 42727) means table already exists - clear it and continue
             if ("42727".equals(e.getSQLState())) {
-                log.debug("Table already exists, clearing data");
+                logger.debug("Table already exists, clearing data");
                 createStmt.execute("DELETE FROM SESSION." + SHARED_TABLE_NAME);
             } else {
                 throw e;
@@ -289,7 +289,7 @@ class Db2SessionAffinityIntegrationTest {
             rs.close();
             conn.commit();
 
-            log.info("DB2 temporary table persistence across transactions test passed");
+            logger.info("DB2 temporary table persistence across transactions test passed");
 
         } finally {
             conn.close();

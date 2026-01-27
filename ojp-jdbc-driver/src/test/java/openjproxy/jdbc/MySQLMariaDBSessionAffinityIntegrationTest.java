@@ -42,6 +42,7 @@ class MySQLMariaDBSessionAffinityIntegrationTest {
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
     void testTemporaryTableSessionAffinity(String driverClass, String url, String user, String pwd) throws SQLException {
+        logger.info("Testing temporay table with Driver: {}", driverClass);
         // Skip tests based on database type
         if (url.toLowerCase().contains("mysql")) {
             assumeTrue(isMySQLTestEnabled, "MySQL tests are disabled");
@@ -92,6 +93,7 @@ class MySQLMariaDBSessionAffinityIntegrationTest {
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
     void testSessionVariableAffinity(String driverClass, String url, String user, String pwd) throws SQLException {
+        logger.info("Testing temporay table with Driver: {}", driverClass);
         // Skip tests based on database type
         if (url.toLowerCase().contains("mysql")) {
             assumeTrue(isMySQLTestEnabled, "MySQL tests are disabled");
@@ -127,6 +129,7 @@ class MySQLMariaDBSessionAffinityIntegrationTest {
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
      void testComplexTemporaryTableOperations(String driverClass, String url, String user, String pwd)            throws SQLException {
+        logger.info("Testing temporay table with Driver: {}", driverClass);
         // Skip tests based on database type
         if (url.toLowerCase().contains("mysql")) {
             assumeTrue(isMySQLTestEnabled, "MySQL tests are disabled");
@@ -195,6 +198,7 @@ class MySQLMariaDBSessionAffinityIntegrationTest {
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
      void testTemporaryTablePersistenceAcrossTransactions(String driverClass, String url, String user, String pwd)            throws SQLException {
+        logger.info("Testing temporay table with Driver: {}", driverClass);
         // Skip tests based on database type
         if (url.toLowerCase().contains("mysql")) {
             assumeTrue(isMySQLTestEnabled, "MySQL tests are disabled");

@@ -71,9 +71,7 @@ class UrlParserTest {
     void testParseUrlMissingPlaceholderThrowsException() {
         String input = "jdbc:postgresql://host:5432/db?sslrootcert=${ojp.server.sslrootcert}";
         
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
-            UrlParser.parseUrl(input);
-        });
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> UrlParser.parseUrl(input));
         
         assertTrue(exception.getMessage().contains("ojp.server.sslrootcert"));
     }

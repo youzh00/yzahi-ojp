@@ -759,7 +759,7 @@ class SqlEnhancerEngineTest {
 
         assertNotNull(result.getEnhancedSql(), "Optimized SQL should not be null");
         assertTrue(result.isOptimized(), "Query should be marked as optimized");
-        assertTrue(result.getAppliedRules().size() > 0, "Multiple optimization rules should be applied");
+        assertFalse(result.getAppliedRules().isEmpty(), "Multiple optimization rules should be applied");
 
         logger.info("OPTIMIZATION TEST - COMBINED OPTIMIZATIONS:");
         logger.info("Original SQL: {}", sql);
