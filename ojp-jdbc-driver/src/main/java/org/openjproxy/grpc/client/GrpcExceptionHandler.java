@@ -34,6 +34,28 @@ public class GrpcExceptionHandler {
     }
     
     /**
+     * Determines if an exception represents a session invalidation error.
+     * Session invalidation occurs when the health checker removes session bindings
+     * after detecting server failure. These sessions are permanently lost.
+     * 
+     * @param exception The exception to check
+     * @return true if this is a session invalidation error
+     */
+    public static boolean isSessionInvalidationError(Exception exception) {
+        if (exception instanceof SQLException) {
+            String message = exception.getMessage();
+            if (message != null) {
+                String lowerMessage = message.toLowerCase();
+                return lowerMessage.contains("session") &&
+                       (lowerMessage.contains("has no associated server") || 
+                        lowerMessage.contains("binding was lost") ||
+                        lowerMessage.contains("may have expired"));
+            }
+        }
+        return false;
+    }
+    
+    /**
      * Determines if an exception represents a connection-level error that indicates server unavailability.
      * Connection-level errors include:
      * - UNAVAILABLE: Server not reachable
@@ -77,10 +99,7 @@ public class GrpcExceptionHandler {
             // CRITICAL: Session invalidation/loss is NOT a connection-level error
             // Sessions are explicitly invalidated when servers fail. The session is permanently lost.
             // Retrying with the same session will always fail. This needs proper XA transaction handling, not retry.
-            if (lowerMessage.contains("session") && 
-                (lowerMessage.contains("has no associated server") || 
-                 lowerMessage.contains("binding was lost") ||
-                 lowerMessage.contains("may have expired"))) {
+            if (isSessionInvalidationError(exception)) {
                 return false;
             }
             

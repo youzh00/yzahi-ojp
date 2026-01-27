@@ -48,6 +48,14 @@ public class MultinodeXAIntegrationTest {
     // Retry configuration for connection-level failures
     private static final int MAX_RETRIES = 3;
     private static final long RETRY_DELAY_MS = 100; // Initial delay between retries
+    
+    // Test failure thresholds
+    // Total failures can be higher due to session invalidation when servers restart
+    // Session invalidation is a consequence of server failure and is expected during testing
+    private static final int MAX_TOTAL_FAILURES = 50;
+    // Non-connectivity failures should be zero - all failures should be connectivity-related
+    // (including session invalidation, which is caused by server unavailability)
+    private static final int MAX_NON_CONNECTIVITY_FAILURES = 0;
 
     protected static boolean isTestDisabled;
     private static Queue<Long> queryDurations = new ConcurrentLinkedQueue<>();
@@ -194,8 +202,10 @@ public class MultinodeXAIntegrationTest {
         System.out.println("Total query failures: " + numTotalFailures);
         System.out.println("Total non-connectivity-related failures: " + numNonConnectivityFailures);
         //Assertions.assertEquals(2160, numQueries);
-        Assertions.assertTrue(numTotalFailures < 50, "Expected fewer than 50 total failures, but got: " + numTotalFailures);
-        Assertions.assertEquals(0, numNonConnectivityFailures, "Expected zero non-connectivity failures (session invalidation is connectivity-related), but got: " + numNonConnectivityFailures);
+        Assertions.assertTrue(numTotalFailures < MAX_TOTAL_FAILURES, 
+            "Expected fewer than " + MAX_TOTAL_FAILURES + " total failures, but got: " + numTotalFailures);
+        Assertions.assertEquals(MAX_NON_CONNECTIVITY_FAILURES, numNonConnectivityFailures, 
+            "Expected " + MAX_NON_CONNECTIVITY_FAILURES + " non-connectivity failures (session invalidation is connectivity-related), but got: " + numNonConnectivityFailures);
         Assertions.assertTrue(totalTimeMs < 180000, "Total test time too high: " + totalTimeMs + " ms");
         Assertions.assertTrue(avgQueryMs < 1000.0, "Average query time too high: " + avgQueryMs + " ms");
     }
@@ -1308,20 +1318,14 @@ public class MultinodeXAIntegrationTest {
         
         // Check if this is a connectivity-related failure
         // 1. StatusRuntimeException with UNAVAILABLE - direct server unavailability
-        // 2. SQLException about session loss - indirect result of server unavailability
+        // 2. Session invalidation errors - indirect result of server unavailability
         boolean isConnectivityRelated = false;
         
         if (e instanceof StatusRuntimeException && e.getMessage().contains("UNAVAILABLE")) {
             isConnectivityRelated = true;
-        } else if (e instanceof SQLException) {
-            String message = e.getMessage();
-            if (message != null && message.toLowerCase().contains("session") &&
-                (message.contains("has no associated server") || 
-                 message.contains("binding was lost") ||
-                 message.contains("may have expired"))) {
-                // Session invalidation due to server failure
-                isConnectivityRelated = true;
-            }
+        } else if (GrpcExceptionHandler.isSessionInvalidationError(e)) {
+            // Session invalidation due to server failure - use shared detection logic
+            isConnectivityRelated = true;
         }
         
         if (!isConnectivityRelated) {

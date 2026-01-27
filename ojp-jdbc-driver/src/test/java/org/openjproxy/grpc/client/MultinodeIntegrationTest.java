@@ -34,6 +34,10 @@ public class MultinodeIntegrationTest {
     // Retry configuration for connection-level failures
     private static final int MAX_RETRIES = 3;
     private static final long RETRY_DELAY_MS = 100; // Initial delay between retries
+    
+    // Test failure threshold - allows for occasional non-retryable errors or
+    // failures that occur after all retry attempts are exhausted
+    private static final int MAX_FAILURES = 5;
 
     protected static boolean isTestDisabled;
     private static Queue<Long> queryDurations = new ConcurrentLinkedQueue<>();
@@ -166,7 +170,8 @@ public class MultinodeIntegrationTest {
         System.out.printf("Average query duration: %.3f ms\n", avgQueryMs);
         System.out.println("Total query failures: " + numFailures);
         Assertions.assertEquals(2160, numQueries);
-        Assertions.assertTrue(numFailures < 5, "Expected fewer than 5 failures (with retry logic for connection errors), but got: " + numFailures);
+        Assertions.assertTrue(numFailures < MAX_FAILURES, 
+            "Expected fewer than " + MAX_FAILURES + " failures (with retry logic for connection errors), but got: " + numFailures);
         Assertions.assertTrue(totalTimeMs < 180000);
         Assertions.assertTrue(avgQueryMs < 40);
     }
