@@ -151,18 +151,32 @@ public class MultinodeConnectionManager {
     }
     
     private ChannelAndStub createChannelAndStub(ServerEndpoint endpoint) {
-        String target = DNS_PREFIX + endpoint.getHost() + ":" + endpoint.getPort();
-        ManagedChannel channel = GrpcChannelFactory.createChannel(target);
-        
-        StatementServiceGrpc.StatementServiceBlockingStub blockingStub = 
-                StatementServiceGrpc.newBlockingStub(channel);
-        StatementServiceGrpc.StatementServiceStub asyncStub = 
-                StatementServiceGrpc.newStub(channel);
-        
-        ChannelAndStub channelAndStub = new ChannelAndStub(channel, blockingStub, asyncStub);
-        channelMap.put(endpoint, channelAndStub);
-        
-        return channelAndStub;
+        // Synchronize on the endpoint to prevent concurrent channel creation for the same endpoint
+        synchronized (endpoint) {
+            String target = DNS_PREFIX + endpoint.getHost() + ":" + endpoint.getPort();
+            ManagedChannel channel = GrpcChannelFactory.createChannel(target);
+            
+            StatementServiceGrpc.StatementServiceBlockingStub blockingStub = 
+                    StatementServiceGrpc.newBlockingStub(channel);
+            StatementServiceGrpc.StatementServiceStub asyncStub = 
+                    StatementServiceGrpc.newStub(channel);
+            
+            ChannelAndStub newChannelAndStub = new ChannelAndStub(channel, blockingStub, asyncStub);
+            
+            // Atomically replace old channel with new one and shutdown the old one if it exists
+            // This prevents race conditions by doing check-and-replace atomically
+            ChannelAndStub oldChannelAndStub = channelMap.put(endpoint, newChannelAndStub);
+            if (oldChannelAndStub != null) {
+                log.debug("Shutting down replaced channel for {}", endpoint.getAddress());
+                try {
+                    oldChannelAndStub.channel.shutdown();
+                } catch (Exception e) {
+                    log.warn("Error shutting down replaced channel for {}: {}", endpoint.getAddress(), e.getMessage());
+                }
+            }
+            
+            return newChannelAndStub;
+        }
     }
     
     /**
@@ -781,15 +795,18 @@ public class MultinodeConnectionManager {
         // Phase 2: Notify listeners that server became unhealthy
         notifyServerUnhealthy(endpoint, exception);
         
-        // Remove the failed channel from the map, but don't shut it down immediately
-        // The channel will be replaced during recovery, and the old one will be garbage collected
-        // This prevents "Channel shutdown invoked" errors for in-flight operations
+        // Remove the failed channel from the map and shut it down gracefully
+        // Using shutdown() instead of shutdownNow() allows in-flight operations to complete
         ChannelAndStub channelAndStub = channelMap.remove(endpoint);
         if (channelAndStub != null) {
-            log.debug("Removed channel for {} from map (will be replaced during recovery)", 
+            log.debug("Removed channel for {} from map, initiating graceful shutdown", 
                     endpoint.getAddress());
-            // Note: We intentionally don't call channel.shutdown() here to avoid disrupting
-            // in-flight operations. The channel will be garbage collected when no longer referenced.
+            try {
+                channelAndStub.channel.shutdown();
+                log.debug("Initiated graceful shutdown for channel {}", endpoint.getAddress());
+            } catch (Exception e) {
+                log.warn("Error shutting down channel for {}: {}", endpoint.getAddress(), e.getMessage());
+            }
         }
     }
     
