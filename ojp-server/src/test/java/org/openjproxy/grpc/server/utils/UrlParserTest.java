@@ -1,6 +1,5 @@
 package org.openjproxy.grpc.server.utils;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -18,15 +17,7 @@ class UrlParserTest {
         System.clearProperty("ojp.server.sslcert");
         System.clearProperty("ojp.server.sslkey");
     }
-    
-    @AfterEach
-    void tearDown() {
-        // Clean up test properties after each test
-        System.clearProperty("ojp.server.sslrootcert");
-        System.clearProperty("ojp.server.sslcert");
-        System.clearProperty("ojp.server.sslkey");
-    }
-    
+
     @Test
     void testParseUrlWithoutPlaceholders() {
         String input = "jdbc:postgresql://host:5432/db?ssl=true";
