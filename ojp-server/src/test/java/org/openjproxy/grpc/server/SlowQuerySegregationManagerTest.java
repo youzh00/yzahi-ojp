@@ -12,13 +12,13 @@ public class SlowQuerySegregationManagerTest {
     private SlowQuerySegregationManager segregationManager;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         // 10 total slots, 20% slow (2 slots), 100ms idle timeout, 5000ms slow timeout, 1000ms fast timeout, enabled
         segregationManager = new SlowQuerySegregationManager(10, 20, 100, 5000, 1000, true);
     }
 
     @Test
-    public void testInitialization() {
+    void testInitialization() {
         assertTrue(segregationManager.isEnabled());
         assertNotNull(segregationManager.getPerformanceMonitor());
         assertNotNull(segregationManager.getSlotManager());
@@ -26,7 +26,7 @@ public class SlowQuerySegregationManagerTest {
     }
 
     @Test
-    public void testDisabledManager() {
+    void testDisabledManager() {
         SlowQuerySegregationManager disabledManager = new SlowQuerySegregationManager(10, 20, 100, 5000, 1000, false);
         
         assertFalse(disabledManager.isEnabled());
@@ -35,7 +35,7 @@ public class SlowQuerySegregationManagerTest {
     }
 
     @Test
-    public void testExecuteWithSegregationEnabled() throws Exception {
+    void testExecuteWithSegregationEnabled() throws Exception {
         String operationHash = "test-operation";
         String expectedResult = "operation-result";
         
@@ -55,7 +55,7 @@ public class SlowQuerySegregationManagerTest {
     }
 
     @Test
-    public void testExecuteWithSegregationDisabled() throws Exception {
+    void testExecuteWithSegregationDisabled() throws Exception {
         SlowQuerySegregationManager disabledManager = new SlowQuerySegregationManager(10, 20, 100, 5000, 1000, false);
         String operationHash = "test-operation";
         String expectedResult = "operation-result";
@@ -73,7 +73,7 @@ public class SlowQuerySegregationManagerTest {
     }
 
     @Test
-    public void testSlowOperationClassification() throws Exception {
+    void testSlowOperationClassification() throws Exception {
         String fastOp = "fast-operation";
         String slowOp = "slow-operation";
         
@@ -113,7 +113,7 @@ public class SlowQuerySegregationManagerTest {
     }
 
     @Test
-    public void testExceptionHandling() {
+    void testExceptionHandling() {
         String operationHash = "failing-operation";
         RuntimeException expectedException = new RuntimeException("Test exception");
         
@@ -132,7 +132,7 @@ public class SlowQuerySegregationManagerTest {
     }
 
     @Test
-    public void testConcurrentExecution() throws Exception {
+    void testConcurrentExecution() throws Exception {
         final int numThreads = 5;
         final String[] results = new String[numThreads];
         final Exception[] exceptions = new Exception[numThreads];
@@ -178,7 +178,7 @@ public class SlowQuerySegregationManagerTest {
     }
 
     @Test
-    public void testStatusString() {
+    void testStatusString() {
         String status = segregationManager.getStatus();
         assertNotNull(status);
         assertTrue(status.contains("SlowQuerySegregationManager"));
@@ -189,7 +189,7 @@ public class SlowQuerySegregationManagerTest {
     }
 
     @Test
-    public void testSlotExhaustion() throws Exception {
+    void testSlotExhaustion() throws Exception {
         // Fill up slow slots by executing operations that will be classified as slow
         String slowOp = "resource-intensive-op";
         
@@ -218,7 +218,7 @@ public class SlowQuerySegregationManagerTest {
     }
 
     @Test
-    public void testVoidOperations() throws Exception {
+    void testVoidOperations() throws Exception {
         String operationHash = "void-operation";
         final boolean[] executed = {false};
         

@@ -21,7 +21,7 @@ public class ProtoSerializationTest {
     // ==================== Properties Tests ====================
 
     @Test
-    public void testPropertiesRoundTrip() throws SerializationException {
+    void testPropertiesRoundTrip() throws SerializationException {
         Properties props = new Properties();
         props.setProperty("key1", "value1");
         props.setProperty("key2", "value2");
@@ -40,7 +40,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testEmptyProperties() throws SerializationException {
+    void testEmptyProperties() throws SerializationException {
         Properties props = new Properties();
 
         byte[] bytes = ProtoSerialization.serializeToTransport(props);
@@ -53,7 +53,7 @@ public class ProtoSerializationTest {
     // ==================== Map Tests ====================
 
     @Test
-    public void testMapRoundTripWithPrimitives() throws SerializationException {
+    void testMapRoundTripWithPrimitives() throws SerializationException {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("string", "hello");
         map.put("int", 42);
@@ -73,7 +73,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testNestedMaps() throws SerializationException {
+    void testNestedMaps() throws SerializationException {
         Map<String, Object> inner = new LinkedHashMap<>();
         inner.put("innerKey", "innerValue");
         inner.put("innerNumber", 123);
@@ -95,7 +95,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testEmptyMap() throws SerializationException {
+    void testEmptyMap() throws SerializationException {
         Map<String, Object> map = new LinkedHashMap<>();
 
         byte[] bytes = ProtoSerialization.serializeToTransport(map);
@@ -109,7 +109,7 @@ public class ProtoSerializationTest {
     // ==================== List Tests ====================
 
     @Test
-    public void testListRoundTripWithPrimitives() throws SerializationException {
+    void testListRoundTripWithPrimitives() throws SerializationException {
         List<Object> list = new ArrayList<>();
         list.add("string");
         list.add(42);
@@ -130,7 +130,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testNestedLists() throws SerializationException {
+    void testNestedLists() throws SerializationException {
         List<Object> inner = new ArrayList<>();
         inner.add("innerValue");
         inner.add(123);
@@ -154,7 +154,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testEmptyList() throws SerializationException {
+    void testEmptyList() throws SerializationException {
         List<Object> list = new ArrayList<>();
 
         byte[] bytes = ProtoSerialization.serializeToTransport(list);
@@ -168,7 +168,7 @@ public class ProtoSerializationTest {
     // ==================== Nested Maps and Lists Tests ====================
 
     @Test
-    public void testMapWithNestedListsAndMaps() throws SerializationException {
+    void testMapWithNestedListsAndMaps() throws SerializationException {
         List<Object> list = new ArrayList<>();
         list.add("item1");
         list.add("item2");
@@ -197,7 +197,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testListWithNestedMapsAndLists() throws SerializationException {
+    void testListWithNestedMapsAndLists() throws SerializationException {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("key", "value");
 
@@ -230,7 +230,7 @@ public class ProtoSerializationTest {
     // ==================== Primitive Types Tests ====================
 
     @Test
-    public void testStringRoundTrip() throws SerializationException {
+    void testStringRoundTrip() throws SerializationException {
         String value = "hello world";
         byte[] bytes = ProtoSerialization.serializeToTransport(value);
         String result = ProtoSerialization.deserializeFromTransport(bytes, String.class);
@@ -238,7 +238,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testNumberRoundTrip() throws SerializationException {
+    void testNumberRoundTrip() throws SerializationException {
         Integer value = 42;
         byte[] bytes = ProtoSerialization.serializeToTransport(value);
         Object result = ProtoSerialization.deserializeFromTransport(bytes);
@@ -246,7 +246,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testBooleanRoundTrip() throws SerializationException {
+    void testBooleanRoundTrip() throws SerializationException {
         Boolean value = true;
         byte[] bytes = ProtoSerialization.serializeToTransport(value);
         Boolean result = ProtoSerialization.deserializeFromTransport(bytes, Boolean.class);
@@ -254,7 +254,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testNullRoundTrip() throws SerializationException {
+    void testNullRoundTrip() throws SerializationException {
         byte[] bytes = ProtoSerialization.serializeToTransport(null);
         Object result = ProtoSerialization.deserializeFromTransport(bytes);
         assertNull(result);
@@ -263,7 +263,7 @@ public class ProtoSerializationTest {
     // ==================== Error Cases Tests ====================
 
     @Test
-    public void testUnsupportedTypeThrowsException() {
+    void testUnsupportedTypeThrowsException() {
         Object unsupportedObject = new Object(); // Plain POJO
         SerializationException exception = assertThrows(SerializationException.class, () -> {
             ProtoSerialization.serializeToTransport(unsupportedObject);
@@ -273,7 +273,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testUnsupportedNestedTypeThrowsException() {
+    void testUnsupportedNestedTypeThrowsException() {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("valid", "value");
         map.put("invalid", new Object()); // POJO inside map
@@ -285,7 +285,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testNonStringMapKeysThrowException() {
+    void testNonStringMapKeysThrowException() {
         Map<Integer, String> map = new LinkedHashMap<>();
         map.put(1, "value");
 
@@ -296,7 +296,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testInvalidProtobufBytesThrowException() {
+    void testInvalidProtobufBytesThrowException() {
         byte[] invalidBytes = new byte[]{0, 1, 2, 3, 4, 5}; // Random bytes
 
         SerializationException exception = assertThrows(SerializationException.class, () -> {
@@ -306,7 +306,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testNullPayloadThrowsException() {
+    void testNullPayloadThrowsException() {
         SerializationException exception = assertThrows(SerializationException.class, () -> {
             ProtoSerialization.deserializeFromTransport(null);
         });
@@ -314,7 +314,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testEmptyPayloadThrowsException() {
+    void testEmptyPayloadThrowsException() {
         byte[] emptyBytes = new byte[0];
         SerializationException exception = assertThrows(SerializationException.class, () -> {
             ProtoSerialization.deserializeFromTransport(emptyBytes);
@@ -323,7 +323,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testTypeMismatchThrowsException() throws SerializationException {
+    void testTypeMismatchThrowsException() throws SerializationException {
         String value = "hello";
         byte[] bytes = ProtoSerialization.serializeToTransport(value);
 
@@ -336,7 +336,7 @@ public class ProtoSerializationTest {
     // ==================== Edge Cases Tests ====================
 
     @Test
-    public void testUnicodeStrings() throws SerializationException {
+    void testUnicodeStrings() throws SerializationException {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("chinese", "你好世界");
         map.put("arabic", "مرحبا بالعالم");
@@ -352,7 +352,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testKeysWithSpecialCharacters() throws SerializationException {
+    void testKeysWithSpecialCharacters() throws SerializationException {
         Properties props = new Properties();
         props.setProperty("key with spaces", "value1");
         props.setProperty("key.with.dots", "value2");
@@ -369,7 +369,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testLargeDataStructure() throws SerializationException {
+    void testLargeDataStructure() throws SerializationException {
         Map<String, Object> largeMap = new LinkedHashMap<>();
         for (int i = 0; i < 100; i++) {
             largeMap.put("key" + i, "value" + i);
@@ -386,7 +386,7 @@ public class ProtoSerializationTest {
     }
 
     @Test
-    public void testNumberPrecision() throws SerializationException {
+    void testNumberPrecision() throws SerializationException {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("int", 42);
         map.put("long", 9223372036854775807L);

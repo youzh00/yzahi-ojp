@@ -24,7 +24,7 @@ public class StatementServiceLobHandlingTest {
     private SessionInfo sessionInfo;
     
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         MockitoAnnotations.openMocks(this);
         
         sessionInfo = SessionInfo.newBuilder()
@@ -35,7 +35,7 @@ public class StatementServiceLobHandlingTest {
     }
 
     @Test
-    public void testGetLobReturnsNull_IsHandledGracefully() {
+    void testGetLobReturnsNull_IsHandledGracefully() {
         // Arrange: Mock sessionManager.getLob to return null (the problematic scenario)
         when(sessionManager.getLob(sessionInfo, "test-lob-uuid")).thenReturn(null);
         
@@ -50,7 +50,7 @@ public class StatementServiceLobHandlingTest {
     }
 
     @Test
-    public void testNullBlobScenario_ValidationLogic() {
+    void testNullBlobScenario_ValidationLogic() {
         // This test validates that our null check logic would work correctly
         
         // Arrange
@@ -78,7 +78,7 @@ public class StatementServiceLobHandlingTest {
     }
     
     @Test 
-    public void testSessionManagerImplNullChecks() {
+    void testSessionManagerImplNullChecks() {
         // Test that SessionManagerImpl properly handles null session scenarios
         SessionManagerImpl realSessionManager = new SessionManagerImpl();
         

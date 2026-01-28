@@ -22,7 +22,7 @@ public class CockroachDBSavepointTests {
     private Connection connection;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestEnabled = Boolean.parseBoolean(System.getProperty("enableCockroachDBTests", "false"));
     }
 
@@ -49,13 +49,13 @@ public class CockroachDBSavepointTests {
     }
 
     @AfterEach
-    public void tearDown() throws Exception {
+    void tearDown() throws Exception {
         if (connection != null) connection.close();
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testUnnamedSavepoint(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testUnnamedSavepoint(String driverClass, String url, String user, String pwd) throws SQLException {
         setUp(driverClass, url, user, pwd);
         
         connection.createStatement().execute("INSERT INTO savepoint_test_table (id, name) VALUES (1, 'Alice')");
@@ -74,7 +74,7 @@ public class CockroachDBSavepointTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testNamedSavepoint(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testNamedSavepoint(String driverClass, String url, String user, String pwd) throws SQLException {
         setUp(driverClass, url, user, pwd);
         
         connection.createStatement().execute("INSERT INTO savepoint_test_table (id, name) VALUES (1, 'Alice')");
@@ -95,7 +95,7 @@ public class CockroachDBSavepointTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testMultipleSavepoints(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testMultipleSavepoints(String driverClass, String url, String user, String pwd) throws SQLException {
         setUp(driverClass, url, user, pwd);
         
         connection.createStatement().execute("INSERT INTO savepoint_test_table (id, name) VALUES (1, 'Alice')");
@@ -125,7 +125,7 @@ public class CockroachDBSavepointTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testReleaseSavepoint(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testReleaseSavepoint(String driverClass, String url, String user, String pwd) throws SQLException {
         setUp(driverClass, url, user, pwd);
         
         connection.createStatement().execute("INSERT INTO savepoint_test_table (id, name) VALUES (1, 'Alice')");
@@ -147,7 +147,7 @@ public class CockroachDBSavepointTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testSavepointWithRollback(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSavepointWithRollback(String driverClass, String url, String user, String pwd) throws SQLException {
         setUp(driverClass, url, user, pwd);
         
         connection.createStatement().execute("INSERT INTO savepoint_test_table (id, name) VALUES (1, 'Alice')");
@@ -166,7 +166,7 @@ public class CockroachDBSavepointTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testSavepointWithCommit(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSavepointWithCommit(String driverClass, String url, String user, String pwd) throws SQLException {
         setUp(driverClass, url, user, pwd);
         
         connection.createStatement().execute("INSERT INTO savepoint_test_table (id, name) VALUES (1, 'Alice')");
@@ -185,7 +185,7 @@ public class CockroachDBSavepointTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testNestedSavepoints(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testNestedSavepoints(String driverClass, String url, String user, String pwd) throws SQLException {
         setUp(driverClass, url, user, pwd);
         
         connection.createStatement().execute("INSERT INTO savepoint_test_table (id, name) VALUES (1, 'Alice')");
@@ -213,7 +213,7 @@ public class CockroachDBSavepointTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testSavepointAfterError(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSavepointAfterError(String driverClass, String url, String user, String pwd) throws SQLException {
         setUp(driverClass, url, user, pwd);
         
         connection.createStatement().execute("INSERT INTO savepoint_test_table (id, name) VALUES (1, 'Alice')");

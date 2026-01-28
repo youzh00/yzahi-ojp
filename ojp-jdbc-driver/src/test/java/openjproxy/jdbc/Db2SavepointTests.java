@@ -22,7 +22,7 @@ public class Db2SavepointTests {
     private Connection connection;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableDb2Tests", "false"));
     }
 
@@ -53,7 +53,7 @@ public class Db2SavepointTests {
     }
 
     @AfterEach
-    public void tearDown() throws SQLException {
+    void tearDown() throws SQLException {
         if (connection != null) {
             try {
                 Statement stmt = connection.createStatement();
@@ -68,7 +68,7 @@ public class Db2SavepointTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2SavepointBasicOperations(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testDb2SavepointBasicOperations(String driverClass, String url, String user, String pwd) throws SQLException {
         setUp(driverClass, url, user, pwd);
 
         Statement stmt = connection.createStatement();
@@ -112,7 +112,7 @@ public class Db2SavepointTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2MultipleSavepoints(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testDb2MultipleSavepoints(String driverClass, String url, String user, String pwd) throws SQLException {
         setUp(driverClass, url, user, pwd);
 
         Statement stmt = connection.createStatement();
@@ -160,7 +160,7 @@ public class Db2SavepointTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2SavepointRelease(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testDb2SavepointRelease(String driverClass, String url, String user, String pwd) throws SQLException {
         setUp(driverClass, url, user, pwd);
 
         Statement stmt = connection.createStatement();
@@ -191,7 +191,7 @@ public class Db2SavepointTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2UnnamedSavepoint(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testDb2UnnamedSavepoint(String driverClass, String url, String user, String pwd) throws SQLException {
         setUp(driverClass, url, user, pwd);
 
         Statement stmt = connection.createStatement();
@@ -221,7 +221,7 @@ public class Db2SavepointTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2SavepointWithCommit(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testDb2SavepointWithCommit(String driverClass, String url, String user, String pwd) throws SQLException {
         setUp(driverClass, url, user, pwd);
 
         Statement stmt = connection.createStatement();

@@ -28,13 +28,13 @@ public class Db2ConnectionExtensiveTests {
     private static boolean isDb2TestEnabled;
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         isDb2TestEnabled = Boolean.parseBoolean(System.getProperty("enableDb2Tests", "false"));
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2BasicConnection(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testDb2BasicConnection(String driverClass, String url, String user, String pwd) throws SQLException {
         Assumptions.assumeFalse(!isDb2TestEnabled, "Skipping DB2 tests");
         
         log.info("Testing DB2 connection with URL: {}", url);
@@ -80,7 +80,7 @@ public class Db2ConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2DataTypes(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testDb2DataTypes(String driverClass, String url, String user, String pwd) throws SQLException {
         Assumptions.assumeFalse(!isDb2TestEnabled, "Skipping DB2 tests");
         
         log.info("Testing DB2 data types with URL: {}", url);
@@ -135,7 +135,7 @@ public class Db2ConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2BooleanHandling(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testDb2BooleanHandling(String driverClass, String url, String user, String pwd) throws SQLException {
         Assumptions.assumeFalse(!isDb2TestEnabled, "Skipping DB2 tests");
         
         log.info("Testing DB2 boolean handling with URL: {}", url);
@@ -185,7 +185,7 @@ public class Db2ConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2NullVsEmptyString(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testDb2NullVsEmptyString(String driverClass, String url, String user, String pwd) throws SQLException {
         Assumptions.assumeFalse(!isDb2TestEnabled, "Skipping DB2 tests");
         
         log.info("Testing DB2 NULL vs empty string handling with URL: {}", url);

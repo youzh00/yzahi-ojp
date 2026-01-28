@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ProtoConverterNewTypesTest {
 
     @Test
-    public void testUuidRoundTrip() {
+    void testUuidRoundTrip() {
         UUID original = UUID.randomUUID();
         ParameterValue value = ProtoConverter.toParameterValue(original);
         assertNotNull(value);
@@ -28,7 +28,7 @@ public class ProtoConverterNewTypesTest {
     }
 
     @Test
-    public void testBigIntegerRoundTrip() {
+    void testBigIntegerRoundTrip() {
         BigInteger original = new BigInteger("123456789012345678901234567890");
         ParameterValue value = ProtoConverter.toParameterValue(original);
         assertNotNull(value);
@@ -39,7 +39,7 @@ public class ProtoConverterNewTypesTest {
     }
 
     @Test
-    public void testStringArrayRoundTrip() {
+    void testStringArrayRoundTrip() {
         String[] original = new String[]{"a", "b", "c", null};
         ParameterValue value = ProtoConverter.toParameterValue(original);
         assertNotNull(value);
@@ -50,7 +50,7 @@ public class ProtoConverterNewTypesTest {
     }
 
     @Test
-    public void testCalendarRoundTrip() {
+    void testCalendarRoundTrip() {
         GregorianCalendar original = new GregorianCalendar();
         ParameterValue value = ProtoConverter.toParameterValue(original);
         assertNotNull(value);
@@ -69,7 +69,7 @@ public class ProtoConverterNewTypesTest {
     }
     
     @Test
-    public void testTimestampRoundTrip() {
+    void testTimestampRoundTrip() {
         // Test that regular Timestamp still returns Timestamp (not Calendar)
         java.sql.Timestamp original = new java.sql.Timestamp(System.currentTimeMillis());
         ParameterValue value = ProtoConverter.toParameterValue(original, java.time.ZoneId.systemDefault());
@@ -87,7 +87,7 @@ public class ProtoConverterNewTypesTest {
     }
 
     @Test
-    public void testRowIdLifetimeRoundTrip() {
+    void testRowIdLifetimeRoundTrip() {
         // Test all enum values
         for (RowIdLifetime original : RowIdLifetime.values()) {
             ParameterValue value = ProtoConverter.toParameterValue(original);

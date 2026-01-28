@@ -21,7 +21,7 @@ public class Db2ResultSetMetaDataExtensiveTests {
     private ResultSetMetaData metaData;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableDb2Tests", "false"));
     }
 
@@ -61,7 +61,7 @@ public class Db2ResultSetMetaDataExtensiveTests {
     }
 
     @AfterEach
-    public void tearDown() throws Exception {
+    void tearDown() throws Exception {
         // Close in reverse order: resultSet, statement, then connection
         try {
             if (resultSet != null && !resultSet.isClosed()) {
@@ -88,7 +88,7 @@ public class Db2ResultSetMetaDataExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testAllResultSetMetaDataMethods(String driverClass, String url, String user, String password) throws SQLException {
+    void testAllResultSetMetaDataMethods(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
 
         // getColumnCount
@@ -234,7 +234,7 @@ public class Db2ResultSetMetaDataExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2SpecificDataTypes(String driverClass, String url, String user, String password) throws SQLException {
+    void testDb2SpecificDataTypes(String driverClass, String url, String user, String password) throws SQLException {
         assumeFalse(isTestDisabled, "DB2 tests are disabled");
         
         connection = DriverManager.getConnection(url, user, password);

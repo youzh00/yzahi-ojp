@@ -31,7 +31,7 @@ public class HydratedLobValidationTest {
     private Connection conn;
 
     @BeforeAll
-    public static void setupClass() {
+    static void setupClass() {
         isH2TestEnabled = Boolean.parseBoolean(System.getProperty("enableH2Tests", "false"));
     }
 
@@ -56,7 +56,7 @@ public class HydratedLobValidationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_connection.csv")
-    public void testHydratedLobBehavior(String driverClass, String url, String user, String pwd) 
+    void testHydratedLobBehavior(String driverClass, String url, String user, String pwd) 
             throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
@@ -136,7 +136,7 @@ public class HydratedLobValidationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_connection.csv")
-    public void testHydratedBinaryStreamBehavior(String driverClass, String url, String user, String pwd) 
+    void testHydratedBinaryStreamBehavior(String driverClass, String url, String user, String pwd) 
             throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 

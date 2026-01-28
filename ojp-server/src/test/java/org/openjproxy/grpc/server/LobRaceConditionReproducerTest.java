@@ -19,7 +19,7 @@ public class LobRaceConditionReproducerTest {
     private SessionInfo sessionInfo;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         sessionManager = new SessionManagerImpl();
         sessionInfo = SessionInfo.newBuilder()
             .setSessionUUID("test-session")
@@ -29,7 +29,7 @@ public class LobRaceConditionReproducerTest {
     }
 
     @Test
-    public void testOriginalIssueScenario_NowFixedWithNullCheck() {
+    void testOriginalIssueScenario_NowFixedWithNullCheck() {
         // This test demonstrates the scenario that would cause the original issue
         
         // Scenario: Try to get a LOB that was never registered or was lost due to race condition
@@ -59,7 +59,7 @@ public class LobRaceConditionReproducerTest {
     }
     
     @Test 
-    public void testConcurrentAccessScenario() {
+    void testConcurrentAccessScenario() {
         // Simulate a scenario where concurrent access might cause issues
         
         // This test shows that our enhanced SessionManagerImpl handles edge cases gracefully

@@ -22,13 +22,13 @@ public class CockroachDBConnectionExtensiveTests {
     private static boolean isTestEnabled;
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         isTestEnabled = Boolean.parseBoolean(System.getProperty("enableCockroachDBTests", "false"));
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testCockroachDBBasicConnection(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testCockroachDBBasicConnection(String driverClass, String url, String user, String pwd) throws SQLException {
         Assumptions.assumeFalse(!isTestEnabled, "CockroachDB tests are not enabled");
 
         try (Connection connection = DriverManager.getConnection(url, user, pwd)) {
@@ -67,7 +67,7 @@ public class CockroachDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testCockroachDBAutoIncrement(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testCockroachDBAutoIncrement(String driverClass, String url, String user, String pwd) throws SQLException {
         Assumptions.assumeFalse(!isTestEnabled, "CockroachDB tests are not enabled");
 
         try (Connection connection = DriverManager.getConnection(url, user, pwd)) {
@@ -99,7 +99,7 @@ public class CockroachDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testCockroachDBTransactionHandling(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testCockroachDBTransactionHandling(String driverClass, String url, String user, String pwd) throws SQLException {
         Assumptions.assumeFalse(!isTestEnabled, "CockroachDB tests are not enabled");
 
         try (Connection connection = DriverManager.getConnection(url, user, pwd)) {
@@ -161,7 +161,7 @@ public class CockroachDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testCockroachDBPreparedStatements(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testCockroachDBPreparedStatements(String driverClass, String url, String user, String pwd) throws SQLException {
         Assumptions.assumeFalse(!isTestEnabled, "CockroachDB tests are not enabled");
 
         try (Connection connection = DriverManager.getConnection(url, user, pwd)) {
@@ -197,7 +197,7 @@ public class CockroachDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testCockroachDBDataTypes(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testCockroachDBDataTypes(String driverClass, String url, String user, String pwd) throws SQLException {
         Assumptions.assumeFalse(!isTestEnabled, "CockroachDB tests are not enabled");
 
         try (Connection connection = DriverManager.getConnection(url, user, pwd)) {
@@ -246,7 +246,7 @@ public class CockroachDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testCockroachDBJoins(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testCockroachDBJoins(String driverClass, String url, String user, String pwd) throws SQLException {
         Assumptions.assumeFalse(!isTestEnabled, "CockroachDB tests are not enabled");
 
         try (Connection connection = DriverManager.getConnection(url, user, pwd)) {
@@ -301,7 +301,7 @@ public class CockroachDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testCockroachDBMetadata(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testCockroachDBMetadata(String driverClass, String url, String user, String pwd) throws SQLException {
         Assumptions.assumeFalse(!isTestEnabled, "CockroachDB tests are not enabled");
 
         try (Connection connection = DriverManager.getConnection(url, user, pwd)) {

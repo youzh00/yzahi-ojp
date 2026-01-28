@@ -27,13 +27,13 @@ public class Db2MultipleTypesIntegrationTest {
     private static boolean isTestDisabled;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableDb2Tests", "false"));
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void typesCoverageTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, ParseException, UnsupportedEncodingException {
+    void typesCoverageTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, ParseException, UnsupportedEncodingException {
         assumeFalse(isTestDisabled, "DB2 tests are disabled");
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -131,7 +131,7 @@ public class Db2MultipleTypesIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2SpecificTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void testDb2SpecificTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         assumeFalse(isTestDisabled, "DB2 tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -185,7 +185,7 @@ public class Db2MultipleTypesIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2NumericTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void testDb2NumericTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         assumeFalse(isTestDisabled, "DB2 tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -252,7 +252,7 @@ public class Db2MultipleTypesIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2DateTimeTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void testDb2DateTimeTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         assumeFalse(isTestDisabled, "DB2 tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);

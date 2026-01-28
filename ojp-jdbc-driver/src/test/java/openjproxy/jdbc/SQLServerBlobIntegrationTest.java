@@ -33,7 +33,7 @@ public class SQLServerBlobIntegrationTest {
     private Connection conn;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableSqlServerTests", "false"));
     }
 
@@ -57,7 +57,7 @@ public class SQLServerBlobIntegrationTest {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerBlobCreationAndRetrieval(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testSqlServerBlobCreationAndRetrieval(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing SQL Server BLOB creation and retrieval for url -> " + url);
@@ -99,7 +99,7 @@ public class SQLServerBlobIntegrationTest {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerLargeBlobHandling(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testSqlServerLargeBlobHandling(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing SQL Server large BLOB handling for url -> " + url);
@@ -147,7 +147,7 @@ public class SQLServerBlobIntegrationTest {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerBlobBinaryStream(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testSqlServerBlobBinaryStream(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing SQL Server BLOB binary stream for url -> " + url);
@@ -195,7 +195,7 @@ public class SQLServerBlobIntegrationTest {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerBlobUpdate(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testSqlServerBlobUpdate(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing SQL Server BLOB update for url -> " + url);
@@ -246,7 +246,7 @@ public class SQLServerBlobIntegrationTest {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerBlobNullHandling(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void testSqlServerBlobNullHandling(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing SQL Server BLOB null handling for url -> " + url);
@@ -282,7 +282,7 @@ public class SQLServerBlobIntegrationTest {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerEmptyBlob(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testSqlServerEmptyBlob(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing SQL Server empty BLOB for url -> " + url);

@@ -12,13 +12,13 @@ public class SlotManagerTest {
     private SlotManager slotManager;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         // 10 total slots, 20% slow (2 slots), 80% fast (8 slots), 100ms idle timeout
         slotManager = new SlotManager(10, 20, 100);
     }
 
     @Test
-    public void testInitialization() {
+    void testInitialization() {
         assertEquals(10, slotManager.getTotalSlots());
         assertEquals(2, slotManager.getSlowSlots());
         assertEquals(8, slotManager.getFastSlots());
@@ -29,7 +29,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testInvalidConfigurationHandling() {
+    void testInvalidConfigurationHandling() {
         // Test invalid total slots
         assertThrows(IllegalArgumentException.class, () -> new SlotManager(0, 20, 100));
         assertThrows(IllegalArgumentException.class, () -> new SlotManager(-1, 20, 100));
@@ -43,7 +43,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testSlowSlotAcquisitionAndRelease() throws InterruptedException {
+    void testSlowSlotAcquisitionAndRelease() throws InterruptedException {
         // Acquire a slow slot
         assertTrue(slotManager.acquireSlowSlot(1000));
         assertEquals(1, slotManager.getActiveSlowOperations());
@@ -71,7 +71,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testFastSlotAcquisitionAndRelease() throws InterruptedException {
+    void testFastSlotAcquisitionAndRelease() throws InterruptedException {
         // Acquire fast slots up to the limit (8)
         for (int i = 0; i < 8; i++) {
             assertTrue(slotManager.acquireFastSlot(1000));
@@ -97,7 +97,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testSlotBorrowingFastToSlow() throws InterruptedException {
+    void testSlotBorrowingFastToSlow() throws InterruptedException {
         // Fill up slow slots
         assertTrue(slotManager.acquireSlowSlot(1000));
         assertTrue(slotManager.acquireSlowSlot(1000));
@@ -116,7 +116,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testSlotBorrowingSlowToFast() throws InterruptedException {
+    void testSlotBorrowingSlowToFast() throws InterruptedException {
         // Fill up fast slots
         for (int i = 0; i < 8; i++) {
             assertTrue(slotManager.acquireFastSlot(1000));
@@ -137,7 +137,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testDisabledSlotManager() throws InterruptedException {
+    void testDisabledSlotManager() throws InterruptedException {
         SlotManager disabledManager = new SlotManager(5, 20, 100);
         disabledManager.setEnabled(false);
 
@@ -157,7 +157,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testEdgeCaseConfigurations() {
+    void testEdgeCaseConfigurations() {
         // Test 100% slow slots
         SlotManager allSlowManager = new SlotManager(10, 100, 100);
         assertEquals(10, allSlowManager.getSlowSlots());
@@ -175,7 +175,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testStatusString() {
+    void testStatusString() {
         String status = slotManager.getStatus();
         assertNotNull(status);
         assertTrue(status.contains("SlotManager"));
@@ -186,7 +186,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testConcurrentSlotAcquisition() throws InterruptedException {
+    void testConcurrentSlotAcquisition() throws InterruptedException {
         // Create a SlotManager with very long idle timeout to prevent borrowing during test
         SlotManager testSlotManager = new SlotManager(10, 20, 60000); // 60 second idle timeout
         
@@ -232,7 +232,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testSuccessfulBorrowingFromFastToSlow() throws InterruptedException {
+    void testSuccessfulBorrowingFromFastToSlow() throws InterruptedException {
         // Create a SlotManager with short idle timeout for testing
         SlotManager testSlotManager = new SlotManager(10, 20, 50); // 50ms idle timeout
         
@@ -261,7 +261,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testSuccessfulBorrowingFromSlowToFast() throws InterruptedException {
+    void testSuccessfulBorrowingFromSlowToFast() throws InterruptedException {
         // Create a SlotManager with short idle timeout for testing
         SlotManager testSlotManager = new SlotManager(10, 20, 50); // 50ms idle timeout
         
@@ -291,7 +291,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testBorrowingRequiresActivity() throws InterruptedException {
+    void testBorrowingRequiresActivity() throws InterruptedException {
         // Create a SlotManager with short idle timeout for testing
         SlotManager testSlotManager = new SlotManager(10, 20, 50); // 50ms idle timeout
         
@@ -314,7 +314,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testBorrowingRequiresAvailableSlots() throws InterruptedException {
+    void testBorrowingRequiresAvailableSlots() throws InterruptedException {
         // Create a SlotManager with short idle timeout for testing
         SlotManager testSlotManager = new SlotManager(10, 20, 50); // 50ms idle timeout
         
@@ -346,7 +346,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testSimpleBorrowingScenario() throws InterruptedException {
+    void testSimpleBorrowingScenario() throws InterruptedException {
         // Create a SlotManager with short idle timeout for testing
         SlotManager testSlotManager = new SlotManager(8, 50, 50); // 8 slots: 4 slow, 4 fast, 50ms idle timeout
         
@@ -381,7 +381,7 @@ public class SlotManagerTest {
     }
 
     @Test
-    public void testBorrowedSlotReleaseAccounting() throws InterruptedException {
+    void testBorrowedSlotReleaseAccounting() throws InterruptedException {
         // Create a SlotManager with short idle timeout for testing
         SlotManager testSlotManager = new SlotManager(10, 20, 50); // 50ms idle timeout
         

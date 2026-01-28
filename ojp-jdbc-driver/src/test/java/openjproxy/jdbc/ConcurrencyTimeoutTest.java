@@ -28,14 +28,14 @@ public class ConcurrencyTimeoutTest {
     private static AtomicInteger failedOperations = new AtomicInteger(0);
 
     @BeforeAll
-    public static void setupClass() {
+    static void setupClass() {
         isH2TestEnabled = Boolean.parseBoolean(System.getProperty("enableH2Tests", "false"));
     }
 
     @SneakyThrows
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_connection.csv")
-    public void testConcurrencyWithTimeout(String driverClass, String url, String user, String password) throws SQLException {
+    void testConcurrencyWithTimeout(String driverClass, String url, String user, String password) throws SQLException {
         assumeFalse(!isH2TestEnabled, "H2 tests are disabled");
 
         successfulOperations.set(0);

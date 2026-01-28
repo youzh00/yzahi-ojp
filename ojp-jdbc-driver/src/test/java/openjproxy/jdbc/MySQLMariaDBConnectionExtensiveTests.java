@@ -31,7 +31,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
     private Connection connection;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isMySQLTestEnabled = Boolean.parseBoolean(System.getProperty("enableMySQLTests", "false"));
         isMariaDBTestEnabled = Boolean.parseBoolean(System.getProperty("enableMariaDBTests", "false"));
     }
@@ -44,13 +44,13 @@ public class MySQLMariaDBConnectionExtensiveTests {
     }
 
     @AfterEach
-    public void tearDown() throws SQLException {
+    void tearDown() throws SQLException {
         TestDBUtils.closeQuietly(connection);
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testCreateStatement(String driverClass, String url, String user, String password) throws SQLException {
+    void testCreateStatement(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         Statement statement = connection.createStatement();
@@ -60,7 +60,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testPrepareStatement(String driverClass, String url, String user, String password) throws SQLException {
+    void testPrepareStatement(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         PreparedStatement preparedStatement = connection.prepareStatement("SELECT 1");
@@ -70,7 +70,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testPrepareCall(String driverClass, String url, String user, String password) throws SQLException {
+    void testPrepareCall(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         // MySQL supports callable statements, though syntax may differ
@@ -86,7 +86,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testNativeSQL(String driverClass, String url, String user, String password) throws SQLException {
+    void testNativeSQL(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         String nativeSQL = connection.nativeSQL("SELECT {fn NOW()}");
@@ -97,7 +97,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testAutoCommit(String driverClass, String url, String user, String password) throws SQLException {
+    void testAutoCommit(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         // Test getting and setting auto-commit
@@ -115,7 +115,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testCommitAndRollback(String driverClass, String url, String user, String password) throws SQLException {
+    void testCommitAndRollback(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         // Test commit and rollback operations
@@ -130,7 +130,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testIsClosed(String driverClass, String url, String user, String password) throws SQLException {
+    void testIsClosed(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         Assert.assertEquals(false, connection.isClosed());
@@ -141,7 +141,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testGetMetaData(String driverClass, String url, String user, String password) throws SQLException {
+    void testGetMetaData(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         DatabaseMetaData metaData = connection.getMetaData();
@@ -157,7 +157,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testReadOnly(String driverClass, String url, String user, String password) throws SQLException {
+    void testReadOnly(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         // Test read-only mode
@@ -178,7 +178,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testCatalog(String driverClass, String url, String user, String password) throws SQLException {
+    void testCatalog(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         String catalog = connection.getCatalog();
@@ -193,7 +193,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testTransactionIsolation(String driverClass, String url, String user, String password) throws SQLException {
+    void testTransactionIsolation(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         int isolationLevel = connection.getTransactionIsolation();
@@ -209,7 +209,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testWarnings(String driverClass, String url, String user, String password) throws SQLException {
+    void testWarnings(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         // Test warning operations
@@ -222,7 +222,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testCreateStatementWithParameters(String driverClass, String url, String user, String password) throws SQLException {
+    void testCreateStatementWithParameters(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         Statement statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
@@ -236,7 +236,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testPrepareStatementWithParameters(String driverClass, String url, String user, String password) throws SQLException {
+    void testPrepareStatementWithParameters(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         PreparedStatement ps = connection.prepareStatement("SELECT 1", ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
@@ -250,7 +250,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testHoldability(String driverClass, String url, String user, String password) throws SQLException {
+    void testHoldability(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         int holdability = connection.getHoldability();
@@ -263,7 +263,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testSavepoints(String driverClass, String url, String user, String password) throws SQLException {
+    void testSavepoints(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         connection.setAutoCommit(false);
@@ -289,7 +289,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testClientInfo(String driverClass, String url, String user, String password) throws SQLException {
+    void testClientInfo(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         Properties clientInfo = connection.getClientInfo();
@@ -306,7 +306,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testValid(String driverClass, String url, String user, String password) throws SQLException {
+    void testValid(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         boolean isValid = connection.isValid(5);
@@ -320,7 +320,7 @@ public class MySQLMariaDBConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void testUnsupportedOperations(String driverClass, String url, String user, String password) throws SQLException {
+    void testUnsupportedOperations(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
         
         // Test operations that might not be supported

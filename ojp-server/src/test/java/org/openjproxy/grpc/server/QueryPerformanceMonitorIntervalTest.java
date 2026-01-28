@@ -31,12 +31,12 @@ public class QueryPerformanceMonitorIntervalTest {
     }
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         mockTimeProvider = new MockTimeProvider();
     }
 
     @Test
-    public void testDefaultBehavior_AlwaysUpdate() {
+    void testDefaultBehavior_AlwaysUpdate() {
         // Test always-update behavior (interval = 0) - note: 300 seconds is the actual default
         monitor = new QueryPerformanceMonitor(0L, mockTimeProvider);
         
@@ -53,7 +53,7 @@ public class QueryPerformanceMonitorIntervalTest {
     }
 
     @Test
-    public void testIntervalBasedUpdate_WithinInterval() {
+    void testIntervalBasedUpdate_WithinInterval() {
         // Set 60 second update interval
         monitor = new QueryPerformanceMonitor(60L, mockTimeProvider);
         
@@ -78,7 +78,7 @@ public class QueryPerformanceMonitorIntervalTest {
     }
 
     @Test
-    public void testNewUniqueQuery_ImmediateUpdate() {
+    void testNewUniqueQuery_ImmediateUpdate() {
         // Set 60 second update interval
         monitor = new QueryPerformanceMonitor(60L, mockTimeProvider);
         
@@ -102,7 +102,7 @@ public class QueryPerformanceMonitorIntervalTest {
     }
 
     @Test
-    public void testNewUniqueQuery_ResetsInterval() {
+    void testNewUniqueQuery_ResetsInterval() {
         // Set 60 second update interval
         monitor = new QueryPerformanceMonitor(60L, mockTimeProvider);
         
@@ -138,7 +138,7 @@ public class QueryPerformanceMonitorIntervalTest {
     }
 
     @Test
-    public void testMultipleOperations_IntervalRespected() {
+    void testMultipleOperations_IntervalRespected() {
         // Set 30 second update interval
         monitor = new QueryPerformanceMonitor(30L, mockTimeProvider);
         
@@ -173,7 +173,7 @@ public class QueryPerformanceMonitorIntervalTest {
     }
 
     @Test
-    public void testClear_ResetsInterval() {
+    void testClear_ResetsInterval() {
         monitor = new QueryPerformanceMonitor(60L, mockTimeProvider);
         
         // Record some operations
@@ -195,7 +195,7 @@ public class QueryPerformanceMonitorIntervalTest {
     }
 
     @Test
-    public void testZeroInterval_AlwaysUpdateBehavior() {
+    void testZeroInterval_AlwaysUpdateBehavior() {
         monitor = new QueryPerformanceMonitor(0L, mockTimeProvider);
         
         // Record operation
@@ -215,7 +215,7 @@ public class QueryPerformanceMonitorIntervalTest {
     }
 
     @Test
-    public void testInitialOperation_AlwaysUpdates() {
+    void testInitialOperation_AlwaysUpdates() {
         monitor = new QueryPerformanceMonitor(60L, mockTimeProvider);
         
         // First operation should always update global average regardless of interval
