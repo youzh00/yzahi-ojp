@@ -197,11 +197,6 @@ database_connection_limit = check with DBA
 - Maximum: 200 connections per OJP server (avoid excessive context switching)
 - Total across cluster: Not exceed database max_connections * 0.8
 
-**Tuning for Different Workloads**:
-- **OLTP (short transactions)**: Lower pool size (50-100 per server)
-- **Batch (long-running queries)**: Higher pool size (150-200 per server)
-- **Mixed**: Middle ground (100-150 per server)
-
 ### Step 4: Validation and Load Testing
 
 Before production deployment, validate your capacity plan:
@@ -228,14 +223,6 @@ Before production deployment, validate your capacity plan:
 Once deployed, continuous profiling identifies bottlenecks and optimization opportunities.
 
 ### Profiling Tools and Techniques
-
-**Built-in OJP Metrics**:
-```properties
-# Enable detailed performance metrics
-ojp.telemetry.metrics.enabled=true
-ojp.telemetry.metrics.detailed=true
-ojp.telemetry.query-performance.enabled=true
-```
 
 **Key Metrics to Monitor**:
 - Request latency histogram (p50, p95, p99, p999)
