@@ -1012,6 +1012,21 @@ public class MultinodeConnectionManager {
     }
     
     /**
+     * Checks if a session is currently bound to a server.
+     * Used to detect race conditions where a session is created but then
+     * immediately invalidated by the health checker before it can be used.
+     * 
+     * @param sessionUUID The session UUID to check
+     * @return true if the session is bound to a server, false otherwise
+     */
+    public boolean isSessionBound(String sessionUUID) {
+        if (sessionUUID == null || sessionUUID.isEmpty()) {
+            return false;
+        }
+        return sessionToServerMap.containsKey(sessionUUID);
+    }
+    
+    /**
      * Shuts down all connections.
      */
     public void shutdown() {
