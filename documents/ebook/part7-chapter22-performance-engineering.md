@@ -1,7 +1,8 @@
 # Chapter 22: Performance Engineering and Capacity Planning
 
 Understanding OJP's performance characteristics is essential for successful production deployments. This chapter provides comprehensive guidance on capacity planning, performance profiling, resource consumption patterns, and benchmarking methodologies to help you right-size your OJP infrastructure and meet your performance objectives.
-**The contents of this file are merely guidance and must be adapted to each use case's specificities.**
+
+**The contents of this chapter are merely guidance and must be adapted to each use case's specificities.**
 
 ## 22.1 Performance Fundamentals
 
