@@ -8,7 +8,8 @@ OJP introduces a network hop between your application and the database, which fu
 
 ### Latency Overhead Profile
 
-Every database operation through OJP incurs additional latency from network communication and gRPC serialization. The typical overhead ranges from 1-3ms per operation, broken down as follows:
+Every database operation through OJP incurs additional latency from network communication and gRPC serialization. The predicted typical overhead ranges from 1-3ms per operation, broken down as follows:
+NOTE: The times shown below are predictions, not accurate measurements.
 
 **Network Round-Trip Time (RTT)**:
 - Same datacenter: 0.1-0.5ms (sub-millisecond)
