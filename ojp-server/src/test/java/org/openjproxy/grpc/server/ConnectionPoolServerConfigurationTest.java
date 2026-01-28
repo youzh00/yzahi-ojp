@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ConnectionPoolServerConfigurationTest {
 
     @Test
-    public void testHikariConfigurationWithClientProperties() throws Exception {
+    void testHikariConfigurationWithClientProperties() throws Exception {
         // Create test properties that a client would send
         Properties clientProperties = new Properties();
         clientProperties.setProperty("ojp.connection.pool.maximumPoolSize", "25");
@@ -59,7 +59,7 @@ public class ConnectionPoolServerConfigurationTest {
     }
 
     @Test
-    public void testHikariConfigurationWithoutClientProperties() throws Exception {
+    void testHikariConfigurationWithoutClientProperties() throws Exception {
         // Create ConnectionDetails without properties
         ConnectionDetails connectionDetails = ConnectionDetails.newBuilder()
                 .setUrl("jdbc:h2:mem:testdb")
@@ -82,7 +82,7 @@ public class ConnectionPoolServerConfigurationTest {
     }
 
     @Test
-    public void testHikariConfigurationWithInvalidProperties() throws Exception {
+    void testHikariConfigurationWithInvalidProperties() throws Exception {
         // Create test properties with invalid values
         Properties clientProperties = new Properties();
         clientProperties.setProperty("ojp.connection.pool.maximumPoolSize", "invalid_number");

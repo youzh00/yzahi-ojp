@@ -30,7 +30,7 @@ public class Db2BlobIntegrationTest {
     private Connection conn;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableDb2Tests", "false"));
     }
 
@@ -59,7 +59,7 @@ public class Db2BlobIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2BlobCreationAndRetrieval(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testDb2BlobCreationAndRetrieval(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing DB2 BLOB creation and retrieval for url -> " + url);
@@ -103,7 +103,7 @@ public class Db2BlobIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2BlobPerformance(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testDb2BlobPerformance(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing DB2 BLOB performance for url -> " + url);

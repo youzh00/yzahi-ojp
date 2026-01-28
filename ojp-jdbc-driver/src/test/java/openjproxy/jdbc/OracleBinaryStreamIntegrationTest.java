@@ -26,13 +26,13 @@ public class OracleBinaryStreamIntegrationTest {
     private static boolean isTestDisabled;
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableOracleTests", "false"));
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/oracle_connections.csv")
-    public void createAndReadingBinaryStreamSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void createAndReadingBinaryStreamSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         assumeFalse(isTestDisabled, "Skipping Oracle tests");
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -93,7 +93,7 @@ public class OracleBinaryStreamIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/oracle_connections.csv")
-    public void createAndReadingLargeBinaryStreamSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void createAndReadingLargeBinaryStreamSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         assumeFalse(isTestDisabled, "Skipping Oracle tests");
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -143,7 +143,7 @@ public class OracleBinaryStreamIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/oracle_connections.csv")
-    public void testOracleSpecificBinaryHandling(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testOracleSpecificBinaryHandling(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         assumeFalse(isTestDisabled, "Skipping Oracle tests");
 
         Connection conn = DriverManager.getConnection(url, user, pwd);

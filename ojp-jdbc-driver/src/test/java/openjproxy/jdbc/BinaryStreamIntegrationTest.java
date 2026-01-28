@@ -23,14 +23,14 @@ public class BinaryStreamIntegrationTest {
     private static boolean isPostgresTestEnabled;
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         isH2TestEnabled = Boolean.parseBoolean(System.getProperty("enableH2Tests", "false"));
         isPostgresTestEnabled = Boolean.parseBoolean(System.getProperty("enablePostgresTests", "false"));
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_postgres_connections.csv")
-    public void createAndReadingBinaryStreamSuccessful(String driverClass, String url, String user, String pwd, boolean isXA) throws SQLException, ClassNotFoundException, IOException {
+    void createAndReadingBinaryStreamSuccessful(String driverClass, String url, String user, String pwd, boolean isXA) throws SQLException, ClassNotFoundException, IOException {
         if (!isH2TestEnabled && url.toLowerCase().contains("_h2:")) {
             return;
         }
@@ -103,7 +103,7 @@ public class BinaryStreamIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_postgres_connections.csv")
-    public void createAndReadingLargeBinaryStreamSuccessful(String driverClass, String url, String user, String pwd, boolean isXA) throws SQLException, ClassNotFoundException, IOException {
+    void createAndReadingLargeBinaryStreamSuccessful(String driverClass, String url, String user, String pwd, boolean isXA) throws SQLException, ClassNotFoundException, IOException {
         if (!isH2TestEnabled && url.toLowerCase().contains("_h2:")) {
             return;
         }

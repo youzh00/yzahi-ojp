@@ -22,13 +22,13 @@ public class Db2ReadMultipleBlocksOfDataIntegrationTest {
     private static boolean isTestDisabled;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableDb2Tests", "false"));
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connections_with_record_counts.csv")
-    public void multiplePagesOfRowsResultSetSuccessful(int totalRecords, String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void multiplePagesOfRowsResultSetSuccessful(int totalRecords, String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         assumeFalse(isTestDisabled, "Skipping DB2 tests");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -80,7 +80,7 @@ public class Db2ReadMultipleBlocksOfDataIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2LargeDataSetPagination(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void testDb2LargeDataSetPagination(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         assumeFalse(isTestDisabled, "Skipping DB2 tests");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -145,7 +145,7 @@ public class Db2ReadMultipleBlocksOfDataIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2ResultSetScrolling(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void testDb2ResultSetScrolling(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         assumeFalse(isTestDisabled, "Skipping DB2 tests");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -208,7 +208,7 @@ public class Db2ReadMultipleBlocksOfDataIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/db2_connection.csv")
-    public void testDb2MultipleDataTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void testDb2MultipleDataTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         assumeFalse(isTestDisabled, "Skipping DB2 tests");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);

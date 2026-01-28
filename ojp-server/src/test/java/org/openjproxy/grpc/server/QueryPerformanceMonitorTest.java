@@ -12,19 +12,19 @@ public class QueryPerformanceMonitorTest {
     private QueryPerformanceMonitor monitor;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         monitor = new QueryPerformanceMonitor();
     }
 
     @Test
-    public void testInitialState() {
+    void testInitialState() {
         assertEquals(0, monitor.getTrackedOperationCount());
         assertEquals(0, monitor.getTotalExecutionCount());
         assertEquals(0.0, monitor.getOverallAverageExecutionTime(), 0.001);
     }
 
     @Test
-    public void testRecordSingleExecution() {
+    void testRecordSingleExecution() {
         String operationHash = "test-hash-1";
         double executionTime = 100.0;
 
@@ -37,7 +37,7 @@ public class QueryPerformanceMonitorTest {
     }
 
     @Test
-    public void testRecordMultipleExecutionsSameOperation() {
+    void testRecordMultipleExecutionsSameOperation() {
         String operationHash = "test-hash-1";
 
         // First execution: 100ms
@@ -60,7 +60,7 @@ public class QueryPerformanceMonitorTest {
     }
 
     @Test
-    public void testMultipleOperations() {
+    void testMultipleOperations() {
         String op1 = "operation-1";
         String op2 = "operation-2";
 
@@ -78,7 +78,7 @@ public class QueryPerformanceMonitorTest {
     }
 
     @Test
-    public void testSlowOperationClassification() {
+    void testSlowOperationClassification() {
         String fastOp = "fast-operation";
         String slowOp = "slow-operation";
 
@@ -121,7 +121,7 @@ public class QueryPerformanceMonitorTest {
     }
 
     @Test
-    public void testLowOverallAverageHandling() {
+    void testLowOverallAverageHandling() {
         String operation = "test-op";
         
         // When overall average is very low, operations should be classified as fast
@@ -136,7 +136,7 @@ public class QueryPerformanceMonitorTest {
     }
 
     @Test
-    public void testInvalidInputHandling() {
+    void testInvalidInputHandling() {
         // Null hash should be handled gracefully
         monitor.recordExecutionTime(null, 100.0);
         assertEquals(0, monitor.getTrackedOperationCount());
@@ -150,7 +150,7 @@ public class QueryPerformanceMonitorTest {
     }
 
     @Test
-    public void testClear() {
+    void testClear() {
         monitor.recordExecutionTime("op1", 100.0);
         monitor.recordExecutionTime("op2", 200.0);
         

@@ -22,13 +22,13 @@ public class SQLServerStatementExtensiveTests {
     private static boolean isTestDisabled;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableSqlServerTests", "false"));
     }
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerBasicStatementOperations(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerBasicStatementOperations(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -80,7 +80,7 @@ public class SQLServerStatementExtensiveTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerSpecificSyntax(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerSpecificSyntax(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -139,7 +139,7 @@ public class SQLServerStatementExtensiveTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerBatchStatements(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerBatchStatements(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -182,7 +182,7 @@ public class SQLServerStatementExtensiveTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerStoredProcedures(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerStoredProcedures(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -227,7 +227,7 @@ public class SQLServerStatementExtensiveTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerTransactionStatements(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerTransactionStatements(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -281,7 +281,7 @@ public class SQLServerStatementExtensiveTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerLargeQueries(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerLargeQueries(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -315,7 +315,7 @@ public class SQLServerStatementExtensiveTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerStatementProperties(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerStatementProperties(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);

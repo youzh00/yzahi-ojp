@@ -46,7 +46,7 @@ public class MultinodeIntegrationTest {
     private static HikariDataSource ds;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         // Check both system property and environment variable
         boolean sysPropEnabled = Boolean.parseBoolean(System.getProperty("multinodeTestsEnabled", "false"));
         boolean envVarEnabled = Boolean.parseBoolean(System.getenv("MULTINODE_TESTS_ENABLED"));
@@ -63,7 +63,7 @@ public class MultinodeIntegrationTest {
     @SneakyThrows
     @ParameterizedTest
     @CsvFileSource(resources = "/multinode_connection.csv")
-    public void runTests(String driverClass, String url, String user, String password) throws SQLException {
+    void runTests(String driverClass, String url, String user, String password) throws SQLException {
         assumeFalse(isTestDisabled, "Multinode tests are disabled");
         
         this.setUp();

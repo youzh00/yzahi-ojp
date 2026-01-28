@@ -27,7 +27,7 @@ public class PerDatasourceSlowQuerySegregationTest {
     private ServerConfiguration serverConfiguration;
 
     @BeforeEach
-    public void setUp() {
+    void setUp() {
         serverConfiguration = new ServerConfiguration();
         SessionManager sessionManager = Mockito.mock(SessionManager.class);
         CircuitBreaker circuitBreaker = Mockito.mock(CircuitBreaker.class);
@@ -36,7 +36,7 @@ public class PerDatasourceSlowQuerySegregationTest {
     }
 
     @Test
-    public void testPerDatasourceSlowQuerySegregationManagerCreation() throws Exception {
+    void testPerDatasourceSlowQuerySegregationManagerCreation() throws Exception {
         // Create properties for first connection
         Properties clientProperties1 = new Properties();
         clientProperties1.setProperty("ojp.connection.pool.maximumPoolSize", "10");
@@ -132,7 +132,7 @@ public class PerDatasourceSlowQuerySegregationTest {
     }
 
     @Test
-    public void testManagerRetrievalForExistingConnection() throws Exception {
+    void testManagerRetrievalForExistingConnection() throws Exception {
         // Create properties
         Properties clientProperties = new Properties();
         clientProperties.setProperty("ojp.connection.pool.maximumPoolSize", "15");
@@ -171,7 +171,7 @@ public class PerDatasourceSlowQuerySegregationTest {
     }
 
     @Test
-    public void testFallbackManagerForNonExistentConnection() throws Exception {
+    void testFallbackManagerForNonExistentConnection() throws Exception {
         // Use reflection to call the private method with non-existent connection hash
         java.lang.reflect.Method getManagerMethod = StatementServiceImpl.class
                 .getDeclaredMethod("getSlowQuerySegregationManagerForConnection", String.class);

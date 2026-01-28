@@ -29,7 +29,7 @@ public class OracleBlobIntegrationTest {
     private Connection conn;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableOracleTests", "false"));
     }
 
@@ -53,7 +53,7 @@ public class OracleBlobIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/oracle_connections.csv")
-    public void testOracleBlobCreationAndRetrieval(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testOracleBlobCreationAndRetrieval(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing Oracle BLOB creation and retrieval for url -> " + url);
@@ -95,7 +95,7 @@ public class OracleBlobIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/oracle_connections.csv")
-    public void testOracleLargeBlobHandling(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testOracleLargeBlobHandling(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing Oracle large BLOB handling for url -> " + url);
@@ -143,7 +143,7 @@ public class OracleBlobIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/oracle_connections.csv")
-    public void testOracleBlobBinaryStream(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testOracleBlobBinaryStream(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing Oracle BLOB binary stream for url -> " + url);
@@ -191,7 +191,7 @@ public class OracleBlobIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/oracle_connections.csv")
-    public void testOracleBlobUpdate(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testOracleBlobUpdate(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing Oracle BLOB update for url -> " + url);
@@ -238,7 +238,7 @@ public class OracleBlobIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/oracle_connections.csv")
-    public void testOracleEmptyAndNullBlob(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testOracleEmptyAndNullBlob(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing Oracle empty and null BLOB for url -> " + url);

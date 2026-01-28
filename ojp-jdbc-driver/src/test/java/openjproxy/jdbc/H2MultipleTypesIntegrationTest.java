@@ -26,13 +26,13 @@ public class H2MultipleTypesIntegrationTest {
     private static boolean isH2TestEnabled;
 
     @BeforeAll
-    public static void setupClass() {
+    static void setupClass() {
         isH2TestEnabled = Boolean.parseBoolean(System.getProperty("enableH2Tests", "false"));
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_connection.csv")
-    public void typesCoverageTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, ParseException {
+    void typesCoverageTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, ParseException {
         Assumptions.assumeTrue(isH2TestEnabled, "Skipping H2 tests - not enabled");
         Connection conn = DriverManager.getConnection(url, user, pwd);
 

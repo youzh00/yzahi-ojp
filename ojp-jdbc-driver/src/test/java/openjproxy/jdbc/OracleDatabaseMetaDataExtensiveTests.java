@@ -15,7 +15,7 @@ public class OracleDatabaseMetaDataExtensiveTests {
     private static Connection connection;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableOracleTests", "false"));
     }
 
@@ -27,13 +27,13 @@ public class OracleDatabaseMetaDataExtensiveTests {
     }
 
     @AfterAll
-    public static void teardown() throws Exception {
+    static void teardown() throws Exception {
         TestDBUtils.closeQuietly(connection);
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/oracle_connections.csv")
-    public void allDatabaseMetaDataMethodsShouldWorkAndBeAsserted(String driverClass, String url, String user, String password) throws Exception {
+    void allDatabaseMetaDataMethodsShouldWorkAndBeAsserted(String driverClass, String url, String user, String password) throws Exception {
         this.setUp(driverClass, url, user, password);
         DatabaseMetaData meta = connection.getMetaData();
 

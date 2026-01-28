@@ -31,13 +31,13 @@ public class SQLServerBinaryStreamIntegrationTest {
     private static boolean isTestDisabled;
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableSqlServerTests", "false"));
     }
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void createAndReadingBinaryStreamSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void createAndReadingBinaryStreamSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         assumeFalse(isTestDisabled, "Skipping SQL Server tests");
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -98,7 +98,7 @@ public class SQLServerBinaryStreamIntegrationTest {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void createAndReadingLargeBinaryStreamSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void createAndReadingLargeBinaryStreamSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         assumeFalse(isTestDisabled, "Skipping SQL Server tests");
 
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -148,7 +148,7 @@ public class SQLServerBinaryStreamIntegrationTest {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerSpecificBinaryHandling(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testSqlServerSpecificBinaryHandling(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         assumeFalse(isTestDisabled, "Skipping SQL Server tests");
 
         Connection conn = DriverManager.getConnection(url, user, pwd);

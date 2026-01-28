@@ -42,7 +42,7 @@ public class PostgresConnectionExtensiveTests {
     private Connection connection;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestEnabled = Boolean.parseBoolean(System.getProperty("enablePostgresTests", "false"));
     }
 
@@ -53,13 +53,13 @@ public class PostgresConnectionExtensiveTests {
     }
 
     @AfterEach
-    public void tearDown() throws SQLException {
+    void tearDown() throws SQLException {
         TestDBUtils.closeQuietly(connection);
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void testConnectionProperties(String driverClass, String url, String user, String password) throws SQLException {
+    void testConnectionProperties(String driverClass, String url, String user, String password) throws SQLException {
         this.setUp(driverClass, url, user, password);
         assertEquals(false, connection.isClosed());
         assertEquals(true, connection.isValid(5));
@@ -69,7 +69,7 @@ public class PostgresConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void testAutoCommitAndTransactionIsolation(String driverClass, String url, String user, String password) throws SQLException {
+    void testAutoCommitAndTransactionIsolation(String driverClass, String url, String user, String password) throws SQLException {
         this.setUp(driverClass, url, user, password);
         assertEquals(true, connection.getAutoCommit());
         connection.setAutoCommit(false);
@@ -84,7 +84,7 @@ public class PostgresConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void testCommitAndRollback(String driverClass, String url, String user, String password) throws SQLException {
+    void testCommitAndRollback(String driverClass, String url, String user, String password) throws SQLException {
         this.setUp(driverClass, url, user, password);
         
         // PostgreSQL DDL statements are transactional, so we need to create and commit the table first
@@ -108,7 +108,7 @@ public class PostgresConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void testSavepoints(String driverClass, String url, String user, String password) throws SQLException {
+    void testSavepoints(String driverClass, String url, String user, String password) throws SQLException {
         this.setUp(driverClass, url, user, password);
         
         // PostgreSQL DDL statements are transactional, so we need to create and commit the table first
@@ -136,7 +136,7 @@ public class PostgresConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void testConnectionMetadata(String driverClass, String url, String user, String password) throws SQLException {
+    void testConnectionMetadata(String driverClass, String url, String user, String password) throws SQLException {
         this.setUp(driverClass, url, user, password);
         DatabaseMetaData metaData = connection.getMetaData();
         assertNotNull(metaData);
@@ -146,7 +146,7 @@ public class PostgresConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void testClientInfo(String driverClass, String url, String user, String password) throws SQLException {
+    void testClientInfo(String driverClass, String url, String user, String password) throws SQLException {
         this.setUp(driverClass, url, user, password);
         // PostgreSQL supports client info
         try {
@@ -159,7 +159,7 @@ public class PostgresConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void testClose(String driverClass, String url, String user, String password) throws SQLException {
+    void testClose(String driverClass, String url, String user, String password) throws SQLException {
         this.setUp(driverClass, url, user, password);
         assertEquals(false, connection.isClosed());
         connection.close();
@@ -170,7 +170,7 @@ public class PostgresConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void testAllConnectionMethods(String driverClass, String url, String user, String password) throws Exception {
+    void testAllConnectionMethods(String driverClass, String url, String user, String password) throws Exception {
         this.setUp(driverClass, url, user, password);
 
         // createStatement

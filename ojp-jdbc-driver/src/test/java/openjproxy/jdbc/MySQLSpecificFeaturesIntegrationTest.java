@@ -23,14 +23,14 @@ public class MySQLSpecificFeaturesIntegrationTest {
     private static boolean isMariaDBTestEnabled;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isMySQLTestEnabled = Boolean.parseBoolean(System.getProperty("enableMySQLTests", "false"));
         isMariaDBTestEnabled = Boolean.parseBoolean(System.getProperty("enableMariaDBTests", "false"));
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void onDuplicateKeyUpdateTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void onDuplicateKeyUpdateTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         // Skip MySQL tests if not enabled
         if (url.toLowerCase().contains("mysql") && !isMySQLTestEnabled) {
             assumeFalse(true, "Skipping MySQL tests");
@@ -82,7 +82,7 @@ public class MySQLSpecificFeaturesIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void selectForUpdateTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void selectForUpdateTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         // Skip MySQL tests if not enabled
         if (url.toLowerCase().contains("mysql") && !isMySQLTestEnabled) {
             assumeFalse(true, "Skipping MySQL tests");
@@ -142,7 +142,7 @@ public class MySQLSpecificFeaturesIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void showTablesTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void showTablesTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         // Skip MySQL tests if not enabled
         if (url.toLowerCase().contains("mysql") && !isMySQLTestEnabled) {
             assumeFalse(true, "Skipping MySQL tests");
@@ -187,7 +187,7 @@ public class MySQLSpecificFeaturesIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void autoIncrementAndLastInsertIdTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void autoIncrementAndLastInsertIdTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         // Skip MySQL tests if not enabled
         if (url.toLowerCase().contains("mysql") && !isMySQLTestEnabled) {
             assumeFalse(true, "Skipping MySQL tests");
@@ -248,7 +248,7 @@ public class MySQLSpecificFeaturesIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/mysql_mariadb_connection.csv")
-    public void mysqlInformationSchemaTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void mysqlInformationSchemaTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         // Skip MySQL tests if not enabled
         if (url.toLowerCase().contains("mysql") && !isMySQLTestEnabled) {
             assumeFalse(true, "Skipping MySQL tests");

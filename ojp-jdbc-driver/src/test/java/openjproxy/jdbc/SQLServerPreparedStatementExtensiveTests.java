@@ -23,13 +23,13 @@ public class SQLServerPreparedStatementExtensiveTests {
     private static boolean isTestDisabled;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableSqlServerTests", "false"));
     }
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerPreparedStatementBasics(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerPreparedStatementBasics(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -62,7 +62,7 @@ public class SQLServerPreparedStatementExtensiveTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerParameterTypes(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerParameterTypes(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -117,7 +117,7 @@ public class SQLServerPreparedStatementExtensiveTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerBatchUpdates(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerBatchUpdates(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -158,7 +158,7 @@ public class SQLServerPreparedStatementExtensiveTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerNullParameters(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerNullParameters(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -202,7 +202,7 @@ public class SQLServerPreparedStatementExtensiveTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerBinaryParameters(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerBinaryParameters(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -263,7 +263,7 @@ public class SQLServerPreparedStatementExtensiveTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerUpdateAndDelete(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerUpdateAndDelete(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);

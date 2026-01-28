@@ -18,7 +18,7 @@ public class OracleResultSetMetaDataExtensiveTests {
     private ResultSetMetaData metaData;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableOracleTests", "false"));
     }
 
@@ -51,13 +51,13 @@ public class OracleResultSetMetaDataExtensiveTests {
     }
 
     @AfterEach
-    public void tearDown() throws Exception {
+    void tearDown() throws Exception {
         if (connection != null) connection.close();
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/oracle_connections.csv")
-    public void testAllResultSetMetaDataMethods(String driverClass, String url, String user, String password) throws SQLException {
+    void testAllResultSetMetaDataMethods(String driverClass, String url, String user, String password) throws SQLException {
         setUp(driverClass, url, user, password);
 
         // getColumnCount

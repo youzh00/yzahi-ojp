@@ -36,7 +36,7 @@ public class PostgresCallableStatementTests {
     private CallableStatement callableStatement;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestEnabled = Boolean.parseBoolean(System.getProperty("enablePostgresTests", "false"));
     }
 
@@ -83,14 +83,14 @@ public class PostgresCallableStatementTests {
     }
 
     @AfterEach
-    public void tearDown() throws Exception {
+    void tearDown() throws Exception {
         if (callableStatement != null) callableStatement.close();
         if (connection != null) connection.close();
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void testExecuteProcedure(String driverClass, String url, String user, String password) throws Exception {
+    void testExecuteProcedure(String driverClass, String url, String user, String password) throws Exception {
         this.setUp(driverClass, url, user, password);
         callableStatement = connection.prepareCall("CALL update_salary(?, ?, ?)");
         callableStatement.setInt(1, 1);
@@ -120,7 +120,7 @@ public class PostgresCallableStatementTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void testDateTimeParameters(String driverClass, String url, String user, String password) throws Exception {
+    void testDateTimeParameters(String driverClass, String url, String user, String password) throws Exception {
         this.setUp(driverClass, url, user, password);
         callableStatement = connection.prepareCall("CALL update_employee_dates(?, ?, ?, ?, ?, ?, ?)");
         int empId = 1;
@@ -160,7 +160,7 @@ public class PostgresCallableStatementTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void testSetAndGetStringAndBoolean(String driverClass, String url, String user, String password) throws Exception {
+    void testSetAndGetStringAndBoolean(String driverClass, String url, String user, String password) throws Exception {
         this.setUp(driverClass, url, user, password);
 
         // Add an employee with a boolean flag using the name column as a boolean string
@@ -190,7 +190,7 @@ public class PostgresCallableStatementTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void testSetObjectAndGetObject(String driverClass, String url, String user, String password) throws Exception {
+    void testSetObjectAndGetObject(String driverClass, String url, String user, String password) throws Exception {
         this.setUp(driverClass, url, user, password);
         callableStatement = connection.prepareCall("CALL update_salary(?, ?, ?)");
         callableStatement.setObject(1, 1, Types.INTEGER);
@@ -209,7 +209,7 @@ public class PostgresCallableStatementTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void testInvalidParameterIndex(String driverClass, String url, String user, String password) throws Exception {
+    void testInvalidParameterIndex(String driverClass, String url, String user, String password) throws Exception {
         this.setUp(driverClass, url, user, password);
         // This test will intentionally fail due to an invalid parameter index
         assertThrows(SQLException.class, () -> {

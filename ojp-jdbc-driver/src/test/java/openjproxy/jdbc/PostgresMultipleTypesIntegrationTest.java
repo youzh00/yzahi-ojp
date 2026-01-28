@@ -24,13 +24,13 @@ public class PostgresMultipleTypesIntegrationTest {
     private static boolean isTestEnabled;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestEnabled = Boolean.parseBoolean(System.getProperty("enablePostgresTests", "false"));
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void typesCoverageTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, ParseException {
+    void typesCoverageTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, ParseException {
         assumeFalse(!isTestEnabled, "Postgres tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -135,7 +135,7 @@ public class PostgresMultipleTypesIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void testPostgresSpecificTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void testPostgresSpecificTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         assumeFalse(!isTestEnabled, "Postgres tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);

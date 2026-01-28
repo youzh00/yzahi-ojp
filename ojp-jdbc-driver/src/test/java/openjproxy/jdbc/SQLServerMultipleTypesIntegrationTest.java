@@ -27,13 +27,13 @@ public class SQLServerMultipleTypesIntegrationTest {
     private static boolean isTestDisabled;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableSqlServerTests", "false"));
     }
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void typesCoverageTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, ParseException {
+    void typesCoverageTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, ParseException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -109,7 +109,7 @@ public class SQLServerMultipleTypesIntegrationTest {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerSpecificTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void testSqlServerSpecificTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -178,7 +178,7 @@ public class SQLServerMultipleTypesIntegrationTest {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerNullValues(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void testSqlServerNullValues(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -227,7 +227,7 @@ public class SQLServerMultipleTypesIntegrationTest {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerLargeTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void testSqlServerLargeTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);

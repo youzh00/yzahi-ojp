@@ -39,7 +39,7 @@ public class PostgresSlowQuerySegregationTest {
     private static HikariDataSource ds;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestEnabled = Boolean.parseBoolean(System.getProperty("enablePostgresTests", "false"));
     }
 
@@ -53,7 +53,7 @@ public class PostgresSlowQuerySegregationTest {
     @SneakyThrows
     @ParameterizedTest
     @CsvFileSource(resources = "/postgres_connection.csv")
-    public void runTests(String driverClass, String url, String user, String password) throws SQLException {
+    void runTests(String driverClass, String url, String user, String password) throws SQLException {
         assumeFalse(!isTestEnabled, "Postgres tests are disabled");
         
         this.setUp();

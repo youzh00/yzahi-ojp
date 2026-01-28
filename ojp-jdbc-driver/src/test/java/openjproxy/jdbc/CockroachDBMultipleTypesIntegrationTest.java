@@ -24,13 +24,13 @@ public class CockroachDBMultipleTypesIntegrationTest {
     private static boolean isTestEnabled;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestEnabled = Boolean.parseBoolean(System.getProperty("enableCockroachDBTests", "false"));
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void typesCoverageTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, ParseException {
+    void typesCoverageTestSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, ParseException {
         assumeFalse(!isTestEnabled, "CockroachDB tests are not enabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -132,7 +132,7 @@ public class CockroachDBMultipleTypesIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testCockroachDBSpecificTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void testCockroachDBSpecificTypes(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         assumeFalse(!isTestEnabled, "CockroachDB tests are not enabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);

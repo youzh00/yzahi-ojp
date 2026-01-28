@@ -42,7 +42,7 @@ public class H2ConnectionExtensiveTests {
     private Connection connection;
 
     @BeforeAll
-    public static void setupClass() {
+    static void setupClass() {
         isH2TestEnabled = Boolean.parseBoolean(System.getProperty("enableH2Tests", "false"));
     }
 
@@ -53,13 +53,13 @@ public class H2ConnectionExtensiveTests {
     }
 
     @AfterEach
-    public void tearDown() throws SQLException {
+    void tearDown() throws SQLException {
         TestDBUtils.closeQuietly(connection);
     }
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_connection.csv")
-    public void testConnectionProperties(String driverClass, String url, String user, String password) throws SQLException {
+    void testConnectionProperties(String driverClass, String url, String user, String password) throws SQLException {
         this.setUp(driverClass, url, user, password);
         assertEquals(false, connection.isClosed());
         assertEquals(true, connection.isValid(5));
@@ -69,7 +69,7 @@ public class H2ConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_connection.csv")
-    public void testAutoCommitAndTransactionIsolation(String driverClass, String url, String user, String password) throws SQLException {
+    void testAutoCommitAndTransactionIsolation(String driverClass, String url, String user, String password) throws SQLException {
         this.setUp(driverClass, url, user, password);
         assertEquals(true, connection.getAutoCommit());
         connection.setAutoCommit(false);
@@ -84,7 +84,7 @@ public class H2ConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_connection.csv")
-    public void testCommitAndRollback(String driverClass, String url, String user, String password) throws SQLException {
+    void testCommitAndRollback(String driverClass, String url, String user, String password) throws SQLException {
         this.setUp(driverClass, url, user, password);
         connection.setAutoCommit(false);
 
@@ -104,7 +104,7 @@ public class H2ConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_connection.csv")
-    public void testSavepoints(String driverClass, String url, String user, String password) throws SQLException {
+    void testSavepoints(String driverClass, String url, String user, String password) throws SQLException {
         this.setUp(driverClass, url, user, password);
         connection.setAutoCommit(false);
         TestDBUtils.createBasicTestTable(connection, "h2_connection_test", TestDBUtils.SqlSyntax.H2, true);
@@ -127,7 +127,7 @@ public class H2ConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_connection.csv")
-    public void testConnectionMetadata(String driverClass, String url, String user, String password) throws SQLException {
+    void testConnectionMetadata(String driverClass, String url, String user, String password) throws SQLException {
         this.setUp(driverClass, url, user, password);
         DatabaseMetaData metaData = connection.getMetaData();
         assertNotNull(metaData);
@@ -137,7 +137,7 @@ public class H2ConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_connection.csv")
-    public void testClientInfo(String driverClass, String url, String user, String password) throws SQLException {
+    void testClientInfo(String driverClass, String url, String user, String password) throws SQLException {
         if (url.contains("h2")) {//Not supported in H2
             return;
         }
@@ -148,7 +148,7 @@ public class H2ConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_connection.csv")
-    public void testClose(String driverClass, String url, String user, String password) throws SQLException {
+    void testClose(String driverClass, String url, String user, String password) throws SQLException {
         this.setUp(driverClass, url, user, password);
         assertEquals(false, connection.isClosed());
         connection.close();
@@ -159,7 +159,7 @@ public class H2ConnectionExtensiveTests {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_connection.csv")
-    public void testAllConnectionMethods(String driverClass, String url, String user, String password) throws Exception {
+    void testAllConnectionMethods(String driverClass, String url, String user, String password) throws Exception {
         this.setUp(driverClass, url, user, password);
 
         // createStatement

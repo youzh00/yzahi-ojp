@@ -29,7 +29,7 @@ public class CockroachDBBlobIntegrationTest {
     private Connection conn;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestEnabled = Boolean.parseBoolean(System.getProperty("enableCockroachDBTests", "false"));
     }
 
@@ -53,7 +53,7 @@ public class CockroachDBBlobIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testCockroachDBBlobCreationAndRetrieval(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testCockroachDBBlobCreationAndRetrieval(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing CockroachDB BLOB creation and retrieval for url -> " + url);
@@ -95,7 +95,7 @@ public class CockroachDBBlobIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testCockroachDBLargeBlobHandling(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testCockroachDBLargeBlobHandling(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing CockroachDB large BLOB handling for url -> " + url);
@@ -138,7 +138,7 @@ public class CockroachDBBlobIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testCockroachDBBlobUpdate(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void testCockroachDBBlobUpdate(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing CockroachDB BLOB update for url -> " + url);
@@ -191,7 +191,7 @@ public class CockroachDBBlobIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/cockroachdb_connection.csv")
-    public void testCockroachDBBlobWithNullValue(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
+    void testCockroachDBBlobWithNullValue(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException {
         setUp(driverClass, url, user, pwd);
 
         System.out.println("Testing CockroachDB BLOB with NULL value for url -> " + url);

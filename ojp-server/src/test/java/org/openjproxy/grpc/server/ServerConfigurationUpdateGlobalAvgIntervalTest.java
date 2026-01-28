@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ServerConfigurationUpdateGlobalAvgIntervalTest {
 
     @Test
-    public void testDefaultUpdateGlobalAvgInterval() {
+    void testDefaultUpdateGlobalAvgInterval() {
         ServerConfiguration config = new ServerConfiguration();
         
         // Test default value
@@ -17,7 +17,7 @@ public class ServerConfigurationUpdateGlobalAvgIntervalTest {
     }
 
     @Test
-    public void testCustomUpdateGlobalAvgInterval() {
+    void testCustomUpdateGlobalAvgInterval() {
         // Set a custom value via system property
         System.setProperty("ojp.server.slowQuerySegregation.updateGlobalAvgInterval", "600");
         
@@ -31,7 +31,7 @@ public class ServerConfigurationUpdateGlobalAvgIntervalTest {
     }
 
     @Test
-    public void testZeroUpdateGlobalAvgInterval() {
+    void testZeroUpdateGlobalAvgInterval() {
         // Set to 0 (always update behavior)
         System.setProperty("ojp.server.slowQuerySegregation.updateGlobalAvgInterval", "0");
         

@@ -22,13 +22,13 @@ public class SQLServerSavepointTests {
     private static boolean isTestDisabled;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isTestDisabled = !Boolean.parseBoolean(System.getProperty("enableSqlServerTests", "false"));
     }
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerBasicSavepoints(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerBasicSavepoints(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -106,7 +106,7 @@ public class SQLServerSavepointTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerNestedSavepoints(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerNestedSavepoints(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -188,7 +188,7 @@ public class SQLServerSavepointTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerSavepointRelease(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerSavepointRelease(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -251,7 +251,7 @@ public class SQLServerSavepointTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerSavepointWithBatch(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerSavepointWithBatch(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);
@@ -322,7 +322,7 @@ public class SQLServerSavepointTests {
 
     @ParameterizedTest
     @ArgumentsSource(SQLServerConnectionProvider.class)
-    public void testSqlServerSavepointException(String driverClass, String url, String user, String pwd) throws SQLException {
+    void testSqlServerSavepointException(String driverClass, String url, String user, String pwd) throws SQLException {
         assumeFalse(isTestDisabled, "SQL Server tests are disabled");
         
         Connection conn = DriverManager.getConnection(url, user, pwd);

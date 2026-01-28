@@ -29,7 +29,7 @@ public class BlobIntegrationTest {
     private Connection conn;
 
     @BeforeAll
-    public static void checkTestConfiguration() {
+    static void checkTestConfiguration() {
         isH2TestEnabled = Boolean.parseBoolean(System.getProperty("enableH2Tests", "false"));
         isMySQLTestEnabled = Boolean.parseBoolean(System.getProperty("enableMySQLTests", "false"));
         isMariaDBTestEnabled = Boolean.parseBoolean(System.getProperty("enableMariaDBTests", "false"));
@@ -58,7 +58,7 @@ public class BlobIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_mysql_mariadb_oracle_connections.csv")
-    public void createAndReadingBLOBsSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
+    void createAndReadingBLOBsSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, ClassNotFoundException, IOException {
         this.setUp(driverClass, url, user, pwd);
         System.out.println("Testing for url -> " + url);
 
@@ -132,7 +132,7 @@ public class BlobIntegrationTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = "/h2_mysql_mariadb_oracle_connections.csv")
-    public void creatingAndReadingLargeBLOBsSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, IOException, ClassNotFoundException {
+    void creatingAndReadingLargeBLOBsSuccessful(String driverClass, String url, String user, String pwd) throws SQLException, IOException, ClassNotFoundException {
         this.setUp(driverClass, url, user, pwd);
         System.out.println("Testing for url -> " + url);
 
