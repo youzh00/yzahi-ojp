@@ -59,7 +59,7 @@ OJP session timeouts complement the existing connection pool timeouts:
 
 | Component | Timeout | Purpose | Since (OJP Feature) |
 |-----------|---------|---------|---------------------|
-| **OJP Session** | 30 min (default) | Cleans up session objects and associated resources | 0.3.0-beta |
+| **OJP Session** | 30 min (default) | Cleans up session objects and associated resources | 0.4.0-beta |
 | **HikariCP idle** | 10 min (default) | Returns idle connections to the pool | N/A (HikariCP) |
 | **HikariCP maxLifetime** | 30 min (default) | Maximum connection lifetime | N/A (HikariCP) |
 | **DBCP2 idle** | 10 min (default) | Evicts idle connections | N/A (DBCP2) |
@@ -124,9 +124,9 @@ java -jar ojp-server.jar \
 
 | Setting | Default Value | Description | Since |
 |---------|---------------|-------------|-------|
-| `enabled` | `true` | Session cleanup is enabled by default | 0.3.0-beta |
-| `timeoutMinutes` | `30` | Sessions inactive for 30+ minutes are cleaned up | 0.3.0-beta |
-| `intervalMinutes` | `5` | Cleanup task runs every 5 minutes | 0.3.0-beta |
+| `enabled` | `true` | Session cleanup is enabled by default | 0.4.0-beta |
+| `timeoutMinutes` | `30` | Sessions inactive for 30+ minutes are cleaned up | 0.4.0-beta |
+| `intervalMinutes` | `5` | Cleanup task runs every 5 minutes | 0.4.0-beta |
 
 ## Monitoring and Logging
 
