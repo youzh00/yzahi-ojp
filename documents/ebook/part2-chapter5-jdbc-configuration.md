@@ -283,16 +283,16 @@ graph TB
 
 | Property | Type | Default | Description | Since |
 |----------|------|---------|-------------|-------|
-| `maximumPoolSize` | int | 10 | Maximum number of connections in pool | 0.1.0 |
-| `minimumIdle` | int | same as max | Minimum number of idle connections | 0.1.0 |
-| `connectionTimeout` | long | 30000 | Max wait for connection (ms) | 0.1.0 |
-| `idleTimeout` | long | 600000 | Max idle time before close (ms) | 0.1.0 |
-| `maxLifetime` | long | 1800000 | Max connection lifetime (ms) | 0.1.0 |
-| `connectionTestQuery` | String | null | Query to test connection validity | 0.1.0 |
-| `initializationFailTimeout` | long | 1 | Timeout for pool initialization (ms) | 0.1.0 |
-| `leakDetectionThreshold` | long | 0 | Connection leak detection (ms, 0=off) | 0.1.0 |
-| `validationTimeout` | long | 5000 | Max time for connection validation (ms) | 0.1.0 |
-| `keepaliveTime` | long | 0 | Keepalive interval (ms, 0=off) | 0.1.0 |
+| `maximumPoolSize` | int | 10 | Maximum number of connections in pool | 0.1.0-alpha |
+| `minimumIdle` | int | same as max | Minimum number of idle connections | 0.1.0-alpha |
+| `connectionTimeout` | long | 30000 | Max wait for connection (ms) | 0.1.0-alpha |
+| `idleTimeout` | long | 600000 | Max idle time before close (ms) | 0.1.0-alpha |
+| `maxLifetime` | long | 1800000 | Max connection lifetime (ms) | 0.1.0-alpha |
+| `connectionTestQuery` | String | null | Query to test connection validity | 0.1.0-alpha |
+| `initializationFailTimeout` | long | 1 | Timeout for pool initialization (ms) | 0.1.0-alpha |
+| `leakDetectionThreshold` | long | 0 | Connection leak detection (ms, 0=off) | 0.1.0-alpha |
+| `validationTimeout` | long | 5000 | Max time for connection validation (ms) | 0.1.0-alpha |
+| `keepaliveTime` | long | 0 | Keepalive interval (ms, 0=off) | 0.1.0-alpha |
 
 ### Pool Sizing Guidelines
 
