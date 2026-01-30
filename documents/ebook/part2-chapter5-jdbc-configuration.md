@@ -52,13 +52,13 @@ jdbc:ojp[server-host:server-port(datasource-name)]_original-jdbc-url
 
 ### URL Components Explained
 
-| Component | Description | Example | Required |
-|-----------|-------------|---------|----------|
-| `jdbc:ojp` | OJP protocol prefix | `jdbc:ojp` | Yes |
-| `[host:port]` | OJP Server location | `[localhost:1059]` | Yes |
-| `(datasource)` | Named datasource | `(mainApp)` | No |
-| `_` | Separator | `_` | Yes |
-| Original URL | Database JDBC URL | `postgresql://...` | Yes |
+| Component | Description | Example | Required | Since |
+|-----------|-------------|---------|----------|-------|
+| `jdbc:ojp` | OJP protocol prefix | `jdbc:ojp` | Yes | 0.1.0 |
+| `[host:port]` | OJP Server location | `[localhost:1059]` | Yes | 0.1.0 |
+| `(datasource)` | Named datasource | `(mainApp)` | No | 0.1.0 |
+| `_` | Separator | `_` | Yes | 0.1.0 |
+| Original URL | Database JDBC URL | `postgresql://...` | Yes | 0.1.0 |
 
 ### Multi-Database Examples
 
@@ -281,18 +281,18 @@ graph TB
 
 **Complete Property Reference**:
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `maximumPoolSize` | int | 10 | Maximum number of connections in pool |
-| `minimumIdle` | int | same as max | Minimum number of idle connections |
-| `connectionTimeout` | long | 30000 | Max wait for connection (ms) |
-| `idleTimeout` | long | 600000 | Max idle time before close (ms) |
-| `maxLifetime` | long | 1800000 | Max connection lifetime (ms) |
-| `connectionTestQuery` | String | null | Query to test connection validity |
-| `initializationFailTimeout` | long | 1 | Timeout for pool initialization (ms) |
-| `leakDetectionThreshold` | long | 0 | Connection leak detection (ms, 0=off) |
-| `validationTimeout` | long | 5000 | Max time for connection validation (ms) |
-| `keepaliveTime` | long | 0 | Keepalive interval (ms, 0=off) |
+| Property | Type | Default | Description | Since |
+|----------|------|---------|-------------|-------|
+| `maximumPoolSize` | int | 10 | Maximum number of connections in pool | 0.1.0 |
+| `minimumIdle` | int | same as max | Minimum number of idle connections | 0.1.0 |
+| `connectionTimeout` | long | 30000 | Max wait for connection (ms) | 0.1.0 |
+| `idleTimeout` | long | 600000 | Max idle time before close (ms) | 0.1.0 |
+| `maxLifetime` | long | 1800000 | Max connection lifetime (ms) | 0.1.0 |
+| `connectionTestQuery` | String | null | Query to test connection validity | 0.1.0 |
+| `initializationFailTimeout` | long | 1 | Timeout for pool initialization (ms) | 0.1.0 |
+| `leakDetectionThreshold` | long | 0 | Connection leak detection (ms, 0=off) | 0.1.0 |
+| `validationTimeout` | long | 5000 | Max time for connection validation (ms) | 0.1.0 |
+| `keepaliveTime` | long | 0 | Keepalive interval (ms, 0=off) | 0.1.0 |
 
 ### Pool Sizing Guidelines
 
@@ -322,13 +322,13 @@ Cm = Connection multiplier (1.5-2.0 for most workloads)
 
 **Recommendations by Workload**:
 
-| Application Type | Concurrent Requests | Suggested Pool Size |
-|------------------|---------------------|---------------------|
-| Microservice (lightweight) | 10-20 | 5-10 |
-| Web Application | 50-100 | 20-30 |
-| API Server | 100-500 | 30-50 |
-| Batch Processing | Variable | 10-20 |
-| Real-time Analytics | High | 50-100 |
+| Application Type | Concurrent Requests | Suggested Pool Size | Since |
+|------------------|---------------------|---------------------|-------|
+| Microservice (lightweight) | 10-20 | 5-10 | 0.1.0 |
+| Web Application | 50-100 | 20-30 | 0.1.0 |
+| API Server | 100-500 | 30-50 | 0.1.0 |
+| Batch Processing | Variable | 10-20 | 0.1.0 |
+| Real-time Analytics | High | 50-100 | 0.1.0 |
 
 **Example Configurations**:
 
