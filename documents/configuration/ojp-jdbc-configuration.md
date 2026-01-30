@@ -267,14 +267,6 @@ Complete example configuration files for different environments are available:
 
 These examples demonstrate recommended settings for each environment and can be used as starting templates.
 
-| Property                              | Type | Default | Description                                              | Since |
-|---------------------------------------|------|---------|----------------------------------------------------------|-------|
-| `ojp.connection.pool.maximumPoolSize` | int  | 20      | Maximum number of connections in the pool                | 0.1.0 |
-| `ojp.connection.pool.minimumIdle`     | int  | 5       | Minimum number of idle connections maintained            | 0.1.0 |
-| `ojp.connection.pool.idleTimeout`     | long | 600000  | Maximum time (ms) a connection can sit idle (10 minutes) | 0.1.0 |
-| `ojp.connection.pool.maxLifetime`     | long | 1800000 | Maximum lifetime (ms) of a connection (30 minutes)       | 0.1.0 |
-| `ojp.connection.pool.connectionTimeout` | long | 10000   | Maximum time (ms) to wait for a connection (10 seconds)  | 0.1.0 |
-
 ### Connection Pool Properties
 
 | Property                              | Type | Default | Description                                              | Since |
