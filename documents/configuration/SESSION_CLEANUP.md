@@ -57,13 +57,13 @@ The cleanup task runs periodically (default: every 5 minutes) and:
 
 OJP session timeouts complement the existing connection pool timeouts:
 
-| Component | Timeout | Purpose | Since |
-|-----------|---------|---------|-------|
+| Component | Timeout | Purpose | Since (OJP Feature) |
+|-----------|---------|---------|---------------------|
 | **OJP Session** | 30 min (default) | Cleans up session objects and associated resources | 0.3.0 |
-| **HikariCP idle** | 10 min (default) | Returns idle connections to the pool | 0.1.0 |
-| **HikariCP maxLifetime** | 30 min (default) | Maximum connection lifetime | 0.1.0 |
-| **DBCP2 idle** | 10 min (default) | Evicts idle connections | 0.1.0 |
-| **DBCP2 maxLifetime** | 30 min (default) | Maximum connection lifetime | 0.1.0 |
+| **HikariCP idle** | 10 min (default) | Returns idle connections to the pool | N/A (HikariCP) |
+| **HikariCP maxLifetime** | 30 min (default) | Maximum connection lifetime | N/A (HikariCP) |
+| **DBCP2 idle** | 10 min (default) | Evicts idle connections | N/A (DBCP2) |
+| **DBCP2 maxLifetime** | 30 min (default) | Maximum connection lifetime | N/A (DBCP2) |
 
 ## Configuration
 

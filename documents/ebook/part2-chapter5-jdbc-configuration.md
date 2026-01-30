@@ -52,13 +52,13 @@ jdbc:ojp[server-host:server-port(datasource-name)]_original-jdbc-url
 
 ### URL Components Explained
 
-| Component | Description | Example | Required | Since |
-|-----------|-------------|---------|----------|-------|
-| `jdbc:ojp` | OJP protocol prefix | `jdbc:ojp` | Yes | 0.1.0 |
-| `[host:port]` | OJP Server location | `[localhost:1059]` | Yes | 0.1.0 |
-| `(datasource)` | Named datasource | `(mainApp)` | No | 0.1.0 |
-| `_` | Separator | `_` | Yes | 0.1.0 |
-| Original URL | Database JDBC URL | `postgresql://...` | Yes | 0.1.0 |
+| Component | Description | Example | Required |
+|-----------|-------------|---------|----------|
+| `jdbc:ojp` | OJP protocol prefix | `jdbc:ojp` | Yes |
+| `[host:port]` | OJP Server location | `[localhost:1059]` | Yes |
+| `(datasource)` | Named datasource | `(mainApp)` | No |
+| `_` | Separator | `_` | Yes |
+| Original URL | Database JDBC URL | `postgresql://...` | Yes |
 
 ### Multi-Database Examples
 
@@ -322,13 +322,13 @@ Cm = Connection multiplier (1.5-2.0 for most workloads)
 
 **Recommendations by Workload**:
 
-| Application Type | Concurrent Requests | Suggested Pool Size | Since |
-|------------------|---------------------|---------------------|-------|
-| Microservice (lightweight) | 10-20 | 5-10 | 0.1.0 |
-| Web Application | 50-100 | 20-30 | 0.1.0 |
-| API Server | 100-500 | 30-50 | 0.1.0 |
-| Batch Processing | Variable | 10-20 | 0.1.0 |
-| Real-time Analytics | High | 50-100 | 0.1.0 |
+| Application Type | Concurrent Requests | Suggested Pool Size |
+|------------------|---------------------|---------------------|
+| Microservice (lightweight) | 10-20 | 5-10 |
+| Web Application | 50-100 | 20-30 |
+| API Server | 100-500 | 30-50 |
+| Batch Processing | Variable | 10-20 |
+| Real-time Analytics | High | 50-100 |
 
 **Example Configurations**:
 
