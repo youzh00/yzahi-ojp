@@ -13,7 +13,9 @@ public class CircuitBreakerMetrics {
 
     private final Meter meter = GlobalOpenTelemetry.getMeter("ojp.server.circuit.breaker");
     private final ObservableLongGauge observableGauge;
-    private final LongCounter counter;
+    private final LongCounter transitionsCounter;
+    private final LongCounter tripsCounter;
+
     private final ConcurrentHashMap<String, State> states = new ConcurrentHashMap<>();
 
     private static final AttributeKey<String> QUERY_HASH = AttributeKey.stringKey("query_hash");
@@ -31,8 +33,12 @@ public class CircuitBreakerMetrics {
                 .ofLongs()
                 .buildWithCallback(this::observeState);
 
-        this.counter = this.meter.counterBuilder("ojp.circuit_breaker.transitions.total")
+        this.transitionsCounter = this.meter.counterBuilder("ojp.circuit_breaker.trips.total")
                 .setDescription("Counts circuit breaker state transitions")
+                .build();
+
+        this.tripsCounter = this.meter.counterBuilder("ojp.circuit_breaker.transitions.total")
+                .setDescription("Number of times the circuit breaker opened due to failures")
                 .build();
     }
 
@@ -58,7 +64,7 @@ public class CircuitBreakerMetrics {
             }
 
             // Real transition detected → increment counter
-            counter.add(
+            transitionsCounter.add(
                     1,
                     Attributes.of(
                             FROM_STATE, previousState.name(),
